@@ -61,29 +61,9 @@
       </div>
 
       <div class="sidebar-card">
-        <div class="card-eyebrow">AI Settings</div>
-        <h2>Grok Configuration</h2>
-        <label class="bot-field">
-          <span>Puter.js Access</span>
-          <input id="botApiKey" type="password" placeholder="No API key needed with Puter.js" disabled>
-        </label>
-        <label class="bot-field">
-          <span>Connection</span>
-          <input id="botBaseUrl" type="url" placeholder="Managed by Puter.js" disabled>
-        </label>
-        <label class="bot-field">
-          <span>Model</span>
-          <input id="botModel" type="text" placeholder="x-ai/grok-4.20-beta">
-        </label>
-        <div class="sidebar-actions">
-          <button class="bot-btn bot-btn-secondary" type="button" onclick="signInToBotGrok()">Sign In to Grok</button>
-          <button class="bot-btn bot-btn-secondary" type="button" id="botBestFreePresetBtn">Use Grok 4.20 Beta</button>
-          <button class="bot-btn bot-btn-secondary" type="button" id="botFastFreePresetBtn">Use Grok 4.1 Fast</button>
-        </div>
-        <div class="sidebar-actions">
-          <button class="bot-btn bot-btn-secondary" type="button" id="saveBotSettingsBtn">Save AI Settings</button>
-        </div>
-        <p class="sidebar-note">Recommended preset: Grok 4.20 Beta through Puter.js. No API key or backend proxy is required here, but Puter may prompt the user to sign in.</p>
+        <div class="card-eyebrow">AI Status</div>
+        <h2>Built-in AI</h2>
+        <p class="sidebar-note">ORGANOBOT now uses the built-in server AI for chemistry chat. No external AI account, login, or model setup is required on this page.</p>
       </div>
     </aside>
 
@@ -93,7 +73,7 @@
           <div class="card-eyebrow">Live Chemistry Chat</div>
           <h2 id="sessionTitle">New chemistry chat</h2>
         </div>
-        <div class="chat-status" id="botStatus" role="status" aria-live="polite">Loading shared Grok AI for ORGANOBOT...</div>
+        <div class="chat-status" id="botStatus" role="status" aria-live="polite">Checking built-in AI availability for ORGANOBOT...</div>
       </div>
 
       <div class="chat-log" id="chatLog" aria-live="polite"></div>
@@ -111,7 +91,6 @@
   </section>
 </main>
 
-<script src="https://js.puter.com/v2/"></script>
 <script src="organochem-ai.js"></script>
 <script src="organobot.js"></script>
 </body>

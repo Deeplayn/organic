@@ -139,7 +139,10 @@ image.png<!DOCTYPE html>
               <button type="button" class="button secondary" id="resetViewBtn">Reset</button>
             </div>
           </div>
-          <div id="viewer3d" class="viewer-canvas" aria-label="3D molecule viewer"></div>
+          <div class="viewer-stage">
+            <div id="viewer3d" class="viewer-canvas" aria-label="3D molecule viewer"></div>
+            <aside id="viewerAtomLegend" class="viewer-atom-legend" aria-label="Atom identification guide"></aside>
+          </div>
           <p id="viewerStatus" class="viewer-status" role="status" aria-live="polite">Preparing 3D viewer.</p>
         </div>
       </section>

@@ -2,27 +2,21 @@
   const AI_SETTINGS_KEY='oc-ai-settings-v1';
   const AI_PLANNER_KEY='oc-ai-planner-v1';
   const ORGANOBOT_HISTORY_KEY='oc-organobot-history-v1';
-  const PUTER_SCRIPT_URL='https://js.puter.com/v2/';
+  const AI_PROXY_URL='/api/chat';
+  const DEFAULT_AI_MODEL='x-ai/grok-4.20-beta';
   const AI_PROVIDER_PRESETS={
-    grokRecommended:{
-      id:'grokRecommended',
-      label:'Grok 4.20 Beta',
-      provider:'xAI via Puter',
-      summary:'Recommended Grok preset for ORGANOBOT and the planner.',
-      model:'x-ai/grok-4.20-beta'
-    },
-    grokFast:{
-      id:'grokFast',
-      label:'Grok 4.1 Fast',
-      provider:'xAI via Puter',
-      summary:'Faster Grok preset when you want lower latency.',
-      model:'x-ai/grok-4-1-fast'
+    builtIn:{
+      id:'builtIn',
+      label:'Built-in AI',
+      provider:'Server proxy',
+      summary:'Built-in chemistry assistant and roadmap planner.',
+      model:DEFAULT_AI_MODEL
     }
   };
   const DEFAULT_AI_SETTINGS={
     apiKey:'',
     baseUrl:'',
-    model:AI_PROVIDER_PRESETS.grokRecommended.model
+    model:DEFAULT_AI_MODEL
   };
 
   const CHEMISTRY_CHAT_SYSTEM_PROMPT=[
@@ -68,60 +62,39 @@
     return value;
   }
 
-  function shouldUpgradeLegacySettings(saved){
-    const baseUrl=String(saved?.baseUrl||'').trim().toLowerCase();
-    const model=String(saved?.model||'').trim();
-    if(!model)return true;
-    if(String(saved?.apiKey||'').trim())return true;
-    if(baseUrl)return true;
-    return[
-      'gpt-4o-mini',
-      'openai/gpt-oss-120b',
-      'openai/gpt-oss-20b:free',
-      'openai/gpt-oss-120b:free',
-      'stepfun/step-3.5-flash:free'
-    ].includes(model)||baseUrl.includes('openrouter.ai')||baseUrl.includes('api.openai.com')||baseUrl.includes('api.groq.com');
-  }
-
-  function getAIProviderPreset(id='grokRecommended'){
-    const preset=AI_PROVIDER_PRESETS[id]||AI_PROVIDER_PRESETS.grokRecommended;
+  function getAIProviderPreset(id='builtIn'){
+    const preset=AI_PROVIDER_PRESETS[id]||AI_PROVIDER_PRESETS.builtIn;
     return{...preset};
   }
 
-  function buildAISettingsFromPreset(id,partial={}){
-    const preset=getAIProviderPreset(id);
+  function buildAISettingsFromPreset(id='builtIn',partial={}){
     return{
       ...readAISettings(),
       ...partial,
+      apiKey:'',
       baseUrl:'',
-      model:preset.model
+      model:DEFAULT_AI_MODEL
     };
   }
 
   function readAISettings(){
     const saved=readStorageJson(AI_SETTINGS_KEY,{});
-    const useRecommendedDefaults=shouldUpgradeLegacySettings(saved);
-    const normalizedSaved={
+    return{
+      ...DEFAULT_AI_SETTINGS,
       ...saved,
       apiKey:'',
       baseUrl:'',
-      model:useRecommendedDefaults?'':saved.model
-    };
-    return{
-      ...DEFAULT_AI_SETTINGS,
-      ...normalizedSaved,
-      apiKey:'',
-      baseUrl:'',
-      model:String(normalizedSaved.model||DEFAULT_AI_SETTINGS.model).trim()
+      model:DEFAULT_AI_MODEL
     };
   }
 
-  function saveAISettings(partial){
+  function saveAISettings(partial={}){
     const next={
       ...readAISettings(),
       ...partial,
       apiKey:'',
-      baseUrl:''
+      baseUrl:'',
+      model:DEFAULT_AI_MODEL
     };
     return writeStorageJson(AI_SETTINGS_KEY,next);
   }
@@ -158,82 +131,98 @@
     return '';
   }
 
+  function safeParseJson(text){
+    try{
+      return JSON.parse(text);
+    }catch{
+      return null;
+    }
+  }
+
   function normalizeAIError(error){
     if(!error)return'Unknown AI error.';
     if(typeof error==='string')return error;
-    return error.message||'Unknown AI error.';
+    if(typeof error?.error?.message==='string')return error.error.message;
+    if(typeof error?.message==='string')return error.message;
+    return'Unknown AI error.';
   }
 
-  function extractPuterMessageContent(response){
-    if(typeof response==='string')return response;
-    const message=response?.message;
+  function extractProxyMessageContent(response){
+    const message=response?.choices?.[0]?.message;
     const content=normalizeContent(message?.content);
     if(content)return content;
-    if(typeof response?.text==='string')return response.text;
-    if(typeof response?.content==='string')return response.content;
     return '';
   }
 
   async function readHostedProxyStatus(force=false){
-    const available=Boolean(window.puter?.ai?.chat);
-    const signedIn=available&&typeof window.puter?.auth?.isSignedIn==='function'
-      ?Boolean(window.puter.auth.isSignedIn())
-      :false;
-    return Promise.resolve({
-      available,
-      configured:available,
-      url:PUTER_SCRIPT_URL,
-      reason:available?'loaded':'missing-client',
-      signedIn
-    });
-  }
-
-  async function signInToPuter(){
-    if(!window.puter?.auth?.signIn){
-      throw new Error('Puter sign-in is unavailable right now.');
+    try{
+      const response=await fetch(AI_PROXY_URL,{
+        method:'GET',
+        headers:{Accept:'application/json'}
+      });
+      const payload=safeParseJson(await response.text())||{};
+      return{
+        available:response.ok,
+        configured:Boolean(payload.configured),
+        url:AI_PROXY_URL,
+        reason:response.ok?(payload.configured?'configured':'missing-server-key'):'proxy-error',
+        signedIn:true
+      };
+    }catch{
+      return{
+        available:false,
+        configured:false,
+        url:AI_PROXY_URL,
+        reason:'network-error',
+        signedIn:false
+      };
     }
-    return window.puter.auth.signIn({attempt_temp_user_creation:true});
-  }
-
-  async function signOutOfPuter(){
-    if(!window.puter?.auth?.signOut)return;
-    await window.puter.auth.signOut();
   }
 
   function normalizeRequestMessages(messages){
-    return(messages||[]).map(message=>{
-      const normalized={
-        role:message.role,
-        content:message.content
-      };
-      if(message.reasoning_details)normalized.reasoning_details=message.reasoning_details;
-      return normalized;
-    });
+    return(messages||[]).map(message=>({
+      role:message.role,
+      content:normalizeContent(message.content)
+    })).filter(message=>message.role&&message.content);
   }
 
   async function createChatCompletion({messages,jsonMode=false,temperature=.4,reasoningEnabled=false}){
     const settings=readAISettings();
-    const clientStatus=await readHostedProxyStatus();
-    if(!clientStatus.available){
-      throw new Error('The Grok client did not load. Check your internet connection, disable any script blocker for js.puter.com, and reload the page.');
-    }
-    if(!settings.model)throw new Error('Choose a Grok model in the AI settings panel.');
+    const payload={
+      model:settings.model||DEFAULT_AI_MODEL,
+      messages:normalizeRequestMessages(messages),
+      temperature
+    };
+    if(jsonMode)payload.response_format={type:'json_object'};
+    if(reasoningEnabled)payload.reasoning={enabled:true};
 
     let response;
     try{
-      response=await window.puter.ai.chat(normalizeRequestMessages(messages),{
-        model:settings.model
+      response=await fetch(AI_PROXY_URL,{
+        method:'POST',
+        headers:{
+          'Accept':'application/json',
+          'Content-Type':'application/json'
+        },
+        body:JSON.stringify(payload)
       });
-    }catch(error){
-      throw new Error(normalizeAIError(error));
+    }catch{
+      throw new Error('The built-in AI service could not be reached. Check your server connection and try again.');
     }
 
-    const content=extractPuterMessageContent(response);
+    const rawText=await response.text();
+    const parsed=safeParseJson(rawText);
+
+    if(!response.ok){
+      throw new Error(normalizeAIError(parsed||rawText||'The built-in AI request failed.'));
+    }
+
+    const content=extractProxyMessageContent(parsed);
     if(!content.trim())throw new Error('The AI service returned an empty response.');
     return{
       content:stripCodeFences(content),
       reasoningDetails:null,
-      payload:response,
+      payload:parsed,
       settings
     };
   }
@@ -333,10 +322,10 @@
       if(isMarkdownTable(lines)){
         return renderMarkdownTable(lines);
       }
-      if(lines.length&&lines.every(line=>/^[-*]\s+/.test(line))){
+      if(lines.every(line=>/^[-*]\s+/.test(line))){
         return `<ul>${lines.map(line=>`<li>${formatInlineHtml(line.replace(/^[-*]\s+/,''))}</li>`).join('')}</ul>`;
       }
-      if(lines.length&&lines.every(line=>/^\d+\.\s+/.test(line))){
+      if(lines.every(line=>/^\d+\.\s+/.test(line))){
         return `<ol>${lines.map(line=>`<li>${formatInlineHtml(line.replace(/^\d+\.\s+/,''))}</li>`).join('')}</ol>`;
       }
       return `<p>${lines.map(formatInlineHtml).join('<br>')}</p>`;
@@ -347,7 +336,8 @@
     AI_SETTINGS_KEY,
     AI_PLANNER_KEY,
     ORGANOBOT_HISTORY_KEY,
-    PUTER_SCRIPT_URL,
+    AI_PROXY_URL,
+    DEFAULT_AI_MODEL,
     AI_PROVIDER_PRESETS,
     DEFAULT_AI_SETTINGS,
     CHEMISTRY_CHAT_SYSTEM_PROMPT,
@@ -364,8 +354,6 @@
     clearPlannerCache,
     normalizeAIError,
     readHostedProxyStatus,
-    signInToPuter,
-    signOutOfPuter,
     createChatCompletion,
     requestPlannerRoadmap,
     formatAssistantHtml

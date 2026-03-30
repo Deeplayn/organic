@@ -371,6 +371,9 @@ select:focus,input[type="search"]:focus{border-color:var(--accent);outline:none;
   align-items:flex-start;
   margin-bottom:1rem;
 }
+.viewer-stage{
+  position:relative;
+}
 .viewer-canvas{
   position:relative;
   width:100%;
@@ -384,6 +387,60 @@ select:focus,input[type="search"]:focus{border-color:var(--accent);outline:none;
 }
 .viewer-canvas canvas{
   display:block;
+}
+.viewer-atom-legend{
+  position:absolute;
+  top:1rem;
+  right:1rem;
+  width:min(220px,calc(100% - 2rem));
+  max-height:250px;
+  overflow:auto;
+  padding:.85rem;
+  border-radius:16px;
+  border:1px solid var(--border);
+  background:rgba(7,11,22,.86);
+  backdrop-filter:blur(12px);
+  box-shadow:var(--shadow);
+}
+.viewer-atom-legend-title{
+  margin-bottom:.55rem;
+  font-family:var(--font-mono);
+  font-size:.72rem;
+  text-transform:uppercase;
+  letter-spacing:.12em;
+  color:var(--accent);
+}
+.viewer-atom-legend-list{
+  display:grid;
+  gap:.42rem;
+}
+.viewer-atom-legend-item{
+  display:flex;
+  align-items:center;
+  gap:.6rem;
+  padding:.48rem .56rem;
+  border-radius:12px;
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(123,156,255,.16);
+  color:var(--text);
+  font-size:.82rem;
+  line-height:1.35;
+}
+.viewer-atom-swatch{
+  width:.72rem;
+  height:.72rem;
+  flex:0 0 .72rem;
+  border-radius:50%;
+  border:1px solid rgba(255,255,255,.4);
+}
+.viewer-atom-code{
+  font-family:var(--font-mono);
+  color:var(--text-bright);
+}
+.viewer-atom-empty{
+  color:var(--text-dim);
+  font-size:.82rem;
+  line-height:1.6;
 }
 .viewer-status{margin-top:.8rem;}
 
@@ -535,6 +592,12 @@ a:focus-visible,button:focus-visible,select:focus-visible,input[type="search"]:f
   .hero,.workspace,.highlight-strip,.property-grid,.prep-overview,.synthesis-grid{grid-template-columns:1fr;}
   .site-header{position:relative;flex-direction:column;}
   .header-actions,.viewer-head{flex-direction:column;}
+  .viewer-atom-legend{
+    position:static;
+    width:100%;
+    max-height:220px;
+    margin-top:.85rem;
+  }
 }
 @media (max-width: 640px){
   .hero-copy,.hero-panel,.builder-form,.material-preview,.panel{padding:1.15rem;}

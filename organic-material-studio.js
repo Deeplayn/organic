@@ -250,6 +250,7 @@ const searchCompoundBtn=document.getElementById('searchCompoundBtn');
 const builderStatus=document.getElementById('builderStatus');
 const viewerStatus=document.getElementById('viewerStatus');
 const viewerCaption=document.getElementById('viewerCaption');
+const viewerAtomLegend=document.getElementById('viewerAtomLegend');
 const apiDataList=document.getElementById('apiDataList');
 const propertyHighlights=document.getElementById('propertyHighlights');
 const prepOverview=document.getElementById('prepOverview');
@@ -258,6 +259,7 @@ let currentViewer=null;
 let currentViewerStyle='stick';
 let currentSdf='';
 let currentRenderMode='none';
+let currentViewerAtoms=[];
 
 function escapeHtml(value){
   return String(value)
@@ -437,6 +439,77 @@ function setViewerStatus(message){
   viewerStatus.textContent=message;
 }
 
+function atomColor(element){
+  const palette={
+    H:'#f6f9ff',
+    C:'#d9e4ff',
+    N:'#7b9cff',
+    O:'#ff8e8e',
+    S:'#ffd26b',
+    P:'#ffb86c',
+    F:'#74f0d7',
+    Cl:'#74f0d7',
+    Br:'#c792ff',
+    I:'#d6b3ff'
+  };
+  return palette[element]||'#c7d3ea';
+}
+
+function formatAtomCode(atom){
+  return `${atom.element}${atom.index}`;
+}
+
+function parseSdfAtoms(sdf){
+  const lines=String(sdf||'').split(/\r?\n/);
+  const countsLine=lines[3]||'';
+  const atomCount=Number.parseInt(countsLine.slice(0,3).trim(),10);
+  if(!Number.isFinite(atomCount)||atomCount<=0)return[];
+  return Array.from({length:atomCount},(_,index)=>{
+    const line=lines[4+index]||'';
+    const parts=line.trim().split(/\s+/);
+    const element=(parts[3]||'?').replace(/[^A-Za-z]/g,'')||'?';
+    return{
+      index:index+1,
+      element,
+      x:Number.parseFloat(parts[0])||0,
+      y:Number.parseFloat(parts[1])||0,
+      z:Number.parseFloat(parts[2])||0
+    };
+  });
+}
+
+function renderViewerAtomLegend(atoms=[]){
+  currentViewerAtoms=atoms;
+  if(!viewerAtomLegend)return;
+  if(!atoms.length){
+    viewerAtomLegend.innerHTML='<div class="viewer-atom-legend-title">Atom guide</div><div class="viewer-atom-empty">Load a structure to see atom labels and the full legend.</div>';
+    return;
+  }
+  viewerAtomLegend.innerHTML=`<div class="viewer-atom-legend-title">Atom guide</div><div class="viewer-atom-legend-list">${atoms.map(atom=>`<div class="viewer-atom-legend-item"><span class="viewer-atom-swatch" style="background:${atomColor(atom.element)}"></span><span class="viewer-atom-code">${formatAtomCode(atom)}</span><span>${escapeHtml(atom.element)}</span></div>`).join('')}</div>`;
+}
+
+function clearViewerLabels(){
+  if(currentViewer&&typeof currentViewer.removeAllLabels==='function'){
+    currentViewer.removeAllLabels();
+  }
+}
+
+function renderViewerAtomLabels(){
+  if(!currentViewer||!currentViewerAtoms.length||typeof currentViewer.addLabel!=='function')return;
+  clearViewerLabels();
+  currentViewerAtoms.forEach(atom=>{
+    currentViewer.addLabel(formatAtomCode(atom),{
+      position:{x:atom.x+.12,y:atom.y+.12,z:atom.z+.12},
+      fontSize:12,
+      fontColor:atomColor(atom.element),
+      backgroundColor:'rgba(7,11,22,0.82)',
+      borderColor:'rgba(123,156,255,0.22)',
+      showBackground:true,
+      inFront:true
+    });
+  });
+}
+
 function getSelectedLocalMaterial(){
   return materials.find(entry=>entry.id===materialSelect.value)||null;
 }
@@ -457,6 +530,8 @@ function resetViewerShell(message='3D viewer will update when a compound is load
   currentViewer=null;
   currentSdf='';
   currentRenderMode='none';
+  currentViewerAtoms=[];
+  renderViewerAtomLegend([]);
   setViewerStatus(message);
 }
 
@@ -477,6 +552,7 @@ function applyViewerStyle(){
   }
   currentViewer.resize();
   currentViewer.zoomTo();
+  renderViewerAtomLabels();
   currentViewer.render();
 }
 
@@ -487,13 +563,15 @@ function renderSdfInViewer(sdf,compoundName,mode='3d'){
   }
   const viewer=ensureViewer();
   viewer.clear();
+  clearViewerLabels();
   if(typeof viewer.removeAllModels==='function')viewer.removeAllModels();
   viewer.addModel(sdf,'sdf');
   currentSdf=sdf;
   currentRenderMode=mode;
+  renderViewerAtomLegend(parseSdfAtoms(sdf));
   applyViewerStyle();
   viewerCaption.textContent=`${mode==='3d'?'3D conformer':'2D structure'} for ${compoundName}. Drag to rotate and scroll to zoom.`;
-  setViewerStatus(`${mode==='3d'?'3D conformer':'2D structure'} loaded for ${compoundName}.`);
+  setViewerStatus(`${mode==='3d'?'3D conformer':'2D structure'} loaded for ${compoundName} with atom labels.`);
 }
 
 function renderLocalMaterial(material){
@@ -879,6 +957,7 @@ document.getElementById('resetViewBtn').addEventListener('click',()=>{
   if(currentViewer){
     currentViewer.resize();
     currentViewer.zoomTo();
+    renderViewerAtomLabels();
     currentViewer.render();
     setViewerStatus('3D view reset.');
   }

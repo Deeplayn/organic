@@ -106,60 +106,21 @@ function renderOrganobot(){
   renderMessages();
 }
 
-function populateBotSettings(){
-  if(!AI)return;
-  const settings=AI.readAISettings();
-  document.getElementById('botApiKey').value=settings.apiKey;
-  document.getElementById('botBaseUrl').value=settings.baseUrl;
-  document.getElementById('botModel').value=settings.model;
-}
-
-function applyBotPreset(presetId){
-  if(!AI)return;
-  const presetSettings=AI.buildAISettingsFromPreset(presetId,{
-    apiKey:document.getElementById('botApiKey').value.trim()
-  });
-  document.getElementById('botBaseUrl').value=presetSettings.baseUrl;
-  document.getElementById('botModel').value=presetSettings.model;
-  setBotStatus(`Loaded ${AI.getAIProviderPreset(presetId).label}. Save AI settings to use it for ORGANOBOT and the planner.`);
-}
-
-async function saveBotSettings(){
-  if(!AI)return;
-  AI.saveAISettings({
-    apiKey:document.getElementById('botApiKey').value.trim(),
-    baseUrl:document.getElementById('botBaseUrl').value.trim(),
-    model:document.getElementById('botModel').value.trim()
-  });
-  await refreshBotActivationState();
-}
-
 async function refreshBotActivationState(){
   if(!AI){
-    setBotStatus('The shared Grok client is unavailable right now.');
+    setBotStatus('Built-in AI is unavailable right now.');
     return;
   }
   const client=await AI.readHostedProxyStatus();
-  if(client.available&&client.signedIn){
-    setBotStatus('Grok is ready. ORGANOBOT can answer chemistry questions.');
+  if(client.available&&client.configured){
+    setBotStatus('Built-in AI is ready. ORGANOBOT can answer chemistry questions.');
     return;
   }
-  if(client.available&&!client.signedIn){
-    setBotStatus('Puter loaded. Sign in to Grok to activate ORGANOBOT.');
+  if(client.available&&!client.configured){
+    setBotStatus('Built-in AI is not configured on the server yet.');
     return;
   }
-  setBotStatus('Grok is unavailable right now. Check your internet connection and allow js.puter.com.');
-}
-
-async function signInToBotGrok(){
-  if(!AI)return;
-  setBotStatus('Opening Puter sign-in...');
-  try{
-    await AI.signInToPuter();
-    await refreshBotActivationState();
-  }catch(error){
-    setBotStatus(`Grok sign-in did not complete. ${AI.normalizeAIError(error)}`);
-  }
+  setBotStatus('Built-in AI is unavailable right now. Check the server connection and try again.');
 }
 
 function addMessage(role,content,meta={}){
@@ -218,13 +179,10 @@ async function sendToOrganobot(prompt){
     setBotStatus('ORGANOBOT answered. Ask a follow-up or start a new chemistry chat.');
   }catch(error){
     addMessage('assistant',`I could not reach the AI service just now. ${AI.normalizeAIError(error)}`);
-    setBotStatus('The AI request failed. Check your settings or try again.');
+    setBotStatus('The AI request failed. Check the server connection or try again.');
   }
 }
 
-document.getElementById('botBestFreePresetBtn').addEventListener('click',()=>applyBotPreset('openRouterBestFree'));
-document.getElementById('botFastFreePresetBtn').addEventListener('click',()=>applyBotPreset('openRouterAltFree'));
-document.getElementById('saveBotSettingsBtn').addEventListener('click',saveBotSettings);
 document.getElementById('newSessionBtn').addEventListener('click',()=>{
   const session=createSession();
   botState.sessions.unshift(session);
@@ -249,6 +207,5 @@ document.querySelectorAll('[data-prompt]').forEach(button=>{
   button.addEventListener('click',()=>sendToOrganobot(button.dataset.prompt||''));
 });
 
-populateBotSettings();
 renderOrganobot();
 refreshBotActivationState();

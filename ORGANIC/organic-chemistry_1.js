@@ -231,63 +231,24 @@ function setPlannerError(message=''){
 }
 
 function syncPlannerAISettingsUI(){
-  if(!AI)return;
-  const settings=AI.readAISettings();
-  document.getElementById('aiApiKey').value=settings.apiKey;
-  document.getElementById('aiBaseUrl').value=settings.baseUrl;
-  document.getElementById('aiModel').value=settings.model;
+  return;
 }
 
 async function refreshPlannerActivationState(){
   if(!AI){
-    setPlannerStatus('Use the offline quick plan while the shared Grok client is unavailable.');
+    setPlannerStatus('Built-in AI is unavailable right now. You can still use the offline quick plan.');
     return;
   }
   const client=await AI.readHostedProxyStatus();
-  if(client.available&&client.signedIn){
-    setPlannerStatus('Shared Grok AI is ready. Generate a roadmap whenever you are ready.');
+  if(client.available&&client.configured){
+    setPlannerStatus('Built-in AI is ready. Generate a roadmap whenever you are ready.');
     return;
   }
-  if(client.available&&!client.signedIn){
-    setPlannerStatus('Puter loaded. Sign in to Grok, then generate a roadmap.');
+  if(client.available&&!client.configured){
+    setPlannerStatus('Built-in AI is not configured on the server. You can still use the offline quick plan.');
     return;
   }
-  setPlannerStatus('Grok is unavailable right now. Check your internet connection, allow js.puter.com, or use the offline quick plan.');
-}
-
-async function signInToPlannerGrok(){
-  if(!AI)return;
-  setPlannerError('');
-  setPlannerStatus('Opening Puter sign-in...');
-  try{
-    await AI.signInToPuter();
-    await refreshPlannerActivationState();
-  }catch(error){
-    setPlannerStatus('Grok sign-in did not complete.');
-    setPlannerError(AI.normalizeAIError(error));
-  }
-}
-
-function applyPlannerPreset(presetId){
-  if(!AI)return;
-  const presetSettings=AI.buildAISettingsFromPreset(presetId,{
-    apiKey:document.getElementById('aiApiKey').value.trim()
-  });
-  document.getElementById('aiBaseUrl').value=presetSettings.baseUrl;
-  document.getElementById('aiModel').value=presetSettings.model;
-  setPlannerError('');
-  setPlannerStatus(`Loaded ${AI.getAIProviderPreset(presetId).label}. Save AI settings to use it for the planner and ORGANOBOT.`);
-}
-
-async function savePlannerAISettings(){
-  if(!AI)return;
-  AI.saveAISettings({
-    apiKey:document.getElementById('aiApiKey').value.trim(),
-    baseUrl:document.getElementById('aiBaseUrl').value.trim(),
-    model:document.getElementById('aiModel').value.trim()
-  });
-  setPlannerError('');
-  await refreshPlannerActivationState();
+  setPlannerStatus('Built-in AI is unavailable right now. Check the server connection or use the offline quick plan.');
 }
 
 function readPlannerInputs(){
@@ -550,13 +511,13 @@ function buildOfflineStudyPlanObject(input){
 
 function renderLegacyPlan(plan){
   const box=document.getElementById('studyPlan');
-  box.innerHTML=plan?.tasks?.length?plan.tasks.map((task,index)=>`<div class="plan-item"><strong>${esc(task.title)} - ${task.min} min</strong><div>${esc(task.copy)}</div>${task.meta?`<div class="plan-meta">${esc(task.meta)}</div>`:''}${task.quizPreset?`<div class="plan-actions"><button class="btn btn-secondary plan-action" type="button" onclick="startPlanQuiz('${esc(task.quizPreset.category)}',${task.quizPreset.length},'${esc(task.quizPreset.difficulty)}')">${esc(task.actionLabel||'Start planned quiz')}</button></div>`:''}</div>`).join(''):'<div class="plan-empty">No plan generated yet. Choose a Grok model to generate a roadmap, or use the offline quick plan.</div>';
+  box.innerHTML=plan?.tasks?.length?plan.tasks.map((task,index)=>`<div class="plan-item"><strong>${esc(task.title)} - ${task.min} min</strong><div>${esc(task.copy)}</div>${task.meta?`<div class="plan-meta">${esc(task.meta)}</div>`:''}${task.quizPreset?`<div class="plan-actions"><button class="btn btn-secondary plan-action" type="button" onclick="startPlanQuiz('${esc(task.quizPreset.category)}',${task.quizPreset.length},'${esc(task.quizPreset.difficulty)}')">${esc(task.actionLabel||'Start planned quiz')}</button></div>`:''}</div>`).join(''):'<div class="plan-empty">No plan generated yet. Generate an AI roadmap or use the offline quick plan.</div>';
 }
 
 function renderStudyPlan(plan=getLatestStoredPlan()){
   const box=document.getElementById('studyPlan');
   if(!plan){
-    box.innerHTML='<div class="plan-empty"><strong>No roadmap generated yet.</strong><div>Save your Grok settings to generate a multi-week roadmap and next session, or use the offline quick plan.</div></div>';
+    box.innerHTML='<div class="plan-empty"><strong>No roadmap generated yet.</strong><div>Generate a multi-week roadmap and next session with the built-in AI, or use the offline quick plan.</div></div>';
     return;
   }
   if(plan.tasks)return renderLegacyPlan(plan);
@@ -615,7 +576,7 @@ function buildOfflineStudyPlan(){
   savePlanHistory(plan,input);
   document.getElementById('completedQuizzes').value=String(Math.max(input.completedQuizzes,state.quizHistory.length));
   setPlannerError('');
-  setPlannerStatus('Offline quick plan ready. Save your Grok settings when you want a richer roadmap or use ORGANOBOT.');
+  setPlannerStatus('Offline quick plan ready. Use the built-in AI whenever you want a richer roadmap or ORGANOBOT chat.');
   renderStats();
   renderStudyPlan(plan);
   renderMission();
@@ -624,8 +585,8 @@ function buildOfflineStudyPlan(){
 async function buildStudyPlan(){
   const input=readPlannerInputs();
   if(!AI){
-    setPlannerError('The shared Grok client did not load, so the AI roadmap is unavailable.');
-    setPlannerStatus('Use the offline quick plan while the shared Grok client is unavailable.');
+    setPlannerError('The built-in AI module did not load, so the AI roadmap is unavailable.');
+    setPlannerStatus('Use the offline quick plan while the built-in AI is unavailable.');
     return;
   }
   setPlannerError('');
@@ -816,9 +777,6 @@ document.getElementById('topicStatus').addEventListener('change',renderTopics);
 document.getElementById('referenceSearch').addEventListener('input',renderReference);
 document.getElementById('referenceFamily').addEventListener('change',renderReference);
 document.getElementById('referenceDifficulty').addEventListener('change',renderReference);
-document.getElementById('plannerBestFreePresetBtn').addEventListener('click',()=>applyPlannerPreset('openRouterBestFree'));
-document.getElementById('plannerFastFreePresetBtn').addEventListener('click',()=>applyPlannerPreset('openRouterAltFree'));
-
 hydratePlannerInputs();
 syncPlannerAISettingsUI();
 setPlannerError('');

@@ -157,36 +157,15 @@
           </select>
         </label>
       </div>
-      <details class="ai-settings-card">
-        <summary>AI Settings</summary>
-        <div class="control-grid three-up">
-          <label class="field">
-            <span>Puter.js Access</span>
-            <input id="aiApiKey" type="password" placeholder="No API key needed with Puter.js" disabled>
-          </label>
-          <label class="field">
-            <span>Connection</span>
-            <input id="aiBaseUrl" type="url" placeholder="Managed by Puter.js" disabled>
-          </label>
-          <label class="field">
-            <span>Model</span>
-            <input id="aiModel" type="text" placeholder="x-ai/grok-4.20-beta">
-          </label>
-        </div>
-        <div class="planner-toolbar">
-          <button class="btn btn-secondary" type="button" onclick="signInToPlannerGrok()">Sign In to Grok</button>
-          <button class="btn btn-secondary" type="button" id="plannerBestFreePresetBtn">Use Grok 4.20 Beta</button>
-          <button class="btn btn-secondary" type="button" id="plannerFastFreePresetBtn">Use Grok 4.1 Fast</button>
-        </div>
-        <p class="settings-note">Recommended preset: Grok 4.20 Beta through Puter.js. No API key or backend proxy is required in this app, but Puter may prompt the user to sign in.</p>
-        <button class="btn btn-secondary" type="button" onclick="savePlannerAISettings()">Save AI Settings</button>
-      </details>
+      <div class="ai-settings-card">
+        <p class="settings-note"><strong>Built-in AI</strong><br>Roadmap generation now uses the server-backed AI built into this app. No login, model selection, or setup is required here.</p>
+      </div>
       <div class="planner-toolbar">
         <button class="btn btn-primary" type="button" onclick="buildStudyPlan()">Generate AI Roadmap</button>
         <button class="btn btn-secondary" type="button" onclick="buildOfflineStudyPlan()">Use Offline Quick Plan</button>
         <button class="btn btn-secondary danger-btn" type="button" onclick="resetPlannerData()">Reset Planner Data</button>
       </div>
-      <div class="planner-status" id="plannerStatus" role="status" aria-live="polite">Loading shared Grok AI. You can still use the offline quick plan anytime.</div>
+      <div class="planner-status" id="plannerStatus" role="status" aria-live="polite">Checking built-in AI availability. You can still use the offline quick plan anytime.</div>
       <div class="planner-error" id="plannerError" role="alert" style="display:none;"></div>
       <div class="study-plan" id="studyPlan"></div>
     </div>
@@ -350,7 +329,6 @@
 
 <footer>Built for students who think visually &mdash; <span>OrganoChem</span> &mdash; now with study memory, filtering, guided practice, a dedicated <a href="organic-material-studio.html">material studio</a>, and <a href="organobot.html">ORGANOBOT</a>.</footer>
 
-<script src="https://js.puter.com/v2/"></script>
 <script src="organochem-ai.js"></script>
 <script src="organic-chemistry_1.js"></script>
 </body>
