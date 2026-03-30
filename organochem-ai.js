@@ -30,6 +30,8 @@
     'Answer only chemistry-related questions and politely redirect unrelated questions back to chemistry.',
     'Treat shorthand, fragments, formulas, reaction arrows, spectra values, and messy spelling or grammar as valid chemistry input when context suggests chemistry.',
     'Use the current message plus recent conversation history to infer likely chemistry intent before asking for clarification.',
+    'Format answers for an in-browser chat so they are easy to scan: use short sections, bullets, and clean spacing.',
+    'Avoid dense wall-of-text formatting, and when comparing topics prefer bullets or a compact markdown table with one row per point.',
     'Be accurate, explain step-by-step when helpful, and admit uncertainty when appropriate.',
     'Prefer concise but useful teaching language and include organic chemistry examples when relevant.'
   ].join(' ');
@@ -277,19 +279,67 @@
     }
   }
 
+  function formatInlineHtml(text){
+    return escapeHtml(text)
+      .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+      .replace(/`(.+?)`/g,'<code>$1</code>');
+  }
+
+  function splitMarkdownRow(line){
+    return String(line||'')
+      .trim()
+      .replace(/^\|/,'')
+      .replace(/\|$/,'')
+      .split('|')
+      .map(cell=>cell.trim());
+  }
+
+  function isMarkdownDividerRow(line){
+    const cells=splitMarkdownRow(line);
+    return cells.length>0&&cells.every(cell=>/^:?-{3,}:?$/.test(cell));
+  }
+
+  function isMarkdownTable(lines){
+    if(lines.length<2)return false;
+    const header=splitMarkdownRow(lines[0]);
+    if(header.length<2)return false;
+    if(!isMarkdownDividerRow(lines[1]))return false;
+    return true;
+  }
+
+  function renderMarkdownTable(lines){
+    const headers=splitMarkdownRow(lines[0]);
+    const rows=lines
+      .slice(2)
+      .filter(Boolean)
+      .map(line=>{
+        const cells=splitMarkdownRow(line);
+        return headers.map((_,index)=>cells[index]||'');
+      });
+    return `<div class="chat-table-wrap"><table class="chat-table"><thead><tr>${headers.map(cell=>`<th>${formatInlineHtml(cell)}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr>${row.map(cell=>`<td>${formatInlineHtml(cell)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+  }
+
   function formatAssistantHtml(text){
     const source=String(text||'').trim();
     if(!source)return'<p>No response.</p>';
     const blocks=source.split(/\n{2,}/).map(chunk=>chunk.trim()).filter(Boolean);
     return blocks.map(block=>{
       const lines=block.split('\n').map(line=>line.trim()).filter(Boolean);
+      if(!lines.length)return'';
+      if(lines.length===1&&/^#{1,6}\s+/.test(lines[0])){
+        const headingLevel=Math.min(6,Math.max(1,(lines[0].match(/^#+/)?.[0].length||1)+1));
+        return `<h${headingLevel}>${formatInlineHtml(lines[0].replace(/^#{1,6}\s+/,''))}</h${headingLevel}>`;
+      }
+      if(isMarkdownTable(lines)){
+        return renderMarkdownTable(lines);
+      }
       if(lines.length&&lines.every(line=>/^[-*]\s+/.test(line))){
-        return `<ul>${lines.map(line=>`<li>${escapeHtml(line.replace(/^[-*]\s+/,''))}</li>`).join('')}</ul>`;
+        return `<ul>${lines.map(line=>`<li>${formatInlineHtml(line.replace(/^[-*]\s+/,''))}</li>`).join('')}</ul>`;
       }
       if(lines.length&&lines.every(line=>/^\d+\.\s+/.test(line))){
-        return `<ol>${lines.map(line=>`<li>${escapeHtml(line.replace(/^\d+\.\s+/,''))}</li>`).join('')}</ol>`;
+        return `<ol>${lines.map(line=>`<li>${formatInlineHtml(line.replace(/^\d+\.\s+/,''))}</li>`).join('')}</ol>`;
       }
-      return `<p>${escapeHtml(lines.join(' ')).replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/`(.+?)`/g,'<code>$1</code>')}</p>`;
+      return `<p>${lines.map(formatInlineHtml).join('<br>')}</p>`;
     }).join('');
   }
 
