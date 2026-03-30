@@ -179,25 +179,21 @@ function addMessage(role,content,meta={}){
   renderOrganobot();
 }
 
-function isChemistryPrompt(text){
-  const source=String(text||'').toLowerCase();
-  if(!source.trim())return false;
-  return /(chem|organic|inorganic|mechanism|reaction|spectro|nmr|ir|mass spec|molecule|compound|alkane|alkene|alkyne|aromatic|benzene|sn1|sn2|e1|e2|grignard|carbonyl|aldehyde|ketone|ester|amide|acid|amine|stereo|chir|huckel|pi electron|oxidation|reduction|equilibrium|pka|acid-base|functional group|synthesis)/i.test(source);
+function normalizeUserPrompt(prompt){
+  return String(prompt||'')
+    .replace(/\r\n?/g,'\n')
+    .replace(/[ \t]+\n/g,'\n')
+    .replace(/\n{3,}/g,'\n\n')
+    .trim();
 }
 
 async function sendToOrganobot(prompt){
-  const trimmed=prompt.trim();
+  const trimmed=normalizeUserPrompt(prompt);
   if(!trimmed)return;
   addMessage('user',trimmed);
   document.getElementById('chatInput').value='';
 
-  if(!isChemistryPrompt(trimmed)){
-    addMessage('assistant','I stay focused on chemistry. Ask me about mechanisms, spectroscopy, functional groups, aromaticity, synthesis strategy, compound behavior, or chemistry study planning.');
-    setBotStatus('Redirected an off-topic prompt back to chemistry.');
-    return;
-  }
-
-  setBotStatus('ORGANOBOT is thinking through your chemistry question...');
+  setBotStatus('ORGANOBOT is thinking through your prompt...');
   const activeSession=getActiveSession();
   const recentMessages=activeSession.messages
     .filter(message=>message.role==='user'||message.role==='assistant')
