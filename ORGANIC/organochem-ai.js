@@ -186,6 +186,15 @@
     return error.message||'Unknown AI error.';
   }
 
+  function extractProviderErrorMessage(payload,status){
+    const rawProviderMessage=String(payload?.error?.metadata?.raw||'').trim();
+    const providerName=String(payload?.error?.metadata?.provider_name||'').trim();
+    if(rawProviderMessage){
+      return providerName?`${providerName}: ${rawProviderMessage}`:rawProviderMessage;
+    }
+    return payload?.error?.message||`AI request failed (${status}).`;
+  }
+
   const PROXY_STATUS_TTL_MS=15000;
   let proxyStatusPromise=null;
   let proxyStatusExpiresAt=0;
@@ -309,7 +318,7 @@
     }
 
     if(!response.ok){
-      throw new Error(payload?.error?.message||`AI request failed (${response.status}).`);
+      throw new Error(extractProviderErrorMessage(payload,response.status));
     }
 
     const message=payload?.choices?.[0]?.message||{};
