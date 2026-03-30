@@ -240,24 +240,15 @@ function syncPlannerAISettingsUI(){
 
 async function refreshPlannerActivationState(){
   if(!AI){
-    setPlannerStatus('Use the offline quick plan while the shared AI client is unavailable.');
+    setPlannerStatus('Use the offline quick plan while the shared Grok client is unavailable.');
     return;
   }
-  const settings=AI.readAISettings();
-  const proxy=await AI.readHostedProxyStatus();
-  if(settings.apiKey){
-    setPlannerStatus('AI settings loaded. Generate a roadmap whenever you are ready.');
+  const client=await AI.readHostedProxyStatus();
+  if(client.available){
+    setPlannerStatus('Shared Grok AI is ready. Generate a roadmap whenever you are ready.');
     return;
   }
-  if(proxy.available&&proxy.configured){
-    setPlannerStatus('Secure hosted AI is active. Generate a roadmap whenever you are ready.');
-    return;
-  }
-  if(proxy.available&&!proxy.configured){
-    setPlannerStatus('Hosted AI proxy found, but OPENROUTER_API_KEY is not configured on the server yet.');
-    return;
-  }
-  setPlannerStatus('Add your API key, or deploy the secure /api/chat proxy. You can also use the offline quick plan.');
+  setPlannerStatus('Grok is unavailable right now. Check your internet connection, allow js.puter.com, or use the offline quick plan.');
 }
 
 function applyPlannerPreset(presetId){
@@ -268,7 +259,7 @@ function applyPlannerPreset(presetId){
   document.getElementById('aiBaseUrl').value=presetSettings.baseUrl;
   document.getElementById('aiModel').value=presetSettings.model;
   setPlannerError('');
-  setPlannerStatus(`Loaded ${AI.getAIProviderPreset(presetId).label}. Save AI settings, or use the secure hosted proxy.`);
+  setPlannerStatus(`Loaded ${AI.getAIProviderPreset(presetId).label}. Save AI settings to use it for the planner and ORGANOBOT.`);
 }
 
 async function savePlannerAISettings(){
@@ -542,13 +533,13 @@ function buildOfflineStudyPlanObject(input){
 
 function renderLegacyPlan(plan){
   const box=document.getElementById('studyPlan');
-  box.innerHTML=plan?.tasks?.length?plan.tasks.map((task,index)=>`<div class="plan-item"><strong>${esc(task.title)} - ${task.min} min</strong><div>${esc(task.copy)}</div>${task.meta?`<div class="plan-meta">${esc(task.meta)}</div>`:''}${task.quizPreset?`<div class="plan-actions"><button class="btn btn-secondary plan-action" type="button" onclick="startPlanQuiz('${esc(task.quizPreset.category)}',${task.quizPreset.length},'${esc(task.quizPreset.difficulty)}')">${esc(task.actionLabel||'Start planned quiz')}</button></div>`:''}</div>`).join(''):'<div class="plan-empty">No plan generated yet. Add AI settings to generate a roadmap, or use the offline quick plan.</div>';
+  box.innerHTML=plan?.tasks?.length?plan.tasks.map((task,index)=>`<div class="plan-item"><strong>${esc(task.title)} - ${task.min} min</strong><div>${esc(task.copy)}</div>${task.meta?`<div class="plan-meta">${esc(task.meta)}</div>`:''}${task.quizPreset?`<div class="plan-actions"><button class="btn btn-secondary plan-action" type="button" onclick="startPlanQuiz('${esc(task.quizPreset.category)}',${task.quizPreset.length},'${esc(task.quizPreset.difficulty)}')">${esc(task.actionLabel||'Start planned quiz')}</button></div>`:''}</div>`).join(''):'<div class="plan-empty">No plan generated yet. Choose a Grok model to generate a roadmap, or use the offline quick plan.</div>';
 }
 
 function renderStudyPlan(plan=getLatestStoredPlan()){
   const box=document.getElementById('studyPlan');
   if(!plan){
-    box.innerHTML='<div class="plan-empty"><strong>No roadmap generated yet.</strong><div>Save AI settings to generate a multi-week roadmap and next session, or use the offline quick plan.</div></div>';
+    box.innerHTML='<div class="plan-empty"><strong>No roadmap generated yet.</strong><div>Save your Grok settings to generate a multi-week roadmap and next session, or use the offline quick plan.</div></div>';
     return;
   }
   if(plan.tasks)return renderLegacyPlan(plan);
@@ -607,7 +598,7 @@ function buildOfflineStudyPlan(){
   savePlanHistory(plan,input);
   document.getElementById('completedQuizzes').value=String(Math.max(input.completedQuizzes,state.quizHistory.length));
   setPlannerError('');
-  setPlannerStatus('Offline quick plan ready. Add AI settings when you want a richer roadmap or use ORGANOBOT.');
+  setPlannerStatus('Offline quick plan ready. Save your Grok settings when you want a richer roadmap or use ORGANOBOT.');
   renderStats();
   renderStudyPlan(plan);
   renderMission();
@@ -616,8 +607,8 @@ function buildOfflineStudyPlan(){
 async function buildStudyPlan(){
   const input=readPlannerInputs();
   if(!AI){
-    setPlannerError('The shared AI client did not load, so the AI roadmap is unavailable.');
-    setPlannerStatus('Use the offline quick plan while the shared AI client is unavailable.');
+    setPlannerError('The shared Grok client did not load, so the AI roadmap is unavailable.');
+    setPlannerStatus('Use the offline quick plan while the shared Grok client is unavailable.');
     return;
   }
   setPlannerError('');

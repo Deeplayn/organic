@@ -121,7 +121,7 @@ function applyBotPreset(presetId){
   });
   document.getElementById('botBaseUrl').value=presetSettings.baseUrl;
   document.getElementById('botModel').value=presetSettings.model;
-  setBotStatus(`Loaded ${AI.getAIProviderPreset(presetId).label}. Save AI settings, or use the secure hosted proxy.`);
+  setBotStatus(`Loaded ${AI.getAIProviderPreset(presetId).label}. Save AI settings to use it for ORGANOBOT and the planner.`);
 }
 
 async function saveBotSettings(){
@@ -136,24 +136,15 @@ async function saveBotSettings(){
 
 async function refreshBotActivationState(){
   if(!AI){
-    setBotStatus('The shared AI client is unavailable right now.');
+    setBotStatus('The shared Grok client is unavailable right now.');
     return;
   }
-  const settings=AI.readAISettings();
-  const proxy=await AI.readHostedProxyStatus();
-  if(settings.apiKey){
-    setBotStatus('ORGANOBOT is ready for chemistry questions.');
+  const client=await AI.readHostedProxyStatus();
+  if(client.available){
+    setBotStatus('Grok is ready. ORGANOBOT can answer chemistry questions.');
     return;
   }
-  if(proxy.available&&proxy.configured){
-    setBotStatus('Secure hosted AI is active. ORGANOBOT is ready for chemistry questions.');
-    return;
-  }
-  if(proxy.available&&!proxy.configured){
-    setBotStatus('Hosted AI proxy found, but OPENROUTER_API_KEY is not configured on the server yet.');
-    return;
-  }
-  setBotStatus('Add your API key, or deploy the secure /api/chat proxy to activate ORGANOBOT.');
+  setBotStatus('Grok is unavailable right now. Check your internet connection and allow js.puter.com.');
 }
 
 function addMessage(role,content,meta={}){

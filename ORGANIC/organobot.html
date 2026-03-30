@@ -62,27 +62,27 @@
 
       <div class="sidebar-card">
         <div class="card-eyebrow">AI Settings</div>
-        <h2>OpenRouter Configuration</h2>
+        <h2>Grok Configuration</h2>
         <label class="bot-field">
-          <span>API Key</span>
-          <input id="botApiKey" type="password" placeholder="Optional if your host uses the secure proxy">
+          <span>Puter.js Access</span>
+          <input id="botApiKey" type="password" placeholder="No API key needed with Puter.js" disabled>
         </label>
         <label class="bot-field">
-          <span>Base URL</span>
-          <input id="botBaseUrl" type="url" placeholder="https://openrouter.ai/api/v1/chat/completions">
+          <span>Connection</span>
+          <input id="botBaseUrl" type="url" placeholder="Managed by Puter.js" disabled>
         </label>
         <label class="bot-field">
           <span>Model</span>
-          <input id="botModel" type="text" placeholder="stepfun/step-3.5-flash:free">
+          <input id="botModel" type="text" placeholder="x-ai/grok-4.20-beta">
         </label>
         <div class="sidebar-actions">
-          <button class="bot-btn bot-btn-secondary" type="button" id="botBestFreePresetBtn">Use Recommended Free Model</button>
-          <button class="bot-btn bot-btn-secondary" type="button" id="botFastFreePresetBtn">Use Alternate Free Model</button>
+          <button class="bot-btn bot-btn-secondary" type="button" id="botBestFreePresetBtn">Use Grok 4.20 Beta</button>
+          <button class="bot-btn bot-btn-secondary" type="button" id="botFastFreePresetBtn">Use Grok 4.1 Fast</button>
         </div>
         <div class="sidebar-actions">
           <button class="bot-btn bot-btn-secondary" type="button" id="saveBotSettingsBtn">Save AI Settings</button>
         </div>
-        <p class="sidebar-note">Recommended preset: OpenRouter free API with Step 3.5 Flash. Leave the key blank when your host provides the secure `/api/chat` proxy with `OPENROUTER_API_KEY` configured.</p>
+        <p class="sidebar-note">Recommended preset: Grok 4.20 Beta through Puter.js. No API key or backend proxy is required here, but Puter may prompt the user to sign in.</p>
       </div>
     </aside>
 
@@ -92,7 +92,7 @@
           <div class="card-eyebrow">Live Chemistry Chat</div>
           <h2 id="sessionTitle">New chemistry chat</h2>
         </div>
-        <div class="chat-status" id="botStatus" role="status" aria-live="polite">Add your API key, or deploy the secure /api/chat proxy to activate ORGANOBOT.</div>
+        <div class="chat-status" id="botStatus" role="status" aria-live="polite">Loading shared Grok AI for ORGANOBOT...</div>
       </div>
 
       <div class="chat-log" id="chatLog" aria-live="polite"></div>
@@ -110,6 +110,7 @@
   </section>
 </main>
 
+<script src="https://js.puter.com/v2/"></script>
 <script src="organochem-ai.js"></script>
 <script src="organobot.js"></script>
 </body>

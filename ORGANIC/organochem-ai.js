@@ -2,37 +2,27 @@
   const AI_SETTINGS_KEY='oc-ai-settings-v1';
   const AI_PLANNER_KEY='oc-ai-planner-v1';
   const ORGANOBOT_HISTORY_KEY='oc-organobot-history-v1';
-  const AI_PROXY_PATH='/api/chat';
-  const LEGACY_OPENAI_DEFAULTS={
-    baseUrl:'https://api.openai.com/v1/chat/completions',
-    model:'gpt-4o-mini'
-  };
-  const LEGACY_GROQ_DEFAULTS={
-    baseUrl:'https://api.groq.com/openai/v1/chat/completions',
-    model:'openai/gpt-oss-120b'
-  };
+  const PUTER_SCRIPT_URL='https://js.puter.com/v2/';
   const AI_PROVIDER_PRESETS={
-    openRouterBestFree:{
-      id:'openRouterBestFree',
-      label:'OpenRouter Free: Step 3.5 Flash',
-      provider:'OpenRouter',
-      summary:'Recommended free preset for ORGANOBOT and the planner.',
-      baseUrl:'https://openrouter.ai/api/v1/chat/completions',
-      model:'stepfun/step-3.5-flash:free'
+    grokRecommended:{
+      id:'grokRecommended',
+      label:'Grok 4.20 Beta',
+      provider:'xAI via Puter',
+      summary:'Recommended Grok preset for ORGANOBOT and the planner.',
+      model:'x-ai/grok-4.20-beta'
     },
-    openRouterAltFree:{
-      id:'openRouterAltFree',
-      label:'OpenRouter Free: GPT OSS 20B',
-      provider:'OpenRouter',
-      summary:'Alternate free preset if Step 3.5 Flash is unavailable for your account settings.',
-      baseUrl:'https://openrouter.ai/api/v1/chat/completions',
-      model:'openai/gpt-oss-20b:free'
+    grokFast:{
+      id:'grokFast',
+      label:'Grok 4.1 Fast',
+      provider:'xAI via Puter',
+      summary:'Faster Grok preset when you want lower latency.',
+      model:'x-ai/grok-4-1-fast'
     }
   };
   const DEFAULT_AI_SETTINGS={
     apiKey:'',
-    baseUrl:AI_PROVIDER_PRESETS.openRouterBestFree.baseUrl,
-    model:AI_PROVIDER_PRESETS.openRouterBestFree.model
+    baseUrl:'',
+    model:AI_PROVIDER_PRESETS.grokRecommended.model
   };
 
   const CHEMISTRY_CHAT_SYSTEM_PROMPT=[
@@ -74,42 +64,23 @@
     return value;
   }
 
-  function isLegacyOpenAIDefault(saved){
-    const apiKey=String(saved?.apiKey||'').trim();
-    const baseUrl=String(saved?.baseUrl||'').trim();
+  function shouldUpgradeLegacySettings(saved){
+    const baseUrl=String(saved?.baseUrl||'').trim().toLowerCase();
     const model=String(saved?.model||'').trim();
-    if(apiKey)return false;
-    const legacyPairs=[
-      LEGACY_OPENAI_DEFAULTS,
-      LEGACY_GROQ_DEFAULTS,
-      {
-        baseUrl:'https://openrouter.ai/api/v1/chat/completions',
-        model:'openai/gpt-oss-20b:free'
-      },
-      {
-        baseUrl:'https://openrouter.ai/api/v1/chat/completions',
-        model:'openai/gpt-oss-120b:free'
-      }
-    ];
-    return legacyPairs.some(pair=>{
-      const looksLikeLegacyBaseUrl=!baseUrl||baseUrl===pair.baseUrl;
-      const looksLikeLegacyModel=!model||model===pair.model;
-      return looksLikeLegacyBaseUrl&&looksLikeLegacyModel;
-    });
-  }
-
-  function shouldUpgradeOpenRouterFreeModel(saved){
-    const baseUrl=String(saved?.baseUrl||'').trim();
-    const model=String(saved?.model||'').trim();
-    if(baseUrl!=='https://openrouter.ai/api/v1/chat/completions')return false;
+    if(!model)return true;
+    if(String(saved?.apiKey||'').trim())return true;
+    if(baseUrl)return true;
     return[
+      'gpt-4o-mini',
+      'openai/gpt-oss-120b',
       'openai/gpt-oss-20b:free',
-      'openai/gpt-oss-120b:free'
-    ].includes(model);
+      'openai/gpt-oss-120b:free',
+      'stepfun/step-3.5-flash:free'
+    ].includes(model)||baseUrl.includes('openrouter.ai')||baseUrl.includes('api.openai.com')||baseUrl.includes('api.groq.com');
   }
 
-  function getAIProviderPreset(id='openRouterBestFree'){
-    const preset=AI_PROVIDER_PRESETS[id]||AI_PROVIDER_PRESETS.openRouterBestFree;
+  function getAIProviderPreset(id='grokRecommended'){
+    const preset=AI_PROVIDER_PRESETS[id]||AI_PROVIDER_PRESETS.grokRecommended;
     return{...preset};
   }
 
@@ -118,24 +89,25 @@
     return{
       ...readAISettings(),
       ...partial,
-      baseUrl:preset.baseUrl,
+      baseUrl:'',
       model:preset.model
     };
   }
 
   function readAISettings(){
     const saved=readStorageJson(AI_SETTINGS_KEY,{});
-    const useRecommendedDefaults=isLegacyOpenAIDefault(saved)||shouldUpgradeOpenRouterFreeModel(saved);
+    const useRecommendedDefaults=shouldUpgradeLegacySettings(saved);
     const normalizedSaved={
       ...saved,
-      baseUrl:useRecommendedDefaults?'':saved.baseUrl,
+      apiKey:'',
+      baseUrl:'',
       model:useRecommendedDefaults?'':saved.model
     };
     return{
       ...DEFAULT_AI_SETTINGS,
       ...normalizedSaved,
-      apiKey:String(saved.apiKey||'').trim(),
-      baseUrl:String(normalizedSaved.baseUrl||DEFAULT_AI_SETTINGS.baseUrl).trim(),
+      apiKey:'',
+      baseUrl:'',
       model:String(normalizedSaved.model||DEFAULT_AI_SETTINGS.model).trim()
     };
   }
@@ -143,7 +115,9 @@
   function saveAISettings(partial){
     const next={
       ...readAISettings(),
-      ...partial
+      ...partial,
+      apiKey:'',
+      baseUrl:''
     };
     return writeStorageJson(AI_SETTINGS_KEY,next);
   }
@@ -186,68 +160,24 @@
     return error.message||'Unknown AI error.';
   }
 
-  function extractProviderErrorMessage(payload,status){
-    const rawProviderMessage=String(payload?.error?.metadata?.raw||'').trim();
-    const providerName=String(payload?.error?.metadata?.provider_name||'').trim();
-    if(rawProviderMessage){
-      return providerName?`${providerName}: ${rawProviderMessage}`:rawProviderMessage;
-    }
-    return payload?.error?.message||`AI request failed (${status}).`;
-  }
-
-  const PROXY_STATUS_TTL_MS=15000;
-  let proxyStatusPromise=null;
-  let proxyStatusExpiresAt=0;
-
-  function isLocalFileProtocol(){
-    return typeof window!=='undefined'&&window.location?.protocol==='file:';
-  }
-
-  function canProbeHostedProxy(){
-    return typeof window!=='undefined'&&!isLocalFileProtocol();
+  function extractPuterMessageContent(response){
+    if(typeof response==='string')return response;
+    const message=response?.message;
+    const content=normalizeContent(message?.content);
+    if(content)return content;
+    if(typeof response?.text==='string')return response.text;
+    if(typeof response?.content==='string')return response.content;
+    return '';
   }
 
   async function readHostedProxyStatus(force=false){
-    if(!canProbeHostedProxy()){
-      return{
-        available:false,
-        configured:false,
-        url:AI_PROXY_PATH,
-        reason:isLocalFileProtocol()?'file-protocol':'unavailable'
-      };
-    }
-    const now=Date.now();
-    if(proxyStatusPromise&&!force&&proxyStatusExpiresAt>now)return proxyStatusPromise;
-    proxyStatusPromise=fetch(AI_PROXY_PATH,{
-      method:'GET',
-      headers:{Accept:'application/json'}
-    }).then(async response=>{
-      if(!response.ok){
-        return{
-          available:false,
-          configured:false,
-          url:AI_PROXY_PATH,
-          reason:'unreachable'
-        };
-      }
-      let payload={};
-      try{
-        payload=await response.json();
-      }catch{}
-      return{
-        available:true,
-        configured:Boolean(payload?.configured),
-        url:AI_PROXY_PATH,
-        reason:Boolean(payload?.configured)?'configured':'missing-server-key'
-      };
-    }).catch(()=>({
-      available:false,
-      configured:false,
-      url:AI_PROXY_PATH,
-      reason:'unreachable'
-    }));
-    proxyStatusExpiresAt=now+PROXY_STATUS_TTL_MS;
-    return proxyStatusPromise;
+    const available=Boolean(window.puter?.ai?.chat);
+    return Promise.resolve({
+      available,
+      configured:available,
+      url:PUTER_SCRIPT_URL,
+      reason:available?'loaded':'missing-client'
+    });
   }
 
   function normalizeRequestMessages(messages){
@@ -263,71 +193,27 @@
 
   async function createChatCompletion({messages,jsonMode=false,temperature=.4,reasoningEnabled=false}){
     const settings=readAISettings();
-    let proxyStatus=await readHostedProxyStatus();
-    if(!settings.apiKey&&(!proxyStatus.available||!proxyStatus.configured)){
-      proxyStatus=await readHostedProxyStatus(true);
+    const clientStatus=await readHostedProxyStatus();
+    if(!clientStatus.available){
+      throw new Error('The Grok client did not load. Check your internet connection, disable any script blocker for js.puter.com, and reload the page.');
     }
-    const useHostedProxy=!settings.apiKey&&proxyStatus.available&&proxyStatus.configured;
-
-    if(!useHostedProxy&&!settings.apiKey){
-      if(proxyStatus.reason==='file-protocol'){
-        throw new Error('The shared AI proxy is unavailable because this page is opened as a local file. Serve the project over http://localhost or a deployed URL, or add your own API key.');
-      }
-      if(proxyStatus.available&&!proxyStatus.configured){
-        throw new Error('Hosted AI proxy found, but OPENROUTER_API_KEY is not configured on the server yet.');
-      }
-      throw new Error('Add your AI API key in the AI settings panel, or deploy the secure /api/chat proxy with OPENROUTER_API_KEY.');
-    }
-    if(!useHostedProxy&&!settings.baseUrl){
-      throw new Error('Add a valid AI base URL in the AI settings panel.');
-    }
-    if(!settings.model)throw new Error('Add a model name in the AI settings panel.');
-
-    const body={
-      model:settings.model,
-      messages:normalizeRequestMessages(messages),
-      temperature
-    };
-    if(jsonMode)body.response_format={type:'json_object'};
-    if(reasoningEnabled)body.reasoning={enabled:true};
+    if(!settings.model)throw new Error('Choose a Grok model in the AI settings panel.');
 
     let response;
     try{
-      response=await fetch(useHostedProxy?AI_PROXY_PATH:settings.baseUrl,{
-        method:'POST',
-        headers:{
-          'Content-Type':'application/json',
-          ...(useHostedProxy?{}:{'Authorization':`Bearer ${settings.apiKey}`})
-        },
-        body:JSON.stringify(body)
+      response=await window.puter.ai.chat(normalizeRequestMessages(messages),{
+        model:settings.model
       });
-    }catch{
-      if(useHostedProxy){
-        throw new Error('The shared AI proxy could not be reached from this page.');
-      }
-      throw new Error('The AI endpoint could not be reached. Check the base URL, your network connection, and whether the provider allows browser requests.');
+    }catch(error){
+      throw new Error(normalizeAIError(error));
     }
 
-    const rawText=await response.text();
-    let payload={};
-    try{
-      payload=rawText?JSON.parse(rawText):{};
-    }catch{
-      if(!response.ok)throw new Error(`AI request failed (${response.status}).`);
-      throw new Error('The AI service returned a non-JSON response.');
-    }
-
-    if(!response.ok){
-      throw new Error(extractProviderErrorMessage(payload,response.status));
-    }
-
-    const message=payload?.choices?.[0]?.message||{};
-    const content=normalizeContent(message.content);
+    const content=extractPuterMessageContent(response);
     if(!content.trim())throw new Error('The AI service returned an empty response.');
     return{
       content:stripCodeFences(content),
-      reasoningDetails:message.reasoning_details,
-      payload,
+      reasoningDetails:null,
+      payload:response,
       settings
     };
   }
@@ -393,9 +279,7 @@
     AI_SETTINGS_KEY,
     AI_PLANNER_KEY,
     ORGANOBOT_HISTORY_KEY,
-    AI_PROXY_PATH,
-    LEGACY_OPENAI_DEFAULTS,
-    LEGACY_GROQ_DEFAULTS,
+    PUTER_SCRIPT_URL,
     AI_PROVIDER_PRESETS,
     DEFAULT_AI_SETTINGS,
     CHEMISTRY_CHAT_SYSTEM_PROMPT,

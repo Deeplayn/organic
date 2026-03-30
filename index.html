@@ -161,23 +161,23 @@
         <summary>AI Settings</summary>
         <div class="control-grid three-up">
           <label class="field">
-            <span>API Key</span>
-            <input id="aiApiKey" type="password" placeholder="Optional if your host uses the secure proxy">
+            <span>Puter.js Access</span>
+            <input id="aiApiKey" type="password" placeholder="No API key needed with Puter.js" disabled>
           </label>
           <label class="field">
-            <span>Base URL</span>
-            <input id="aiBaseUrl" type="url" placeholder="https://openrouter.ai/api/v1/chat/completions">
+            <span>Connection</span>
+            <input id="aiBaseUrl" type="url" placeholder="Managed by Puter.js" disabled>
           </label>
           <label class="field">
             <span>Model</span>
-            <input id="aiModel" type="text" placeholder="stepfun/step-3.5-flash:free">
+            <input id="aiModel" type="text" placeholder="x-ai/grok-4.20-beta">
           </label>
         </div>
         <div class="planner-toolbar">
-          <button class="btn btn-secondary" type="button" id="plannerBestFreePresetBtn">Use Recommended Free Model</button>
-          <button class="btn btn-secondary" type="button" id="plannerFastFreePresetBtn">Use Alternate Free Model</button>
+          <button class="btn btn-secondary" type="button" id="plannerBestFreePresetBtn">Use Grok 4.20 Beta</button>
+          <button class="btn btn-secondary" type="button" id="plannerFastFreePresetBtn">Use Grok 4.1 Fast</button>
         </div>
-        <p class="settings-note">Recommended preset: OpenRouter free API with Step 3.5 Flash. Leave the key blank when your host provides the secure `/api/chat` proxy with `OPENROUTER_API_KEY` configured.</p>
+        <p class="settings-note">Recommended preset: Grok 4.20 Beta through Puter.js. No API key or backend proxy is required in this app, but Puter may prompt the user to sign in.</p>
         <button class="btn btn-secondary" type="button" onclick="savePlannerAISettings()">Save AI Settings</button>
       </details>
       <div class="planner-toolbar">
@@ -185,7 +185,7 @@
         <button class="btn btn-secondary" type="button" onclick="buildOfflineStudyPlan()">Use Offline Quick Plan</button>
         <button class="btn btn-secondary danger-btn" type="button" onclick="resetPlannerData()">Reset Planner Data</button>
       </div>
-      <div class="planner-status" id="plannerStatus" role="status" aria-live="polite">Add your API key, or deploy the secure /api/chat proxy. You can also use the offline quick plan.</div>
+      <div class="planner-status" id="plannerStatus" role="status" aria-live="polite">Loading shared Grok AI. You can still use the offline quick plan anytime.</div>
       <div class="planner-error" id="plannerError" role="alert" style="display:none;"></div>
       <div class="study-plan" id="studyPlan"></div>
     </div>
@@ -349,6 +349,7 @@
 
 <footer>Built for students who think visually &mdash; <span>OrganoChem</span> &mdash; now with study memory, filtering, guided practice, a dedicated <a href="organic-material-studio.html">material studio</a>, and <a href="organobot.html">ORGANOBOT</a>.</footer>
 
+<script src="https://js.puter.com/v2/"></script>
 <script src="organochem-ai.js"></script>
 <script src="organic-chemistry_1.js"></script>
 </body>
