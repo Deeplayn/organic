@@ -1,0 +1,37 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Start Vercel Dev",
+            "type": "shell",
+            "command": "npx",
+            "args": [
+                "vercel",
+                "dev",
+                "--listen",
+                "8080"
+            ],
+            "isBackground": true,
+            "problemMatcher": {
+                "owner": "custom",
+                "pattern": [
+                    {
+                        "regexp": ".",
+                        "file": 1,
+                        "location": 1,
+                        "message": 1
+                    }
+                ],
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": ".",
+                    "endsPattern": "Ready! Available at"
+                }
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        }
+    ]
+}
