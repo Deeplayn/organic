@@ -124,14 +124,14 @@ function applyBotPreset(presetId){
   setBotStatus(`Loaded ${AI.getAIProviderPreset(presetId).label}. Save AI settings, or use the secure hosted proxy.`);
 }
 
-function saveBotSettings(){
+async function saveBotSettings(){
   if(!AI)return;
   AI.saveAISettings({
     apiKey:document.getElementById('botApiKey').value.trim(),
     baseUrl:document.getElementById('botBaseUrl').value.trim(),
     model:document.getElementById('botModel').value.trim()
   });
-  setBotStatus('AI settings saved. ORGANOBOT is ready for chemistry questions.');
+  await refreshBotActivationState();
 }
 
 async function refreshBotActivationState(){

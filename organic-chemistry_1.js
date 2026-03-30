@@ -271,7 +271,7 @@ function applyPlannerPreset(presetId){
   setPlannerStatus(`Loaded ${AI.getAIProviderPreset(presetId).label}. Save AI settings, or use the secure hosted proxy.`);
 }
 
-function savePlannerAISettings(){
+async function savePlannerAISettings(){
   if(!AI)return;
   AI.saveAISettings({
     apiKey:document.getElementById('aiApiKey').value.trim(),
@@ -279,7 +279,7 @@ function savePlannerAISettings(){
     model:document.getElementById('aiModel').value.trim()
   });
   setPlannerError('');
-  setPlannerStatus('AI settings saved in this browser. You can now generate an AI roadmap or use ORGANOBOT.');
+  await refreshPlannerActivationState();
 }
 
 function readPlannerInputs(){

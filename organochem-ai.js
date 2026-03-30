@@ -168,20 +168,41 @@
     return error.message||'Unknown AI error.';
   }
 
+  const PROXY_STATUS_TTL_MS=15000;
   let proxyStatusPromise=null;
+  let proxyStatusExpiresAt=0;
+
+  function isLocalFileProtocol(){
+    return typeof window!=='undefined'&&window.location?.protocol==='file:';
+  }
 
   function canProbeHostedProxy(){
-    return typeof window!=='undefined'&&window.location?.protocol!=='file:';
+    return typeof window!=='undefined'&&!isLocalFileProtocol();
   }
 
   async function readHostedProxyStatus(force=false){
-    if(!canProbeHostedProxy())return{available:false,configured:false,url:AI_PROXY_PATH};
-    if(proxyStatusPromise&&!force)return proxyStatusPromise;
+    if(!canProbeHostedProxy()){
+      return{
+        available:false,
+        configured:false,
+        url:AI_PROXY_PATH,
+        reason:isLocalFileProtocol()?'file-protocol':'unavailable'
+      };
+    }
+    const now=Date.now();
+    if(proxyStatusPromise&&!force&&proxyStatusExpiresAt>now)return proxyStatusPromise;
     proxyStatusPromise=fetch(AI_PROXY_PATH,{
       method:'GET',
       headers:{Accept:'application/json'}
     }).then(async response=>{
-      if(!response.ok)return{available:false,configured:false,url:AI_PROXY_PATH};
+      if(!response.ok){
+        return{
+          available:false,
+          configured:false,
+          url:AI_PROXY_PATH,
+          reason:'unreachable'
+        };
+      }
       let payload={};
       try{
         payload=await response.json();
@@ -189,9 +210,16 @@
       return{
         available:true,
         configured:Boolean(payload?.configured),
-        url:AI_PROXY_PATH
+        url:AI_PROXY_PATH,
+        reason:Boolean(payload?.configured)?'configured':'missing-server-key'
       };
-    }).catch(()=>({available:false,configured:false,url:AI_PROXY_PATH}));
+    }).catch(()=>({
+      available:false,
+      configured:false,
+      url:AI_PROXY_PATH,
+      reason:'unreachable'
+    }));
+    proxyStatusExpiresAt=now+PROXY_STATUS_TTL_MS;
     return proxyStatusPromise;
   }
 
@@ -208,10 +236,19 @@
 
   async function createChatCompletion({messages,jsonMode=false,temperature=.4,reasoningEnabled=false}){
     const settings=readAISettings();
-    const proxyStatus=await readHostedProxyStatus();
+    let proxyStatus=await readHostedProxyStatus();
+    if(!settings.apiKey&&(!proxyStatus.available||!proxyStatus.configured)){
+      proxyStatus=await readHostedProxyStatus(true);
+    }
     const useHostedProxy=!settings.apiKey&&proxyStatus.available&&proxyStatus.configured;
 
     if(!useHostedProxy&&!settings.apiKey){
+      if(proxyStatus.reason==='file-protocol'){
+        throw new Error('The shared AI proxy is unavailable because this page is opened as a local file. Serve the project over http://localhost or a deployed URL, or add your own API key.');
+      }
+      if(proxyStatus.available&&!proxyStatus.configured){
+        throw new Error('Hosted AI proxy found, but OPENROUTER_API_KEY is not configured on the server yet.');
+      }
       throw new Error('Add your AI API key in the AI settings panel, or deploy the secure /api/chat proxy with OPENROUTER_API_KEY.');
     }
     if(!useHostedProxy&&!settings.baseUrl){
@@ -227,14 +264,22 @@
     if(jsonMode)body.response_format={type:'json_object'};
     if(reasoningEnabled)body.reasoning={enabled:true};
 
-    const response=await fetch(useHostedProxy?AI_PROXY_PATH:settings.baseUrl,{
-      method:'POST',
-      headers:{
-        'Content-Type':'application/json',
-        ...(useHostedProxy?{}:{'Authorization':`Bearer ${settings.apiKey}`})
-      },
-      body:JSON.stringify(body)
-    });
+    let response;
+    try{
+      response=await fetch(useHostedProxy?AI_PROXY_PATH:settings.baseUrl,{
+        method:'POST',
+        headers:{
+          'Content-Type':'application/json',
+          ...(useHostedProxy?{}:{'Authorization':`Bearer ${settings.apiKey}`})
+        },
+        body:JSON.stringify(body)
+      });
+    }catch{
+      if(useHostedProxy){
+        throw new Error('The shared AI proxy could not be reached from this page.');
+      }
+      throw new Error('The AI endpoint could not be reached. Check the base URL, your network connection, and whether the provider allows browser requests.');
+    }
 
     const rawText=await response.text();
     let payload={};

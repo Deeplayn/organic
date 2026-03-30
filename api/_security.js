@@ -25,10 +25,12 @@ function buildCorsContext(req) {
   const requestOrigin = normalizeOrigin(buildRequestOrigin(req));
   const incomingOrigin = normalizeOrigin(req.headers.origin);
   const allowList = resolveAllowedOrigins(req, requestOrigin);
+  const fetchSite = String(req.headers['sec-fetch-site'] || '').trim().toLowerCase();
+  const trustedNoOrigin = !incomingOrigin && ['same-origin', 'same-site', 'none'].includes(fetchSite);
 
   if (!incomingOrigin) {
     return {
-      allowed: req.method === 'GET',
+      allowed: req.method === 'GET' || trustedNoOrigin,
       corsOrigin: null
     };
   }
