@@ -244,11 +244,28 @@ async function refreshPlannerActivationState(){
     return;
   }
   const client=await AI.readHostedProxyStatus();
-  if(client.available){
+  if(client.available&&client.signedIn){
     setPlannerStatus('Shared Grok AI is ready. Generate a roadmap whenever you are ready.');
     return;
   }
+  if(client.available&&!client.signedIn){
+    setPlannerStatus('Puter loaded. Sign in to Grok, then generate a roadmap.');
+    return;
+  }
   setPlannerStatus('Grok is unavailable right now. Check your internet connection, allow js.puter.com, or use the offline quick plan.');
+}
+
+async function signInToPlannerGrok(){
+  if(!AI)return;
+  setPlannerError('');
+  setPlannerStatus('Opening Puter sign-in...');
+  try{
+    await AI.signInToPuter();
+    await refreshPlannerActivationState();
+  }catch(error){
+    setPlannerStatus('Grok sign-in did not complete.');
+    setPlannerError(AI.normalizeAIError(error));
+  }
 }
 
 function applyPlannerPreset(presetId){

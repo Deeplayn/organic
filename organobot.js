@@ -140,11 +140,26 @@ async function refreshBotActivationState(){
     return;
   }
   const client=await AI.readHostedProxyStatus();
-  if(client.available){
+  if(client.available&&client.signedIn){
     setBotStatus('Grok is ready. ORGANOBOT can answer chemistry questions.');
     return;
   }
+  if(client.available&&!client.signedIn){
+    setBotStatus('Puter loaded. Sign in to Grok to activate ORGANOBOT.');
+    return;
+  }
   setBotStatus('Grok is unavailable right now. Check your internet connection and allow js.puter.com.');
+}
+
+async function signInToBotGrok(){
+  if(!AI)return;
+  setBotStatus('Opening Puter sign-in...');
+  try{
+    await AI.signInToPuter();
+    await refreshBotActivationState();
+  }catch(error){
+    setBotStatus(`Grok sign-in did not complete. ${AI.normalizeAIError(error)}`);
+  }
 }
 
 function addMessage(role,content,meta={}){

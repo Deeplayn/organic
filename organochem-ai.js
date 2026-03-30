@@ -172,12 +172,28 @@
 
   async function readHostedProxyStatus(force=false){
     const available=Boolean(window.puter?.ai?.chat);
+    const signedIn=available&&typeof window.puter?.auth?.isSignedIn==='function'
+      ?Boolean(window.puter.auth.isSignedIn())
+      :false;
     return Promise.resolve({
       available,
       configured:available,
       url:PUTER_SCRIPT_URL,
-      reason:available?'loaded':'missing-client'
+      reason:available?'loaded':'missing-client',
+      signedIn
     });
+  }
+
+  async function signInToPuter(){
+    if(!window.puter?.auth?.signIn){
+      throw new Error('Puter sign-in is unavailable right now.');
+    }
+    return window.puter.auth.signIn({attempt_temp_user_creation:true});
+  }
+
+  async function signOutOfPuter(){
+    if(!window.puter?.auth?.signOut)return;
+    await window.puter.auth.signOut();
   }
 
   function normalizeRequestMessages(messages){
@@ -296,6 +312,8 @@
     clearPlannerCache,
     normalizeAIError,
     readHostedProxyStatus,
+    signInToPuter,
+    signOutOfPuter,
     createChatCompletion,
     requestPlannerRoadmap,
     formatAssistantHtml
