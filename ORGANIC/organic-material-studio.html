@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OrganoChem Material Studio</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="organic-material-studio.css">
+</head>
+<body data-theme="lab-noir">
+<a class="skip-link" href="#main">Skip to material builder</a>
+
+<header class="site-header">
+  <div class="brand-block">
+    <a class="brand" href="index.html">Organo<span>Chem</span></a>
+    <p class="brand-copy">Accessible organic material builder and property explorer</p>
+  </div>
+  <div class="header-actions">
+    <nav aria-label="Primary">
+      <a href="index.html">Main Site</a>
+      <a href="#builder">Builder</a>
+      <a href="#properties">Properties</a>
+      <a href="#synthesis">Synthesis</a>
+      <a href="organobot.html">ORGANOBOT</a>
+    </nav>
+    <div class="theme-switcher">
+      <button class="theme-btn" type="button" onclick="togglePanel()">
+        <span id="themeLabel">Lab Noir</span>
+      </button>
+      <div class="theme-panel" id="themePanel">
+        <div class="tg-label">Dark Themes</div>
+        <button class="t-opt active" type="button" onclick="setTheme('lab-noir',this)">Lab Noir</button>
+        <button class="t-opt" type="button" onclick="setTheme('cyberpunk',this)">Cyberpunk</button>
+        <button class="t-opt" type="button" onclick="setTheme('academic-ink',this)">Academic Ink</button>
+        <button class="t-opt" type="button" onclick="setTheme('deep-space',this)">Deep Space</button>
+        <div class="t-sep"></div>
+        <div class="tg-label">Light Themes</div>
+        <button class="t-opt" type="button" onclick="setTheme('lab-white',this)">Lab White</button>
+        <button class="t-opt" type="button" onclick="setTheme('neon-day',this)">Neon Day</button>
+        <button class="t-opt" type="button" onclick="setTheme('ivory',this)">Ivory Academic</button>
+        <button class="t-opt" type="button" onclick="setTheme('clean-slate',this)">Clean Slate</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+  <section class="hero">
+    <div class="hero-copy">
+      <p class="eyebrow">Material Studio</p>
+      <h1>Build an organic material profile and inspect how it behaves.</h1>
+      <p class="lead">Choose a carbon framework and functional group, then load a representative material with its physical properties, chemical behavior, and a clear synthesis route. All controls are labeled, keyboard friendly, and announced through live status text.</p>
+      <div class="hero-links">
+        <a class="button primary" href="#builder">Open Builder</a>
+        <a class="button secondary" href="index.html">Back to Main Site</a>
+        <a class="button secondary" href="organobot.html">Ask ORGANOBOT</a>
+      </div>
+    </div>
+    <aside class="hero-panel" aria-label="What this page includes">
+      <h2>What you can do here</h2>
+      <ul>
+        <li>Filter materials by framework and functional group</li>
+        <li>View physical and chemical properties in plain language</li>
+        <li>See how each material is commonly made in industry or the lab</li>
+      </ul>
+    </aside>
+  </section>
+
+  <section class="builder-shell" id="builder" aria-labelledby="builderTitle">
+    <div class="section-head">
+      <p class="eyebrow">Builder</p>
+      <h2 id="builderTitle">Build a material profile</h2>
+      <p>Use the filters first, then load the material profile you want to study.</p>
+    </div>
+
+    <div class="workspace">
+      <form class="builder-form" aria-describedby="builderHelp">
+        <fieldset>
+          <legend>Profile filters</legend>
+          <p id="builderHelp" class="helper">Choose a framework, choose a dominant functional group, then pick a material from the matching list.</p>
+
+          <label for="frameworkSelect">Carbon framework</label>
+          <select id="frameworkSelect" name="framework">
+            <option value="all">All frameworks</option>
+            <option value="chain">Chain</option>
+            <option value="aromatic">Aromatic ring</option>
+            <option value="mixed">Aromatic plus carbonyl / mixed scaffold</option>
+          </select>
+
+          <label for="groupSelect">Dominant functional group</label>
+          <select id="groupSelect" name="group">
+            <option value="all">All functional groups</option>
+            <option value="alcohol">Alcohol</option>
+            <option value="ketone">Ketone</option>
+            <option value="carboxylic-acid">Carboxylic acid</option>
+            <option value="amine">Amine</option>
+            <option value="ester">Ester</option>
+            <option value="alkene">Alkene</option>
+          </select>
+
+          <label for="materialSelect">Material</label>
+          <select id="materialSelect" name="material"></select>
+
+          <label for="compoundSearch">Or search any compound name</label>
+          <input id="compoundSearch" name="compoundSearch" type="search" list="compoundSuggestionList" autocomplete="off" placeholder="Try ethanol, acetylsalicylic acid, vinylbenzene...">
+          <datalist id="compoundSuggestionList"></datalist>
+          <div id="searchSuggestions" class="search-suggestion-strip" aria-live="polite"></div>
+
+          <div class="button-row">
+            <button type="button" class="button primary" id="loadMaterialBtn">Load Material Profile</button>
+            <button type="button" class="button secondary" id="searchCompoundBtn">Search PubChem</button>
+          </div>
+
+          <p class="source-note">Live properties and 3D structure come from PubChem. Curated synthesis notes stay as a teaching layer when available.</p>
+        </fieldset>
+      </form>
+
+      <section class="material-preview" aria-labelledby="previewTitle">
+        <div class="status-line" id="builderStatus" role="status" aria-live="polite">Loading the first material profile.</div>
+        <div class="preview-card">
+          <p class="eyebrow">Current Material</p>
+          <h2 id="previewTitle">Ethanol</h2>
+          <p id="materialSummary" class="summary"></p>
+          <div class="chip-row" id="materialChips"></div>
+        </div>
+        <div class="blueprint" aria-labelledby="blueprintTitle">
+          <h3 id="blueprintTitle">Build summary</h3>
+          <dl id="buildSummary" class="summary-grid"></dl>
+        </div>
+        <div class="viewer-shell" aria-labelledby="viewerTitle">
+          <div class="viewer-head">
+            <div>
+              <h3 id="viewerTitle">3D compound view</h3>
+              <p id="viewerCaption" class="viewer-copy">The 3D viewer loads a PubChem conformer when one is available.</p>
+            </div>
+            <div class="button-row compact">
+              <button type="button" class="button secondary" id="styleStickBtn">Stick</button>
+              <button type="button" class="button secondary" id="styleSphereBtn">Sphere</button>
+              <button type="button" class="button secondary" id="resetViewBtn">Reset</button>
+            </div>
+          </div>
+          <div id="viewer3d" class="viewer-canvas" aria-label="3D molecule viewer"></div>
+          <p id="viewerStatus" class="viewer-status" role="status" aria-live="polite">Preparing 3D viewer.</p>
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <section id="properties" aria-labelledby="propertiesTitle">
+    <div class="section-head">
+      <p class="eyebrow">Properties</p>
+      <h2 id="propertiesTitle">Physical and chemical properties</h2>
+      <p>Quick facts, computed descriptors, and behavior notes are grouped here so the most useful signals read first.</p>
+    </div>
+
+    <div class="highlight-strip" id="propertyHighlights"></div>
+    <div class="property-grid">
+      <article class="panel">
+        <h3>Physical profile</h3>
+        <dl id="physicalList" class="data-list"></dl>
+      </article>
+      <article class="panel">
+        <h3>Chemical behavior</h3>
+        <div id="chemicalList" class="stack-list"></div>
+      </article>
+      <article class="panel">
+        <h3>Live API data</h3>
+        <div id="apiDataList" class="stack-list"></div>
+      </article>
+    </div>
+  </section>
+
+  <section id="synthesis" aria-labelledby="synthesisTitle">
+    <div class="section-head">
+      <p class="eyebrow">How It Is Made</p>
+      <h2 id="synthesisTitle">Common preparation route</h2>
+      <p id="routeLead">The route below updates with the selected material.</p>
+    </div>
+
+    <div class="prep-overview" id="prepOverview"></div>
+    <div class="synthesis-grid">
+      <article class="panel">
+        <h3>Industrial or lab route</h3>
+        <ol id="routeSteps" class="route-list"></ol>
+      </article>
+      <article class="panel">
+        <h3>Chemical equations</h3>
+        <div id="routeEquations" class="equation-list"></div>
+      </article>
+      <article class="panel">
+        <h3>Why the route works</h3>
+        <div id="routeNotes" class="stack-list"></div>
+      </article>
+      <article class="panel">
+        <h3>Uses</h3>
+        <div id="useList" class="stack-list"></div>
+      </article>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <p>OrganoChem Material Studio is designed to stay readable, keyboard friendly, and useful during revision sessions.</p>
+</footer>
+
+<script src="https://3dmol.org/build/3Dmol-min.js"></script>
+<script src="organic-material-studio.js"></script>
+</body>
+</html>
