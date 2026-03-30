@@ -14,19 +14,19 @@
   const AI_PROVIDER_PRESETS={
     openRouterBestFree:{
       id:'openRouterBestFree',
-      label:'OpenRouter Free: GPT OSS 20B',
+      label:'OpenRouter Free: Step 3.5 Flash',
       provider:'OpenRouter',
-      summary:'Reasoning-enabled free preset for ORGANOBOT and the planner.',
+      summary:'Recommended free preset for ORGANOBOT and the planner.',
       baseUrl:'https://openrouter.ai/api/v1/chat/completions',
-      model:'openai/gpt-oss-20b:free'
+      model:'stepfun/step-3.5-flash:free'
     },
     openRouterAltFree:{
       id:'openRouterAltFree',
-      label:'OpenRouter Free: GPT OSS 120B',
+      label:'OpenRouter Free: GPT OSS 20B',
       provider:'OpenRouter',
-      summary:'Alternate free preset with a larger GPT OSS model.',
+      summary:'Alternate free preset if Step 3.5 Flash is unavailable for your account settings.',
       baseUrl:'https://openrouter.ai/api/v1/chat/completions',
-      model:'openai/gpt-oss-120b:free'
+      model:'openai/gpt-oss-20b:free'
     }
   };
   const DEFAULT_AI_SETTINGS={
@@ -81,13 +81,31 @@
     if(apiKey)return false;
     const legacyPairs=[
       LEGACY_OPENAI_DEFAULTS,
-      LEGACY_GROQ_DEFAULTS
+      LEGACY_GROQ_DEFAULTS,
+      {
+        baseUrl:'https://openrouter.ai/api/v1/chat/completions',
+        model:'openai/gpt-oss-20b:free'
+      },
+      {
+        baseUrl:'https://openrouter.ai/api/v1/chat/completions',
+        model:'openai/gpt-oss-120b:free'
+      }
     ];
     return legacyPairs.some(pair=>{
       const looksLikeLegacyBaseUrl=!baseUrl||baseUrl===pair.baseUrl;
       const looksLikeLegacyModel=!model||model===pair.model;
       return looksLikeLegacyBaseUrl&&looksLikeLegacyModel;
     });
+  }
+
+  function shouldUpgradeOpenRouterFreeModel(saved){
+    const baseUrl=String(saved?.baseUrl||'').trim();
+    const model=String(saved?.model||'').trim();
+    if(baseUrl!=='https://openrouter.ai/api/v1/chat/completions')return false;
+    return[
+      'openai/gpt-oss-20b:free',
+      'openai/gpt-oss-120b:free'
+    ].includes(model);
   }
 
   function getAIProviderPreset(id='openRouterBestFree'){
@@ -107,7 +125,7 @@
 
   function readAISettings(){
     const saved=readStorageJson(AI_SETTINGS_KEY,{});
-    const useRecommendedDefaults=isLegacyOpenAIDefault(saved);
+    const useRecommendedDefaults=isLegacyOpenAIDefault(saved)||shouldUpgradeOpenRouterFreeModel(saved);
     const normalizedSaved={
       ...saved,
       baseUrl:useRecommendedDefaults?'':saved.baseUrl,
