@@ -1,14 +1,18 @@
-const LABELS={'lab-noir':'Lab Noir','cyberpunk':'Cyberpunk','academic-ink':'Academic Ink','deep-space':'Deep Space','lab-white':'Lab White','neon-day':'Neon Day','ivory':'Ivory Academic','clean-slate':'Clean Slate'};
+const LABELS={'lab-noir':'Lab Noir','cyberpunk':'Cyberpunk','academic-ink':'Academic Ink','deep-space':'Deep Space','copper-reactor':'Copper Reactor','forest-glass':'Forest Glass','lab-white':'Lab White','neon-day':'Neon Day','ivory':'Ivory Academic','clean-slate':'Clean Slate','paper-spectrum':'Paper Spectrum','solar-lab':'Solar Lab'};
 const STORE='oc-state-v2',THEME='oc-theme';
 const baseState={topicStatus:{},savedReactions:[],quizHistory:[],studyPlans:[]};
 const readState=()=>{try{const s=JSON.parse(localStorage.getItem(STORE)||'{}');return{...baseState,...s,topicStatus:s.topicStatus||{},savedReactions:s.savedReactions||[],quizHistory:s.quizHistory||[],studyPlans:s.studyPlans||[]};}catch{return{...baseState};}};
 let state=readState();
-const saveState=()=>localStorage.setItem(STORE,JSON.stringify(state));
+const saveState=()=>{
+  localStorage.setItem(STORE,JSON.stringify(state));
+  window.dispatchEvent(new CustomEvent('organo:state-changed',{detail:{key:STORE}}));
+};
 const cv=p=>getComputedStyle(document.body).getPropertyValue(p).trim();
 const esc=s=>String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'","&#39;");
 const prettyDate=v=>new Date(v).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
 const today=()=>new Date().toLocaleDateString(undefined,{month:'short',day:'numeric'});
 const AI=window.OrganoAI;
+const canUseAccountFeature=message=>window.OrganoApp?.assertFeatureAccess(message)??true;
 
 function togglePanel(){document.getElementById('themePanel').classList.toggle('open');}
 function closePanel(){document.getElementById('themePanel').classList.remove('open');}
@@ -20,6 +24,7 @@ function setTheme(theme,btn){
   if(btn)btn.classList.add('active');
   localStorage.setItem(THEME,theme);
   closePanel();
+  window.dispatchEvent(new CustomEvent('organo:theme-changed',{detail:{theme}}));
   setTimeout(()=>drawMol(currentMol,null),50);
 }
 const savedTheme=localStorage.getItem(THEME);
@@ -570,6 +575,7 @@ function renderStudyPlan(plan=getLatestStoredPlan()){
 }
 
 function buildOfflineStudyPlan(){
+  if(!canUseAccountFeature('Sign in to save offline study plans and planner history.'))return;
   const input=readPlannerInputs();
   const plan=buildOfflineStudyPlanObject(input);
   AI?.savePlannerCache?.(plan);
@@ -583,6 +589,7 @@ function buildOfflineStudyPlan(){
 }
 
 async function buildStudyPlan(){
+  if(!canUseAccountFeature('Sign in to save AI roadmaps and planner history.'))return;
   const input=readPlannerInputs();
   if(!AI){
     setPlannerError('The built-in AI module did not load, so the AI roadmap is unavailable.');
@@ -610,6 +617,7 @@ async function buildStudyPlan(){
 }
 
 function resetPlannerData(){
+  if(!canUseAccountFeature('Sign in to manage planner history and stored progress.'))return;
   if(!confirm('Reset planner data? This clears study plans, cached roadmap data, and quiz history, but keeps your theme, topic marks, saved reactions, material studio state, and ORGANOBOT chats.'))return;
   state.quizHistory=[];
   state.studyPlans=[];
@@ -640,6 +648,7 @@ function renderTopics(){
 }
 
 function setTopicState(id,val){
+  if(!canUseAccountFeature('Sign in to save topic status and progress tracking.'))return;
   if(val==='new')delete state.topicStatus[id];else state.topicStatus[id]=val;
   saveState();
   renderTopics();renderTopicDetail();renderStats();renderWeakAreas();renderMission();
@@ -649,7 +658,8 @@ function renderTopicDetail(){
   const t=topics.find(x=>x.id===activeTopic),panel=document.getElementById('topicDetail');
   if(!t){panel.innerHTML='<div class="detail-empty">Select a topic to inspect it in more depth.</div>';return;}
   const status=topicStatus(t.id);
-  panel.innerHTML=`<div class="panel-header"><div><div class="panel-eyebrow">Topic detail</div><h3>${esc(t.title)}</h3></div><span class="status-pill">${esc(t.difficulty)}</span></div><p class="panel-copy">${esc(t.overview)}</p><div class="topic-meta"><div class="goal-item"><strong>Current status</strong>${esc(statusLabel(status))}</div><div class="goal-item"><strong>Suggested next move</strong>${status==='review'?'Rebuild it with examples before moving on.':status==='confident'?'Maintain it with a short recall drill.':'Start with recognition, naming, and one application example.'}</div></div><div class="pill-row" style="justify-content:flex-start;"><button class="btn btn-primary" type="button" onclick="setTopicState('${t.id}','confident')">Mark Confident</button><button class="btn btn-secondary" type="button" onclick="setTopicState('${t.id}','review')">Needs Review</button><button class="btn btn-secondary" type="button" onclick="setTopicState('${t.id}','new')">Clear Status</button></div><div class="topic-goals">${t.goals.map(g=>`<div class="goal-item"><strong>Goal</strong>${esc(g)}</div>`).join('')}</div><div class="topic-pitfalls">${t.pitfalls.map(p=>`<div class="pitfall-item"><strong>Watch for</strong>${esc(p)}</div>`).join('')}</div>`;
+  const locked=!window.OrganoApp?.isAuthenticated?.();
+  panel.innerHTML=`<div class="panel-header"><div><div class="panel-eyebrow">Topic detail</div><h3>${esc(t.title)}</h3></div><span class="status-pill">${esc(t.difficulty)}</span></div><p class="panel-copy">${esc(t.overview)}</p><div class="topic-meta"><div class="goal-item"><strong>Current status</strong>${esc(statusLabel(status))}</div><div class="goal-item"><strong>Suggested next move</strong>${status==='review'?'Rebuild it with examples before moving on.':status==='confident'?'Maintain it with a short recall drill.':'Start with recognition, naming, and one application example.'}</div></div>${locked?'<div class="note-item">Sign in to save topic status and progress tracking.</div>':''}<div class="pill-row" style="justify-content:flex-start;"><button class="btn btn-primary" type="button" onclick="setTopicState('${t.id}','confident')" ${locked?'data-auth-required data-auth-message="Sign in to save topic status and progress tracking."':''}>Mark Confident</button><button class="btn btn-secondary" type="button" onclick="setTopicState('${t.id}','review')" ${locked?'data-auth-required data-auth-message="Sign in to save topic status and progress tracking."':''}>Needs Review</button><button class="btn btn-secondary" type="button" onclick="setTopicState('${t.id}','new')" ${locked?'data-auth-required data-auth-message="Sign in to save topic status and progress tracking."':''}>Clear Status</button></div><div class="topic-goals">${t.goals.map(g=>`<div class="goal-item"><strong>Goal</strong>${esc(g)}</div>`).join('')}</div><div class="topic-pitfalls">${t.pitfalls.map(p=>`<div class="pitfall-item"><strong>Watch for</strong>${esc(p)}</div>`).join('')}</div>`;
 }
 
 function renderReactionControls(){
@@ -669,6 +679,7 @@ function showRxn(id){
 }
 
 function toggleSavedReaction(){
+  if(!canUseAccountFeature('Sign in to save reaction review stacks.'))return;
   if(state.savedReactions.includes(currentReaction))state.savedReactions=state.savedReactions.filter(id=>id!==currentReaction);else state.savedReactions=[currentReaction,...state.savedReactions.filter(id=>id!==currentReaction)].slice(0,6);
   saveState();
   renderSavedReactions();renderStats();renderMission();showRxn(currentReaction);
@@ -752,6 +763,14 @@ function showScore(){
   document.getElementById('scoreBreakdown').innerHTML=Object.entries(catResults).map(([k,v])=>`<div class="score-chip"><strong>${esc(k)}</strong>${v.correct}/${v.total} correct - ${Math.round(v.correct/v.total*100)}%</div>`).join('');
   document.getElementById('restartBtn').style.display='inline-block';
   document.getElementById('nextBtn').style.display='none';
+  if(!window.OrganoApp?.isAuthenticated?.()){
+    document.getElementById('scoreMsg').textContent=`${msg} Sign in to save quiz history to your account.`;
+    renderQuizHistory();
+    renderStats();
+    renderWeakAreas();
+    renderMission();
+    return;
+  }
   state.quizHistory.unshift({createdAt:new Date().toISOString(),score,total:quiz.length,percent:pct,category:quizMeta.category,difficulty:quizMeta.difficulty,breakdown:catResults});
   state.quizHistory=state.quizHistory.slice(0,8);
   saveState();
@@ -761,7 +780,8 @@ function showScore(){
 }
 
 function renderQuizHistory(){
-  document.getElementById('quizHistory').innerHTML=state.quizHistory.map(s=>`<div class="history-item"><strong>${s.percent}% - ${esc(s.category)}</strong>${esc(s.difficulty)} - ${s.score}/${s.total} correct - ${prettyDate(s.createdAt)}</div>`).join('')||'<div class="history-item"><strong>No saved sessions yet</strong>Your completed quizzes will appear here.</div>';
+  const locked=!window.OrganoApp?.isAuthenticated?.();
+  document.getElementById('quizHistory').innerHTML=state.quizHistory.map(s=>`<div class="history-item"><strong>${s.percent}% - ${esc(s.category)}</strong>${esc(s.difficulty)} - ${s.score}/${s.total} correct - ${prettyDate(s.createdAt)}</div>`).join('')||(locked?'<div class="history-item"><strong>Sign in to save quiz sessions</strong>Your completed quizzes still work in preview mode, but history is only stored for signed-in users.</div>':'<div class="history-item"><strong>No saved sessions yet</strong>Your completed quizzes will appear here.</div>');
 }
 
 function renderReference(){
@@ -777,6 +797,28 @@ document.getElementById('topicStatus').addEventListener('change',renderTopics);
 document.getElementById('referenceSearch').addEventListener('input',renderReference);
 document.getElementById('referenceFamily').addEventListener('change',renderReference);
 document.getElementById('referenceDifficulty').addEventListener('change',renderReference);
+window.addEventListener('organo:hydrate-main-state',()=>{
+  state=readState();
+  hydratePlannerInputs();
+  renderStats();
+  renderStudyPlan();
+  renderTopics();
+  renderTopicDetail();
+  renderWeakAreas();
+  renderSavedReactions();
+  renderMission();
+  renderQuizHistory();
+  renderReference();
+});
+window.addEventListener('organo:auth-changed',()=>{
+  state=readState();
+  renderStats();
+  renderWeakAreas();
+  renderMission();
+  renderSavedReactions();
+  renderQuizHistory();
+  renderTopicDetail();
+});
 hydratePlannerInputs();
 syncPlannerAISettingsUI();
 setPlannerError('');

@@ -1,0 +1,128 @@
+const {
+  applySecurityHeaders,
+  buildCorsContext,
+  enforceRateLimit,
+  isJsonRequest,
+  parseJsonBody,
+  sendJson
+} = require('./_security');
+const { getPool, ensureSchema } = require('./_db');
+const { getSessionUser } = require('./_auth');
+
+module.exports = async (req, res) => {
+  const cors = buildCorsContext(req);
+  applySecurityHeaders(req, res, cors.corsOrigin);
+  res.setHeader('Allow', 'GET, PUT, OPTIONS');
+  if (cors.corsOrigin) res.setHeader('Access-Control-Allow-Credentials', 'true');
+
+  if (!cors.allowed) {
+    sendJson(res, 403, { error: { message: 'Origin not allowed.' } });
+    return;
+  }
+
+  if (req.method === 'OPTIONS') {
+    res.status(204).end();
+    return;
+  }
+
+  if (!['GET', 'PUT'].includes(req.method)) {
+    sendJson(res, 405, { error: { message: 'Method not allowed.' } });
+    return;
+  }
+
+  if (req.method === 'PUT' && !isJsonRequest(req)) {
+    sendJson(res, 415, { error: { message: 'Content-Type must be application/json.' } });
+    return;
+  }
+
+  if (req.method === 'PUT') {
+    const rateLimit = enforceRateLimit(req);
+    if (!rateLimit.allowed) {
+      res.setHeader('Retry-After', String(rateLimit.retryAfterSeconds));
+      sendJson(res, 429, { error: { message: 'Too many requests. Please slow down and try again shortly.' } });
+      return;
+    }
+  }
+
+  try {
+    await ensureSchema();
+    const session = await getSessionUser(req);
+    if (!session?.user) {
+      sendJson(res, 401, { error: { message: 'You must be signed in to access account state.' } });
+      return;
+    }
+
+    if (req.method === 'GET') {
+      const result = await getPool().query(
+        'SELECT payload FROM user_state WHERE user_id = $1 LIMIT 1',
+        [session.user.id]
+      );
+      const payload = result.rows[0]?.payload || null;
+      sendJson(res, 200, {
+        ok: true,
+        user: session.user,
+        hasData: Boolean(payload && Object.keys(payload).length),
+        payload: payload ? normalizePayload(payload, session.user.theme) : null
+      });
+      return;
+    }
+
+    const body = parseJsonBody(req) || {};
+    const payload = normalizeIncomingPayload(body);
+    const payloadJson = JSON.stringify(payload);
+
+    if (payloadJson.length > 1_000_000) {
+      sendJson(res, 400, { error: { message: 'User state payload is too large.' } });
+      return;
+    }
+
+    await getPool().query(
+      `INSERT INTO user_state (user_id, payload, updated_at)
+       VALUES ($1, $2::jsonb, NOW())
+       ON CONFLICT (user_id)
+       DO UPDATE SET payload = EXCLUDED.payload, updated_at = NOW()`,
+      [session.user.id, payloadJson]
+    );
+
+    await getPool().query(
+      'UPDATE users SET theme = $2, updated_at = NOW() WHERE id = $1',
+      [session.user.id, payload.theme]
+    );
+
+    sendJson(res, 200, {
+      ok: true,
+      user: {
+        ...session.user,
+        theme: payload.theme
+      },
+      payload
+    });
+  } catch (error) {
+    sendJson(res, 500, { error: { message: error.message || 'User state request failed.' } });
+  }
+};
+
+function normalizeIncomingPayload(body) {
+  return {
+    mainState: normalizeObject(body.mainState),
+    botState: normalizeObject(body.botState),
+    theme: normalizeTheme(body.theme)
+  };
+}
+
+function normalizePayload(payload, fallbackTheme) {
+  return {
+    mainState: normalizeObject(payload.mainState),
+    botState: normalizeObject(payload.botState),
+    theme: normalizeTheme(payload.theme || fallbackTheme)
+  };
+}
+
+function normalizeObject(value) {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+}
+
+function normalizeTheme(value) {
+  const theme = String(value || '').trim();
+  return theme || 'lab-noir';
+}

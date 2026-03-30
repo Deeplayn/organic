@@ -3,333 +3,796 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OrganoChem &mdash; Learn Organic Chemistry Visually</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&family=Instrument+Sans:wght@400;500;600&family=IM+Fell+English:ital@0;1&family=Rajdhani:wght@400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="organic-chemistry_1.css">
+<title>OrganoChem | Organic Chemistry Workspace</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&family=IM+Fell+English:ital@0;1&family=Instrument+Sans:wght@400;500;600;700&family=Rajdhani:wght@400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app-shell.css">
 </head>
 <body data-theme="lab-noir">
-<nav>
-  <div class="logo">Organo<span>Chem</span></div>
-  <ul class="nav-links">
-    <li><a href="#dashboard">Dashboard</a></li>
-    <li><a href="#topics">Topics</a></li>
-    <li><a href="#quiz">Quiz</a></li>
-    <li><a href="#reference">Reference</a></li>
-    <li><a href="organic-material-studio.html">Material Studio</a></li>
-    <li><a href="organobot.html">ORGANOBOT</a></li>
-  </ul>
-  <div class="theme-switcher">
-    <button class="theme-btn" onclick="togglePanel()">
-      <svg class="icon" viewBox="0 0 20 20"><circle cx="10" cy="10" r="4"/><path d="M10 1v2M10 17v2M1 10h2M17 10h2M3.3 3.3l1.4 1.4M15.3 15.3l1.4 1.4M3.3 16.7l1.4-1.4M15.3 4.7l1.4-1.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></svg>
-      <span id="themeLabel">Lab Noir</span>
-      <svg class="icon" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
-    </button>
-    <div class="theme-panel" id="themePanel">
-      <div class="tg-label">Dark Themes</div>
-      <button class="t-opt active" onclick="setTheme('lab-noir',this)"><span class="t-dot" style="background:#9fd97a"></span>Lab Noir</button>
-      <button class="t-opt" onclick="setTheme('cyberpunk',this)"><span class="t-dot" style="background:#00f5ff"></span>Cyberpunk</button>
-      <button class="t-opt" onclick="setTheme('academic-ink',this)"><span class="t-dot" style="background:#c9a84c"></span>Academic Ink</button>
-      <button class="t-opt" onclick="setTheme('deep-space',this)"><span class="t-dot" style="background:#7b9cff"></span>Deep Space</button>
-      <div class="t-sep"></div>
-      <div class="tg-label">Light Themes</div>
-      <button class="t-opt" onclick="setTheme('lab-white',this)"><span class="t-dot" style="background:#3a8a28"></span>Lab White</button>
-      <button class="t-opt" onclick="setTheme('neon-day',this)"><span class="t-dot" style="background:#4400cc"></span>Neon Day</button>
-      <button class="t-opt" onclick="setTheme('ivory',this)"><span class="t-dot" style="background:#8b4513"></span>Ivory Academic</button>
-      <button class="t-opt" onclick="setTheme('clean-slate',this)"><span class="t-dot" style="background:#0ea5e9"></span>Clean Slate</button>
-    </div>
-  </div>
-</nav>
+<div class="app-backdrop" aria-hidden="true"></div>
 
-<div class="hero">
-  <div class="hero-text">
-    <div class="hero-kicker">Interactive Organic Chemistry Studio</div>
-    <h1>Organic chemistry that<br><em>adapts to how you study.</em></h1>
-    <p>Explore core topics, compare mechanisms, build focused review plans, and track your weak spots in one visual workspace.</p>
-    <div class="btn-group">
-      <a href="#dashboard" class="btn btn-primary">Open Dashboard</a>
-      <a href="organic-material-studio.html" class="btn btn-secondary">Material Studio</a>
-      <a href="organobot.html" class="btn btn-secondary">Open ORGANOBOT</a>
-      <a href="#quiz" class="btn btn-secondary">Start Practice</a>
-    </div>
-    <div class="hero-meta">
-      <div class="hero-chip">Progress tracking</div>
-      <div class="hero-chip">Adaptive quiz modes</div>
-      <div class="hero-chip">Accessible material builder</div>
-    </div>
-  </div>
-  <div class="molecule-canvas" id="heroMol">
-    <div class="mol-label">Featured Molecule</div>
-    <svg id="molSvg" viewBox="0 0 260 200" width="260" height="200" xmlns="http://www.w3.org/2000/svg"></svg>
-    <div class="mol-name" id="molName">Ethanol</div>
-    <div class="mol-formula" id="molFormula">C2H5OH</div>
-    <div class="mol-copy" id="moleculeInfo">A compact primary alcohol used as a solvent and a foundational oxidation example.</div>
-    <div class="molecule-notes">
-      <div class="molecule-note">
-        <span class="molecule-note-label">Functional highlight</span>
-        <div id="moleculeInsight">Hydroxyl groups increase polarity and enable hydrogen bonding.</div>
-      </div>
-      <div class="molecule-note">
-        <span class="molecule-note-label">Study angle</span>
-        <div id="moleculeStudyPrompt">Compare ethanol oxidation products to aldehydes and carboxylic acids.</div>
+<header class="global-header">
+  <a class="brand-lockup" href="#dashboard">
+    <span class="brand-mark">Organo<span>Chem</span></span>
+    <span class="brand-copy">Single-page organic chemistry workspace</span>
+  </a>
+
+  <nav class="app-nav" aria-label="Primary">
+    <a class="app-nav-link" href="#dashboard" data-panel-link="dashboard">Dashboard</a>
+    <a class="app-nav-link" href="#studio" data-panel-link="studio">Material Studio</a>
+    <a class="app-nav-link" href="#bot" data-panel-link="bot">ORGANOBOT</a>
+    <a class="app-nav-link" href="#auth" data-panel-link="auth">Login / Sign Up</a>
+  </nav>
+
+  <div class="header-utilities">
+    <div class="theme-switcher">
+      <button class="theme-btn" type="button" onclick="togglePanel()">
+        <span class="theme-icon">◎</span>
+        <span id="themeLabel">Lab Noir</span>
+      </button>
+      <div class="theme-panel" id="themePanel">
+        <div class="tg-label">Dark Themes</div>
+        <button class="t-opt active" type="button" onclick="setTheme('lab-noir',this)"><span class="t-dot" style="background:#9fd97a"></span>Lab Noir</button>
+        <button class="t-opt" type="button" onclick="setTheme('cyberpunk',this)"><span class="t-dot" style="background:#00f5ff"></span>Cyberpunk</button>
+        <button class="t-opt" type="button" onclick="setTheme('academic-ink',this)"><span class="t-dot" style="background:#c9a84c"></span>Academic Ink</button>
+        <button class="t-opt" type="button" onclick="setTheme('deep-space',this)"><span class="t-dot" style="background:#7b9cff"></span>Deep Space</button>
+        <button class="t-opt" type="button" onclick="setTheme('copper-reactor',this)"><span class="t-dot" style="background:#f08c4a"></span>Copper Reactor</button>
+        <button class="t-opt" type="button" onclick="setTheme('forest-glass',this)"><span class="t-dot" style="background:#6acb8f"></span>Forest Glass</button>
+        <div class="t-sep"></div>
+        <div class="tg-label">Light Themes</div>
+        <button class="t-opt" type="button" onclick="setTheme('lab-white',this)"><span class="t-dot" style="background:#3a8a28"></span>Lab White</button>
+        <button class="t-opt" type="button" onclick="setTheme('neon-day',this)"><span class="t-dot" style="background:#4400cc"></span>Neon Day</button>
+        <button class="t-opt" type="button" onclick="setTheme('ivory',this)"><span class="t-dot" style="background:#8b4513"></span>Ivory Academic</button>
+        <button class="t-opt" type="button" onclick="setTheme('clean-slate',this)"><span class="t-dot" style="background:#0ea5e9"></span>Clean Slate</button>
+        <button class="t-opt" type="button" onclick="setTheme('paper-spectrum',this)"><span class="t-dot" style="background:#b34d3a"></span>Paper Spectrum</button>
+        <button class="t-opt" type="button" onclick="setTheme('solar-lab',this)"><span class="t-dot" style="background:#f5a623"></span>Solar Lab</button>
       </div>
     </div>
-    <div class="pill-row">
-      <button class="rxn-btn active" type="button" data-mol="ethanol" onclick="drawMol('ethanol',this,{manual:true})">Ethanol</button>
-      <button class="rxn-btn" type="button" data-mol="benzene" onclick="drawMol('benzene',this,{manual:true})">Benzene</button>
-      <button class="rxn-btn" type="button" data-mol="glucose" onclick="drawMol('glucose',this,{manual:true})">Glucose</button>
-      <button class="rxn-btn" type="button" data-mol="aspirin" onclick="drawMol('aspirin',this,{manual:true})">Aspirin</button>
+
+    <div class="session-chip">
+      <span class="session-kicker" id="authChipLabel">Preview Mode</span>
+      <button class="session-action" type="button" id="headerAuthButton">Sign In</button>
     </div>
   </div>
-</div>
+</header>
 
-<section>
-  <div class="stats-row">
-    <div class="stat-card"><div class="stat-num" id="masteredStat">0</div><div class="stat-label">Topics marked confident</div></div>
-    <div class="stat-card"><div class="stat-num" id="quizAverageStat">0%</div><div class="stat-label">Average quiz score across saved sessions</div></div>
-    <div class="stat-card"><div class="stat-num" id="studyPlanStat">0</div><div class="stat-label">Study plans generated in this browser</div></div>
-  </div>
-</section>
-
-<section id="dashboard">
-  <div class="section-tag">01 &mdash; Dashboard</div>
-  <h2 class="section-title">Build a smarter study session</h2>
-  <p class="section-sub">This workspace remembers what you review, what you save, and where your weak spots are so the next session starts with direction.</p>
-  <div class="dashboard-grid">
-    <div class="dashboard-panel">
-      <div class="panel-header">
-        <div>
-          <div class="panel-eyebrow">Today&apos;s Mission</div>
-          <h3>Recommended next move</h3>
-        </div>
-        <span class="status-pill" id="missionBadge">Fresh start</span>
+<main class="app-shell">
+  <section class="shell-hero">
+    <div class="hero-copy-card">
+      <p class="eyebrow">Unified Workspace</p>
+      <h1>Organic chemistry, material exploration, AI chat, and account-backed progress in one page.</h1>
+      <p class="lead">This refresh turns OrganoChem into a wider single-page workspace with shared navigation, shared theming, deep-linkable panels, and preview-first authentication.</p>
+      <div class="hero-actions">
+        <a class="button primary" href="#dashboard">Open Dashboard</a>
+        <a class="button secondary" href="#studio">Open Material Studio</a>
+        <a class="button secondary" href="#bot">Open ORGANOBOT</a>
       </div>
-      <p class="panel-copy" id="missionText">Answer a short quiz, then mark at least one topic as confident to start building your study map.</p>
-      <div class="mission-checklist" id="missionChecklist"></div>
+      <div class="hero-pills">
+        <span class="hero-chip">Single-page app shell</span>
+        <span class="hero-chip">Account-backed progress</span>
+        <span class="hero-chip">Unified theme system</span>
+      </div>
     </div>
-    <div class="dashboard-panel">
-      <div class="panel-header">
-        <div>
-          <div class="panel-eyebrow">Study Planner</div>
-          <h3>Generate an AI roadmap</h3>
+
+    <aside class="hero-aside">
+      <div class="hero-aside-card">
+        <span class="hero-card-label">Current Mode</span>
+        <strong id="heroSessionState">Preview access</strong>
+        <p id="heroSessionCopy">Browse every panel freely, then sign in to unlock saved study state, planner history, and ORGANOBOT conversations.</p>
+      </div>
+      <div class="hero-aside-card">
+        <span class="hero-card-label">Deep Links</span>
+        <div class="hero-link-grid">
+          <a href="#dashboard">#dashboard</a>
+          <a href="#studio">#studio</a>
+          <a href="#bot">#bot</a>
+          <a href="#auth">#auth</a>
         </div>
       </div>
-      <p class="panel-copy">Set your pace, current course progress, and level, then let the planner generate a multi-week roadmap plus your next session.</p>
-      <div class="control-grid three-up">
-        <label class="field">
-          <span>Focus Area</span>
-          <select id="studyFocus">
-            <option value="all">Balanced review</option>
-            <option value="Functional Groups">Functional Groups</option>
-            <option value="Reaction Mechanisms">Reaction Mechanisms</option>
-            <option value="IUPAC Naming">IUPAC Naming</option>
-            <option value="Stereochemistry">Stereochemistry</option>
-            <option value="Aromatic Chemistry">Aromatic Chemistry</option>
-            <option value="Spectroscopy">Spectroscopy</option>
-          </select>
-        </label>
-        <label class="field">
-          <span>Session Time</span>
-          <select id="sessionMinutes">
-            <option value="20">20 minutes</option>
-            <option value="35" selected>35 minutes</option>
-            <option value="50">50 minutes</option>
-            <option value="75">75 minutes</option>
-          </select>
-        </label>
-        <label class="field">
-          <span>Course Length</span>
-          <input id="courseWeeks" type="number" min="2" max="52" value="12">
-        </label>
-        <label class="field">
-          <span>Completed Quizzes</span>
-          <input id="completedQuizzes" type="number" min="0" max="500" value="0">
-        </label>
-        <label class="field">
-          <span>Major Exams Taken</span>
-          <input id="completedMajorExams" type="number" min="0" max="50" value="0">
-        </label>
-        <label class="field">
-          <span>Starting Level</span>
-          <select id="startingLevel">
-            <option value="Beginner" selected>Beginner</option>
-            <option value="Intermediate">Intermediate</option>
-            <option value="Advanced">Advanced</option>
-          </select>
-        </label>
-      </div>
-      <div class="ai-settings-card">
-        <p class="settings-note"><strong>Built-in AI</strong><br>Roadmap generation now uses the server-backed AI built into this app. No login, model selection, or setup is required here.</p>
-      </div>
-      <div class="planner-toolbar">
-        <button class="btn btn-primary" type="button" onclick="buildStudyPlan()">Generate AI Roadmap</button>
-        <button class="btn btn-secondary" type="button" onclick="buildOfflineStudyPlan()">Use Offline Quick Plan</button>
-        <button class="btn btn-secondary danger-btn" type="button" onclick="resetPlannerData()">Reset Planner Data</button>
-      </div>
-      <div class="planner-status" id="plannerStatus" role="status" aria-live="polite">Checking built-in AI availability. You can still use the offline quick plan anytime.</div>
-      <div class="planner-error" id="plannerError" role="alert" style="display:none;"></div>
-      <div class="study-plan" id="studyPlan"></div>
-    </div>
-    <div class="dashboard-panel">
-      <div class="panel-header">
+    </aside>
+  </section>
+
+  <div class="panel-shell">
+    <section id="dashboard" class="app-panel is-active" data-panel="dashboard">
+      <div class="panel-header-block">
         <div>
-          <div class="panel-eyebrow">Weak Areas</div>
-          <h3>What needs another pass</h3>
+          <p class="eyebrow">Dashboard</p>
+          <h2>Study dashboard, reaction lab, quiz builder, and reference explorer</h2>
+          <p class="section-lead">The learning panel keeps the original chemistry study tools together inside the main shell, with more horizontal space and account-aware save behavior.</p>
+        </div>
+        <div class="panel-jump-links">
+          <a href="#topics">Topics</a>
+          <a href="#reactions">Reactions</a>
+          <a href="#quiz">Quiz</a>
+          <a href="#reference">Reference</a>
         </div>
       </div>
-      <div class="weak-areas" id="weakAreas"></div>
-    </div>
-  </div>
-</section>
 
-<section id="topics">
-  <div class="section-tag">02 &mdash; Core Topics</div>
-  <h2 class="section-title">Explore the course map</h2>
-  <p class="section-sub">Filter by difficulty, search by keyword, and keep track of which concepts feel stable versus shaky.</p>
-  <div class="toolbar">
-    <label class="field grow">
-      <span>Search topics</span>
-      <input type="search" id="topicSearch" placeholder="Try SN2, aromaticity, aldehydes...">
-    </label>
-    <label class="field">
-      <span>Difficulty</span>
-      <select id="topicDifficulty">
-        <option value="all">All levels</option>
-        <option value="Beginner">Beginner</option>
-        <option value="Intermediate">Intermediate</option>
-        <option value="Advanced">Advanced</option>
-      </select>
-    </label>
-    <label class="field">
-      <span>Status</span>
-      <select id="topicStatus">
-        <option value="all">Any status</option>
-        <option value="confident">Confident</option>
-        <option value="review">Needs review</option>
-        <option value="new">Not marked yet</option>
-      </select>
-    </label>
-  </div>
-  <div class="topics-grid" id="topicsGrid"></div>
-  <div class="detail-panel" id="topicDetail">
-    <div class="detail-empty">Select a topic card to open a deeper breakdown, study goals, and progress actions.</div>
-  </div>
-</section>
-
-<section id="quiz">
-  <div class="section-tag">03 &mdash; Practice</div>
-  <h2 class="section-title">Adaptive quiz mode</h2>
-  <p class="section-sub">Build a custom quiz by topic and difficulty, then review your saved score history and weak categories.</p>
-  <div class="quiz-section">
-    <div class="toolbar quiz-setup">
-      <label class="field">
-        <span>Category</span>
-        <select id="quizCategory">
-          <option value="all">All categories</option>
-          <option value="Functional Groups">Functional Groups</option>
-          <option value="Reaction Mechanisms">Reaction Mechanisms</option>
-          <option value="IUPAC Naming">IUPAC Naming</option>
-          <option value="Stereochemistry">Stereochemistry</option>
-          <option value="Aromatic Chemistry">Aromatic Chemistry</option>
-          <option value="Spectroscopy">Spectroscopy</option>
-        </select>
-      </label>
-      <label class="field">
-        <span>Difficulty</span>
-        <select id="quizDifficulty">
-          <option value="all">Mixed difficulty</option>
-          <option value="Beginner">Beginner</option>
-          <option value="Intermediate">Intermediate</option>
-          <option value="Advanced">Advanced</option>
-        </select>
-      </label>
-      <label class="field">
-        <span>Length</span>
-        <select id="quizLength">
-          <option value="5">5 questions</option>
-          <option value="8" selected>8 questions</option>
-          <option value="10">10 questions</option>
-        </select>
-      </label>
-      <button class="btn btn-primary" onclick="setupQuiz()">Build Quiz</button>
-    </div>
-    <div class="quiz-header">
-      <div class="quiz-question" id="qText">Build a quiz to begin.</div>
-      <div class="quiz-progress">
-        <div id="qNum" style="font-size:1.2rem;color:var(--accent);">0/0</div>
-        <div id="quizMeta">Custom practice</div>
+      <div class="auth-notice" data-auth-banner>
+        <strong>Preview mode is active.</strong>
+        <span>Study content is open, but saved progress, study plans, reaction bookmarks, quiz history, and cross-device sync unlock after login.</span>
+        <a class="button secondary small" href="#auth">Go to Login</a>
       </div>
-    </div>
-    <div class="quiz-options" id="qOptions"></div>
-    <div class="quiz-feedback" id="qFeedback"></div>
-    <div class="quiz-nav">
-      <button class="btn btn-secondary" id="nextBtn" onclick="nextQ()" style="display:none;">Next Question &rarr;</button>
-      <button class="btn btn-secondary" id="restartBtn" onclick="restartQuiz()" style="display:none;">Replay Quiz</button>
-    </div>
-    <div id="scoreDisplay" class="score-card" style="display:none;">
-      <div class="score-main">
-        <div style="font-family:var(--font-display);font-size:1.8rem;color:var(--accent);" id="scoreText"></div>
-        <div style="color:var(--text-dim);font-size:.88rem;margin-top:.4rem;" id="scoreMsg"></div>
+
+      <section class="dashboard-hero">
+        <div class="dashboard-hero-copy">
+          <div class="hero-kicker">Interactive Organic Chemistry Studio</div>
+          <h3>Organic chemistry that adapts to how you study.</h3>
+          <p>Explore course topics, compare mechanisms, build focused review plans, and track weak spots inside one wider dashboard.</p>
+          <div class="btn-group">
+            <a href="#topics" class="btn btn-primary">Explore Topics</a>
+            <a href="#quiz" class="btn btn-secondary">Start Practice</a>
+            <a href="#reference" class="btn btn-secondary">Open Reference</a>
+          </div>
+        </div>
+
+        <div class="molecule-canvas" id="heroMol">
+          <div class="mol-label">Featured Molecule</div>
+          <svg id="molSvg" viewBox="0 0 260 200" width="260" height="200" xmlns="http://www.w3.org/2000/svg"></svg>
+          <div class="mol-name" id="molName">Ethanol</div>
+          <div class="mol-formula" id="molFormula">C2H5OH</div>
+          <div class="mol-copy" id="moleculeInfo">A compact primary alcohol used as a solvent and a foundational oxidation example.</div>
+          <div class="molecule-notes">
+            <div class="molecule-note">
+              <span class="molecule-note-label">Functional highlight</span>
+              <div id="moleculeInsight">Hydroxyl groups increase polarity and enable hydrogen bonding.</div>
+            </div>
+            <div class="molecule-note">
+              <span class="molecule-note-label">Study angle</span>
+              <div id="moleculeStudyPrompt">Compare ethanol oxidation products to aldehydes and carboxylic acids.</div>
+            </div>
+          </div>
+          <div class="pill-row">
+            <button class="rxn-btn active" type="button" data-mol="ethanol" onclick="drawMol('ethanol',this,{manual:true})">Ethanol</button>
+            <button class="rxn-btn" type="button" data-mol="benzene" onclick="drawMol('benzene',this,{manual:true})">Benzene</button>
+            <button class="rxn-btn" type="button" data-mol="glucose" onclick="drawMol('glucose',this,{manual:true})">Glucose</button>
+            <button class="rxn-btn" type="button" data-mol="aspirin" onclick="drawMol('aspirin',this,{manual:true})">Aspirin</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="stats-row">
+        <article class="stat-card"><div class="stat-num" id="masteredStat">0</div><div class="stat-label">Topics marked confident</div></article>
+        <article class="stat-card"><div class="stat-num" id="quizAverageStat">0%</div><div class="stat-label">Average quiz score</div></article>
+        <article class="stat-card"><div class="stat-num" id="studyPlanStat">0</div><div class="stat-label">Saved study plans</div></article>
+      </section>
+
+      <section class="content-section" aria-labelledby="dashboardTitle">
+        <div class="section-tag">01</div>
+        <div class="section-copy">
+          <h3 id="dashboardTitle">Build a smarter study session</h3>
+          <p>This workspace remembers what you review, what you save, and where your weak spots are so the next session starts with direction.</p>
+        </div>
+        <div class="dashboard-grid">
+          <article class="dashboard-panel">
+            <div class="panel-header">
+              <div>
+                <div class="panel-eyebrow">Today&apos;s Mission</div>
+                <h3>Recommended next move</h3>
+              </div>
+              <span class="status-pill" id="missionBadge">Fresh start</span>
+            </div>
+            <p class="panel-copy" id="missionText">Answer a short quiz, then mark at least one topic as confident to start building your study map.</p>
+            <div class="mission-checklist" id="missionChecklist"></div>
+          </article>
+
+          <article class="dashboard-panel">
+            <div class="panel-header">
+              <div>
+                <div class="panel-eyebrow">Study Planner</div>
+                <h3>Generate an AI roadmap</h3>
+              </div>
+            </div>
+            <p class="panel-copy">Set your pace, current course progress, and level, then let the planner generate a multi-week roadmap plus your next session.</p>
+            <div class="control-grid three-up">
+              <label class="field">
+                <span>Focus Area</span>
+                <select id="studyFocus">
+                  <option value="all">Balanced review</option>
+                  <option value="Functional Groups">Functional Groups</option>
+                  <option value="Reaction Mechanisms">Reaction Mechanisms</option>
+                  <option value="IUPAC Naming">IUPAC Naming</option>
+                  <option value="Stereochemistry">Stereochemistry</option>
+                  <option value="Aromatic Chemistry">Aromatic Chemistry</option>
+                  <option value="Spectroscopy">Spectroscopy</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Session Time</span>
+                <select id="sessionMinutes">
+                  <option value="20">20 minutes</option>
+                  <option value="35" selected>35 minutes</option>
+                  <option value="50">50 minutes</option>
+                  <option value="75">75 minutes</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Course Length</span>
+                <input id="courseWeeks" type="number" min="2" max="52" value="12">
+              </label>
+              <label class="field">
+                <span>Completed Quizzes</span>
+                <input id="completedQuizzes" type="number" min="0" max="500" value="0">
+              </label>
+              <label class="field">
+                <span>Major Exams Taken</span>
+                <input id="completedMajorExams" type="number" min="0" max="50" value="0">
+              </label>
+              <label class="field">
+                <span>Starting Level</span>
+                <select id="startingLevel">
+                  <option value="Beginner" selected>Beginner</option>
+                  <option value="Intermediate">Intermediate</option>
+                  <option value="Advanced">Advanced</option>
+                </select>
+              </label>
+            </div>
+            <div class="ai-settings-card">
+              <p class="settings-note"><strong>Built-in AI</strong><br>Roadmap generation uses the server-backed AI built into this app. Sign in to save roadmaps to your account.</p>
+            </div>
+            <div class="planner-toolbar">
+              <button class="btn btn-primary" type="button" onclick="buildStudyPlan()" data-auth-required data-auth-message="Sign in to save AI roadmaps and planner history.">Generate AI Roadmap</button>
+              <button class="btn btn-secondary" type="button" onclick="buildOfflineStudyPlan()" data-auth-required data-auth-message="Sign in to save offline study plans and planner history.">Use Offline Quick Plan</button>
+              <button class="btn btn-secondary danger-btn" type="button" onclick="resetPlannerData()" data-auth-required data-auth-message="Sign in to manage planner history and stored progress.">Reset Planner Data</button>
+            </div>
+            <div class="planner-status" id="plannerStatus" role="status" aria-live="polite">Checking built-in AI availability. You can still browse the planner in preview mode.</div>
+            <div class="planner-error" id="plannerError" role="alert" style="display:none;"></div>
+            <div class="study-plan" id="studyPlan"></div>
+          </article>
+
+          <article class="dashboard-panel">
+            <div class="panel-header">
+              <div>
+                <div class="panel-eyebrow">Weak Areas</div>
+                <h3>What needs another pass</h3>
+              </div>
+            </div>
+            <div class="weak-areas" id="weakAreas"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="content-section" id="topics" aria-labelledby="topicsTitle">
+        <div class="section-tag">02</div>
+        <div class="section-copy">
+          <h3 id="topicsTitle">Explore the course map</h3>
+          <p>Filter by difficulty, search by keyword, and keep track of which concepts feel stable versus shaky.</p>
+        </div>
+        <div class="toolbar">
+          <label class="field grow">
+            <span>Search topics</span>
+            <input type="search" id="topicSearch" placeholder="Try SN2, aromaticity, aldehydes...">
+          </label>
+          <label class="field">
+            <span>Difficulty</span>
+            <select id="topicDifficulty">
+              <option value="all">All levels</option>
+              <option value="Beginner">Beginner</option>
+              <option value="Intermediate">Intermediate</option>
+              <option value="Advanced">Advanced</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Status</span>
+            <select id="topicStatus">
+              <option value="all">Any status</option>
+              <option value="confident">Confident</option>
+              <option value="review">Needs review</option>
+              <option value="new">Not marked yet</option>
+            </select>
+          </label>
+        </div>
+        <div class="topics-grid" id="topicsGrid"></div>
+        <div class="detail-panel" id="topicDetail">
+          <div class="detail-empty">Select a topic card to open a deeper breakdown, study goals, and progress actions.</div>
+        </div>
+      </section>
+
+      <section class="content-section" id="reactions" aria-labelledby="reactionTitle">
+        <div class="section-tag">03</div>
+        <div class="section-copy">
+          <h3 id="reactionTitle">Reaction lab and mechanism decision helper</h3>
+          <p>Switch between core mechanisms, save your review stack, and use the helper to compare substitution versus elimination pressure.</p>
+        </div>
+        <div class="reaction-layout">
+          <div class="rxn-viz">
+            <div class="panel-header">
+              <div>
+                <div class="panel-eyebrow">Mechanism Explorer</div>
+                <h3 id="rxnCardTitle">SN2</h3>
+              </div>
+              <button class="btn btn-secondary" id="saveReactionBtn" type="button" onclick="toggleSavedReaction()" data-auth-required data-auth-message="Sign in to save reaction review stacks.">Save reaction for review</button>
+            </div>
+            <p class="panel-copy" id="rxnQuickTake">One-step substitution with inversion.</p>
+            <div class="chip-row" id="rxnTags"></div>
+            <div class="rxn-controls" id="rxnControls"></div>
+            <div class="rxn-display" id="rxnDisplay"></div>
+          </div>
+
+          <div class="reaction-side">
+            <article class="dashboard-panel" id="rxnInfo"></article>
+            <article class="dashboard-panel">
+              <div class="panel-header">
+                <div>
+                  <div class="panel-eyebrow">Saved Reactions</div>
+                  <h3>Review stack</h3>
+                </div>
+              </div>
+              <div class="saved-reaction-list" id="savedReactionList"></div>
+            </article>
+          </div>
+        </div>
+
+        <div class="decision-card">
+          <div class="panel-header">
+            <div>
+              <div class="panel-eyebrow">Decision Helper</div>
+              <h3 id="decisionTitle">Mechanism ranking</h3>
+            </div>
+          </div>
+          <p class="panel-copy" id="decisionSummary">The helper weighs sterics, nucleophile strength, and solvent effects to rank the likely mechanisms.</p>
+          <div class="control-grid three-up">
+            <label class="field">
+              <span>Substrate</span>
+              <select id="decSubstrate" onchange="runDecisionHelper()">
+                <option value="methyl">Methyl</option>
+                <option value="primary" selected>Primary</option>
+                <option value="secondary">Secondary</option>
+                <option value="tertiary">Tertiary</option>
+                <option value="allylic">Allylic / Benzylic</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Reagent</span>
+              <select id="decReagent" onchange="runDecisionHelper()">
+                <option value="strong-nuc" selected>Strong nucleophile</option>
+                <option value="weak-nuc">Weak nucleophile</option>
+                <option value="strong-base">Strong bulky base</option>
+                <option value="neutral">Neutral / Solvolysis</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Solvent</span>
+              <select id="decSolvent" onchange="runDecisionHelper()">
+                <option value="polar-aprotic" selected>Polar aprotic</option>
+                <option value="polar-protic">Polar protic</option>
+                <option value="hot">Heated conditions</option>
+              </select>
+            </label>
+          </div>
+          <div class="decision-grid">
+            <div class="decision-bars" id="decisionBars"></div>
+            <div class="decision-notes" id="decisionNotes"></div>
+          </div>
+        </div>
+      </section>
+      <section class="content-section" id="quiz" aria-labelledby="quizTitle">
+        <div class="section-tag">04</div>
+        <div class="section-copy">
+          <h3 id="quizTitle">Adaptive quiz mode</h3>
+          <p>Build a custom quiz by topic and difficulty, then review your score immediately. Sign in to save quiz history to your account.</p>
+        </div>
+        <div class="quiz-section">
+          <div class="toolbar quiz-setup">
+            <label class="field">
+              <span>Category</span>
+              <select id="quizCategory">
+                <option value="all">All categories</option>
+                <option value="Functional Groups">Functional Groups</option>
+                <option value="Reaction Mechanisms">Reaction Mechanisms</option>
+                <option value="IUPAC Naming">IUPAC Naming</option>
+                <option value="Stereochemistry">Stereochemistry</option>
+                <option value="Aromatic Chemistry">Aromatic Chemistry</option>
+                <option value="Spectroscopy">Spectroscopy</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Difficulty</span>
+              <select id="quizDifficulty">
+                <option value="all">Mixed difficulty</option>
+                <option value="Beginner">Beginner</option>
+                <option value="Intermediate">Intermediate</option>
+                <option value="Advanced">Advanced</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Length</span>
+              <select id="quizLength">
+                <option value="5">5 questions</option>
+                <option value="8" selected>8 questions</option>
+                <option value="10">10 questions</option>
+              </select>
+            </label>
+            <button class="btn btn-primary" type="button" onclick="setupQuiz()">Build Quiz</button>
+          </div>
+          <div class="quiz-header">
+            <div class="quiz-question" id="qText">Build a quiz to begin.</div>
+            <div class="quiz-progress">
+              <div id="qNum">0/0</div>
+              <div id="quizMeta">Custom practice</div>
+            </div>
+          </div>
+          <div class="quiz-options" id="qOptions"></div>
+          <div class="quiz-feedback" id="qFeedback"></div>
+          <div class="quiz-nav">
+            <button class="btn btn-secondary" id="nextBtn" type="button" onclick="nextQ()" style="display:none;">Next Question</button>
+            <button class="btn btn-secondary" id="restartBtn" type="button" onclick="restartQuiz()" style="display:none;">Replay Quiz</button>
+          </div>
+          <div id="scoreDisplay" class="score-card" style="display:none;">
+            <div class="score-main">
+              <div id="scoreText" class="score-title"></div>
+              <div id="scoreMsg" class="score-message"></div>
+            </div>
+            <div id="scoreBreakdown" class="score-breakdown"></div>
+          </div>
+          <div class="history-panel">
+            <div class="panel-eyebrow">Saved Sessions</div>
+            <h3>Recent quiz history</h3>
+            <div id="quizHistory" class="history-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="content-section" id="reference" aria-labelledby="referenceTitle">
+        <div class="section-tag">05</div>
+        <div class="section-copy">
+          <h3 id="referenceTitle">Reference explorer</h3>
+          <p>Search across functional groups, filter by family or difficulty, and use the table as a live study sheet rather than a static chart.</p>
+        </div>
+        <div class="toolbar">
+          <label class="field grow">
+            <span>Search reference</span>
+            <input type="search" id="referenceSearch" placeholder="Try ketone, nitrile, aromatic...">
+          </label>
+          <label class="field">
+            <span>Family</span>
+            <select id="referenceFamily">
+              <option value="all">All families</option>
+              <option value="Alcohols & Ethers">Alcohols & Ethers</option>
+              <option value="Carbonyls">Carbonyls</option>
+              <option value="Nitrogen Compounds">Nitrogen Compounds</option>
+              <option value="Hydrocarbons">Hydrocarbons</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Difficulty</span>
+            <select id="referenceDifficulty">
+              <option value="all">All levels</option>
+              <option value="Beginner">Beginner</option>
+              <option value="Intermediate">Intermediate</option>
+              <option value="Advanced">Advanced</option>
+            </select>
+          </label>
+        </div>
+        <div class="reference-summary" id="referenceSummary"></div>
+        <div class="reference-shell">
+          <table class="ref-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Family</th>
+                <th>Suffix</th>
+                <th>Functional Group</th>
+                <th>Key Property</th>
+                <th>Difficulty</th>
+              </tr>
+            </thead>
+            <tbody id="referenceBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+
+    <section id="studio" class="app-panel" data-panel="studio">
+      <div class="panel-header-block">
+        <div>
+          <p class="eyebrow">Material Studio</p>
+          <h2>Build an organic material profile and inspect how it behaves</h2>
+          <p class="section-lead">The material builder now lives inside the same shell, so themes, navigation, and account state stay unified while you switch from revision to live compound exploration.</p>
+        </div>
       </div>
-      <div id="scoreBreakdown" class="score-breakdown"></div>
-    </div>
-    <div class="history-panel">
-      <div class="panel-eyebrow">Saved Sessions</div>
-      <h3>Recent quiz history</h3>
-      <div id="quizHistory" class="history-list"></div>
-    </div>
-  </div>
-</section>
 
-<section id="reference">
-  <div class="section-tag">04 &mdash; Quick Reference</div>
-  <h2 class="section-title">Reference explorer</h2>
-  <p class="section-sub">Search across functional groups, filter by family or difficulty, and use the table as a live study sheet rather than a static chart.</p>
-  <div class="toolbar">
-    <label class="field grow">
-      <span>Search reference</span>
-      <input type="search" id="referenceSearch" placeholder="Try ketone, nitrile, aromatic...">
-    </label>
-    <label class="field">
-      <span>Family</span>
-      <select id="referenceFamily">
-        <option value="all">All families</option>
-        <option value="Alcohols & Ethers">Alcohols & Ethers</option>
-        <option value="Carbonyls">Carbonyls</option>
-        <option value="Nitrogen Compounds">Nitrogen Compounds</option>
-        <option value="Hydrocarbons">Hydrocarbons</option>
-      </select>
-    </label>
-    <label class="field">
-      <span>Difficulty</span>
-      <select id="referenceDifficulty">
-        <option value="all">All levels</option>
-        <option value="Beginner">Beginner</option>
-        <option value="Intermediate">Intermediate</option>
-        <option value="Advanced">Advanced</option>
-      </select>
-    </label>
-  </div>
-  <div class="reference-summary" id="referenceSummary"></div>
-  <div class="reference-shell">
-    <table class="ref-table">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Family</th>
-          <th>Suffix</th>
-          <th>Functional Group</th>
-          <th>Key Property</th>
-          <th>Difficulty</th>
-        </tr>
-      </thead>
-      <tbody id="referenceBody"></tbody>
-    </table>
-  </div>
-</section>
+      <div class="studio-layout">
+        <aside class="studio-side">
+          <article class="studio-card">
+            <p class="eyebrow">Builder</p>
+            <h3>Build a material profile</h3>
+            <p class="panel-copy">Choose a carbon framework and functional group, then load a representative material with its physical properties, chemical behavior, and synthesis route.</p>
 
-<footer>Built for students who think visually &mdash; <span>OrganoChem</span> &mdash; now with study memory, filtering, guided practice, a dedicated <a href="organic-material-studio.html">material studio</a>, and <a href="organobot.html">ORGANOBOT</a>.</footer>
+            <form class="studio-form" aria-describedby="builderHelp">
+              <label for="frameworkSelect">Carbon framework</label>
+              <select id="frameworkSelect" name="framework">
+                <option value="all">All frameworks</option>
+                <option value="chain">Chain</option>
+                <option value="aromatic">Aromatic ring</option>
+                <option value="mixed">Aromatic plus carbonyl / mixed scaffold</option>
+              </select>
 
+              <label for="groupSelect">Dominant functional group</label>
+              <select id="groupSelect" name="group">
+                <option value="all">All functional groups</option>
+                <option value="alcohol">Alcohol</option>
+                <option value="ketone">Ketone</option>
+                <option value="carboxylic-acid">Carboxylic acid</option>
+                <option value="amine">Amine</option>
+                <option value="ester">Ester</option>
+                <option value="alkene">Alkene</option>
+              </select>
+
+              <label for="materialSelect">Material</label>
+              <select id="materialSelect" name="material"></select>
+
+              <label for="compoundSearch">Search any compound name</label>
+              <input id="compoundSearch" name="compoundSearch" type="search" list="compoundSuggestionList" autocomplete="off" placeholder="Try ethanol, acetylsalicylic acid, vinylbenzene...">
+              <datalist id="compoundSuggestionList"></datalist>
+              <p id="builderHelp" class="panel-copy compact">Choose a framework and functional group first, or search directly to pull live PubChem data.</p>
+              <div id="searchSuggestions" class="search-suggestion-strip" aria-live="polite"></div>
+
+              <div class="button-row">
+                <button type="button" class="button primary" id="loadMaterialBtn">Load Material Profile</button>
+                <button type="button" class="button secondary" id="searchCompoundBtn">Search PubChem</button>
+              </div>
+            </form>
+          </article>
+
+          <article class="studio-card">
+            <div class="status-line" id="builderStatus" role="status" aria-live="polite">Loading the first material profile.</div>
+            <div class="preview-card">
+              <p class="eyebrow">Current Material</p>
+              <h3 id="previewTitle">Ethanol</h3>
+              <p id="materialSummary" class="summary"></p>
+              <div class="chip-row" id="materialChips"></div>
+            </div>
+            <div class="blueprint">
+              <h3>Build summary</h3>
+              <dl id="buildSummary" class="summary-grid"></dl>
+            </div>
+          </article>
+        </aside>
+
+        <div class="studio-main">
+          <article class="studio-card viewer-card">
+            <div class="viewer-head">
+              <div>
+                <p class="eyebrow">3D View</p>
+                <h3>Live compound viewer</h3>
+                <p id="viewerCaption" class="panel-copy compact">The 3D viewer loads a PubChem conformer when one is available.</p>
+              </div>
+              <div class="button-row compact">
+                <button type="button" class="button secondary" id="styleStickBtn">Stick</button>
+                <button type="button" class="button secondary" id="styleSphereBtn">Sphere</button>
+                <button type="button" class="button secondary" id="resetViewBtn">Reset</button>
+              </div>
+            </div>
+            <div class="viewer-stage">
+              <div id="viewer3d" class="viewer-canvas" aria-label="3D molecule viewer"></div>
+              <aside id="viewerAtomLegend" class="viewer-atom-legend" aria-label="Atom identification guide"></aside>
+            </div>
+            <p id="viewerStatus" class="viewer-status" role="status" aria-live="polite">Preparing 3D viewer.</p>
+          </article>
+
+          <div class="studio-stats">
+            <div id="propertyHighlights" class="highlight-strip"></div>
+            <div id="prepOverview" class="prep-overview"></div>
+          </div>
+
+          <div class="studio-grid">
+            <article class="studio-card">
+              <h3>Physical profile</h3>
+              <dl id="physicalList" class="data-list"></dl>
+            </article>
+            <article class="studio-card">
+              <h3>Chemical behavior</h3>
+              <div id="chemicalList" class="stack-list"></div>
+            </article>
+            <article class="studio-card">
+              <h3>Live API data</h3>
+              <div id="apiDataList" class="stack-list"></div>
+            </article>
+            <article class="studio-card">
+              <h3>Safety profile</h3>
+              <div id="safetyList" class="stack-list"></div>
+            </article>
+            <article class="studio-card wide">
+              <h3>Common preparation route</h3>
+              <p id="routeLead" class="panel-copy compact">The route below updates with the selected material.</p>
+              <ol id="routeSteps" class="route-list"></ol>
+            </article>
+            <article class="studio-card">
+              <h3>Chemical equations</h3>
+              <div id="routeEquations" class="equation-list"></div>
+            </article>
+            <article class="studio-card">
+              <h3>Why the route works</h3>
+              <div id="routeNotes" class="stack-list"></div>
+            </article>
+            <article class="studio-card">
+              <h3>Uses</h3>
+              <div id="useList" class="stack-list"></div>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="bot" class="app-panel" data-panel="bot">
+      <div class="panel-header-block">
+        <div>
+          <p class="eyebrow">ORGANOBOT</p>
+          <h2>Ask a chemistry-focused AI guide inside the same app shell</h2>
+          <p class="section-lead">Preview the bot interface freely, then sign in to unlock session history and account-backed chat continuity.</p>
+        </div>
+      </div>
+
+      <div class="auth-notice" data-auth-banner="bot">
+        <strong>Chat preview is visible.</strong>
+        <span>Sign in to send chemistry questions, create persistent chat sessions, and sync ORGANOBOT history to your account.</span>
+        <a class="button secondary small" href="#auth">Login for Chat</a>
+      </div>
+
+      <section class="bot-hero">
+        <div class="bot-copy">
+          <p class="bot-kicker">Chemistry-Only AI Guide</p>
+          <h3>Ask ORGANOBOT anything about chemistry.</h3>
+          <p class="bot-lead">Mechanisms, aromaticity, spectra clues, compound comparisons, study guidance, and quick chemistry explanations live here in one focused assistant.</p>
+          <div class="bot-chip-row">
+            <button class="prompt-chip" type="button" data-prompt="Explain SN1 vs SN2 with one clear comparison table." data-auth-required data-auth-message="Sign in to chat with ORGANOBOT and save chemistry sessions.">Explain SN1 vs SN2</button>
+            <button class="prompt-chip" type="button" data-prompt="Help me with aromaticity and the Huckel rule." data-auth-required data-auth-message="Sign in to chat with ORGANOBOT and save chemistry sessions.">Help me with aromaticity</button>
+            <button class="prompt-chip" type="button" data-prompt="Interpret this IR clue: strong peak near 1700 cm^-1 and broad peak around 3300 cm^-1." data-auth-required data-auth-message="Sign in to chat with ORGANOBOT and save chemistry sessions.">Interpret this IR clue</button>
+            <button class="prompt-chip" type="button" data-prompt="Teach me carbonyl chemistry in a revision-friendly way." data-auth-required data-auth-message="Sign in to chat with ORGANOBOT and save chemistry sessions.">Teach me carbonyl chemistry</button>
+          </div>
+        </div>
+
+        <aside class="bot-hero-panel">
+          <div class="hero-line">
+            <span class="hero-label">Focus</span>
+            <span class="hero-value">Chemistry only</span>
+          </div>
+          <div class="hero-line">
+            <span class="hero-label">Shared AI</span>
+            <span class="hero-value">Uses the same server AI route as the roadmap planner</span>
+          </div>
+          <div class="hero-line">
+            <span class="hero-label">Best for</span>
+            <span class="hero-value">Organic chemistry, spectroscopy, mechanisms, revision questions</span>
+          </div>
+        </aside>
+      </section>
+
+      <section class="bot-workspace" id="chatShell">
+        <aside class="bot-sidebar">
+          <div class="sidebar-card">
+            <div class="card-eyebrow">Sessions</div>
+            <h3>Conversation Stack</h3>
+            <div class="sidebar-actions">
+              <button class="bot-btn bot-btn-primary" type="button" id="newSessionBtn" data-auth-required data-auth-message="Sign in to create and save ORGANOBOT chat sessions.">New Chat</button>
+              <button class="bot-btn bot-btn-secondary" type="button" id="clearHistoryBtn" data-auth-required data-auth-message="Sign in to manage ORGANOBOT chat history.">Clear History</button>
+            </div>
+            <div class="session-list" id="sessionList"></div>
+          </div>
+
+          <div class="sidebar-card">
+            <div class="card-eyebrow">AI Status</div>
+            <h3>Built-in AI</h3>
+            <p class="sidebar-note">ORGANOBOT uses the same built-in server AI as the planner. Auth gates saved history and message sending, not the panel itself.</p>
+          </div>
+        </aside>
+
+        <section class="chat-panel">
+          <div class="chat-panel-head">
+            <div>
+              <div class="card-eyebrow">Live Chemistry Chat</div>
+              <h3 id="sessionTitle">New chemistry chat</h3>
+            </div>
+            <div class="chat-status" id="botStatus" role="status" aria-live="polite">Checking built-in AI availability for ORGANOBOT...</div>
+          </div>
+
+          <div class="chat-log" id="chatLog" aria-live="polite"></div>
+
+          <form class="chat-form" id="chatForm">
+            <label class="bot-field grow">
+              <span>Your question</span>
+              <textarea id="chatInput" rows="4" placeholder="Ask a chemistry question, paste rough notes, enter a formula, or type a short follow-up..." data-auth-required data-auth-message="Sign in to send questions to ORGANOBOT."></textarea>
+            </label>
+            <div class="chat-form-actions">
+              <button class="bot-btn bot-btn-primary" type="submit" id="sendChatBtn" data-auth-required data-auth-message="Sign in to send questions to ORGANOBOT.">Send to ORGANOBOT</button>
+            </div>
+          </form>
+        </section>
+      </section>
+    </section>
+
+    <section id="auth" class="app-panel" data-panel="auth">
+      <div class="panel-header-block">
+        <div>
+          <p class="eyebrow">Authentication</p>
+          <h2>Login or create an account</h2>
+          <p class="section-lead">Authentication is now real server-side auth backed by session cookies and hosted Postgres. Signing in upgrades the browser-only experience into account-backed study memory.</p>
+        </div>
+      </div>
+
+      <div class="auth-layout">
+        <aside class="auth-aside">
+          <article class="auth-info-card">
+            <h3>What sign-in unlocks</h3>
+            <ul class="auth-benefits">
+              <li>Topic status, saved reactions, quiz history, and study plans stored in your account</li>
+              <li>Theme preference and ORGANOBOT sessions restored after refresh</li>
+              <li>One-time import of existing local browser study data if your account is new</li>
+            </ul>
+          </article>
+
+          <article class="auth-info-card">
+            <h3>Session status</h3>
+            <div id="authSessionSummary" class="auth-session-summary">Checking your session...</div>
+            <div class="auth-actions" id="authSessionActions">
+              <button class="button secondary" type="button" id="logoutButton" style="display:none;">Log Out</button>
+            </div>
+          </article>
+        </aside>
+
+        <div class="auth-main">
+          <div class="auth-tabs">
+            <button class="auth-tab active" type="button" data-auth-mode="login">Login</button>
+            <button class="auth-tab" type="button" data-auth-mode="signup">Sign Up</button>
+          </div>
+
+          <article class="auth-card" id="authFormCard">
+            <div class="auth-inline-message" id="authGateMessage" hidden></div>
+            <div class="auth-inline-message" id="authStatusMessage" hidden></div>
+
+            <form id="loginForm" class="auth-form">
+              <label class="field">
+                <span>Email</span>
+                <input type="email" id="loginEmail" required placeholder="you@example.com">
+              </label>
+              <label class="field">
+                <span>Password</span>
+                <input type="password" id="loginPassword" required minlength="8" placeholder="At least 8 characters">
+              </label>
+              <button class="button primary full-width" type="submit">Login</button>
+            </form>
+
+            <form id="signupForm" class="auth-form" hidden>
+              <label class="field">
+                <span>Display Name</span>
+                <input type="text" id="signupDisplayName" required minlength="2" maxlength="60" placeholder="Organic learner">
+              </label>
+              <label class="field">
+                <span>Email</span>
+                <input type="email" id="signupEmail" required placeholder="you@example.com">
+              </label>
+              <label class="field">
+                <span>Password</span>
+                <input type="password" id="signupPassword" required minlength="8" placeholder="At least 8 characters">
+              </label>
+              <button class="button primary full-width" type="submit">Create Account</button>
+            </form>
+          </article>
+
+          <article class="auth-card account-card" id="accountCard" hidden>
+            <p class="eyebrow">Signed In</p>
+            <h3 id="accountName">Account</h3>
+            <div class="account-meta" id="accountMeta"></div>
+            <div class="account-actions">
+              <button class="button secondary" type="button" id="accountRefreshButton">Refresh Account Sync</button>
+              <button class="button secondary" type="button" id="accountLogoutButton">Log Out</button>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer class="global-footer">
+  <p>OrganoChem now runs as one linked workspace with anchored panels for dashboard study tools, material exploration, AI chat, and real account-backed state.</p>
+</footer>
+
+<script src="https://3dmol.org/build/3Dmol-min.js"></script>
 <script src="organochem-ai.js"></script>
+<script src="app-shell.js"></script>
 <script src="organic-chemistry_1.js"></script>
+<script src="organic-material-studio.js"></script>
+<script src="organobot.js"></script>
 </body>
 </html>

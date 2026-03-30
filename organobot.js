@@ -1,5 +1,7 @@
+(function(){
 const AI=window.OrganoAI;
 const BOT_STORE_KEY=AI?.ORGANOBOT_HISTORY_KEY||'oc-organobot-history-v1';
+const canUseBotFeature=message=>window.OrganoApp?.assertFeatureAccess(message)??true;
 
 function botNow(){
   return new Date().toISOString();
@@ -21,6 +23,7 @@ let botState=readBotStore();
 
 function saveBotStore(){
   localStorage.setItem(BOT_STORE_KEY,JSON.stringify(botState));
+  window.dispatchEvent(new CustomEvent('organo:state-changed',{detail:{key:BOT_STORE_KEY}}));
 }
 
 function createGreetingMessage(){
@@ -149,6 +152,7 @@ function normalizeUserPrompt(prompt){
 }
 
 async function sendToOrganobot(prompt){
+  if(!canUseBotFeature('Sign in to send questions to ORGANOBOT.'))return;
   const trimmed=normalizeUserPrompt(prompt);
   if(!trimmed)return;
   addMessage('user',trimmed);
@@ -184,6 +188,7 @@ async function sendToOrganobot(prompt){
 }
 
 document.getElementById('newSessionBtn').addEventListener('click',()=>{
+  if(!canUseBotFeature('Sign in to create and save ORGANOBOT chat sessions.'))return;
   const session=createSession();
   botState.sessions.unshift(session);
   botState.activeId=session.id;
@@ -192,6 +197,7 @@ document.getElementById('newSessionBtn').addEventListener('click',()=>{
   setBotStatus('Started a fresh chemistry chat.');
 });
 document.getElementById('clearHistoryBtn').addEventListener('click',()=>{
+  if(!canUseBotFeature('Sign in to manage ORGANOBOT chat history.'))return;
   if(!confirm('Clear all ORGANOBOT chat history? This will remove every saved chemistry session on this browser.'))return;
   const session=createSession();
   botState={activeId:session.id,sessions:[session]};
@@ -207,5 +213,15 @@ document.querySelectorAll('[data-prompt]').forEach(button=>{
   button.addEventListener('click',()=>sendToOrganobot(button.dataset.prompt||''));
 });
 
+window.addEventListener('organo:hydrate-bot-state',()=>{
+  botState=readBotStore();
+  renderOrganobot();
+});
+window.addEventListener('organo:auth-changed',()=>{
+  botState=readBotStore();
+  renderOrganobot();
+});
+
 renderOrganobot();
 refreshBotActivationState();
+})();

@@ -1,4 +1,5 @@
-const LABELS={'lab-noir':'Lab Noir','cyberpunk':'Cyberpunk','academic-ink':'Academic Ink','deep-space':'Deep Space','lab-white':'Lab White','neon-day':'Neon Day','ivory':'Ivory Academic','clean-slate':'Clean Slate'};
+(function(){
+const LABELS={'lab-noir':'Lab Noir','cyberpunk':'Cyberpunk','academic-ink':'Academic Ink','deep-space':'Deep Space','copper-reactor':'Copper Reactor','forest-glass':'Forest Glass','lab-white':'Lab White','neon-day':'Neon Day','ivory':'Ivory Academic','clean-slate':'Clean Slate','paper-spectrum':'Paper Spectrum','solar-lab':'Solar Lab'};
 const THEME_KEY='oc-theme';
 
 const materials=[
@@ -270,19 +271,9 @@ function escapeHtml(value){
     .replaceAll("'",'&#39;');
 }
 
-function togglePanel(){document.getElementById('themePanel').classList.toggle('open');}
-function closePanel(){document.getElementById('themePanel').classList.remove('open');}
-document.addEventListener('click',event=>{if(!event.target.closest('.theme-switcher'))closePanel();});
-function setTheme(theme,button){
-  document.body.setAttribute('data-theme',theme);
-  document.getElementById('themeLabel').textContent=LABELS[theme];
-  document.querySelectorAll('.t-opt').forEach(option=>option.classList.remove('active'));
-  if(button)button.classList.add('active');
-  localStorage.setItem(THEME_KEY,theme);
-  closePanel();
-}
-const savedTheme=localStorage.getItem(THEME_KEY);
-if(savedTheme&&LABELS[savedTheme])setTheme(savedTheme,document.querySelector(`.t-opt[onclick*="${savedTheme}"]`));
+function togglePanel(){return window.togglePanel?.();}
+function closePanel(){return window.closePanel?.();}
+function setTheme(theme,button){return window.setTheme?.(theme,button);}
 
 function renderCardList(targetId,items,strongLabel){
   const target=document.getElementById(targetId);
@@ -1024,3 +1015,4 @@ compoundSearch.value=first?.pubchemQuery||'';
 renderSearchSuggestions(compoundSearch.value);
 resetViewerShell('3D viewer will load after the first PubChem lookup finishes.');
 if(first)loadCompound(first.pubchemQuery,first);
+})();
