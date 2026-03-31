@@ -319,6 +319,10 @@ label{display:block;color:var(--text-bright);font-weight:600;}
 .lead,.section-lead,.panel-copy,.summary,.sidebar-note,.viewer-status,.viewer-copy,.reference-summary,.auth-session-summary,.auth-benefits li,.heroSessionCopy,.mol-copy{line-height:1.7;color:var(--text-dim);}
 .lead,.section-lead,.panel-copy,.summary,.sidebar-note,.viewer-status,.viewer-copy,.reference-summary,.heroSessionCopy{max-width:72ch;}
 .hero-actions,.hero-pills,.btn-group,.button-row,.toolbar,.planner-toolbar,.sidebar-actions,.chat-form-actions,.hero-link-grid,.account-actions,.auth-actions{display:flex;gap:10px;flex-wrap:wrap;}
+.hero-actions{
+  gap:14px 18px;
+  margin:22px 0 14px;
+}
 .hero-chip,.status-pill,.topic-state,.topic-tag,.chip,.inline-chip,.activity-badge{
   display:inline-flex;
   align-items:center;
@@ -337,7 +341,11 @@ label{display:block;color:var(--text-bright);font-weight:600;}
 .hero-aside-card{padding:24px;display:grid;gap:12px;}
 .hero-link-grid{gap:8px;}
 .hero-link-grid a{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
   padding:8px 12px;
+  text-align:center;
   border-radius:999px;
   border:1px solid var(--border);
   background:var(--surface);
