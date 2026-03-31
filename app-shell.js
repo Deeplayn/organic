@@ -257,7 +257,8 @@
   function updateAuthUI(){
     const user=authState.user;
     setText('authChipLabel',user?'Signed In':'Preview Mode');
-    setText('headerAuthButton',user?'Account':'Sign In');
+    setText('headerAuthButtonLabel',user?'Account':'Log In');
+    $('headerAuthButton')?.setAttribute('aria-label',user?'Open account':'User Login Button');
     setText('heroSessionState',user?`Signed in as ${user.displayName||user.email}`:'Preview access');
     setText('heroSessionCopy',user?'Your progress, theme, roadmaps, and chat history now sync through your account.':'Browse every panel freely, then sign in to unlock saved study state, planner history, and ORGANOBOT conversations.');
     setText('authSessionSummary',user?`Signed in as ${user.displayName||'Learner'} (${user.email}). Theme: ${user.theme||localStorage.getItem(THEME_KEY)||'lab-noir'}.`:'You are not signed in. Choose a provider or use your OrganoChem account to start a session.');
