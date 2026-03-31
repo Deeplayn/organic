@@ -736,10 +736,97 @@ button{border:none;background:none;}
 .chat-table th,.chat-table td{padding:12px 14px;text-align:left;border-bottom:1px solid rgba(255,255,255,.08);}
 .chat-table th{font-family:var(--font-mono);font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;background:rgba(255,255,255,.06);}
 
+.auth-page-shell{
+  width:min(1500px,calc(100% - 32px));
+  margin:22px auto 40px;
+  display:grid;
+  gap:22px;
+}
+.auth-page-hero{
+  display:grid;
+  grid-template-columns:1.08fr .92fr;
+  gap:18px;
+}
+.auth-standalone-layout{align-items:start;}
 .auth-layout{display:grid;grid-template-columns:360px 1fr;gap:18px;}
 .auth-aside,.auth-main{display:grid;gap:18px;align-content:start;}
 .auth-info-card,.auth-card{padding:24px;}
 .auth-benefits{margin:0;padding-left:20px;display:grid;gap:10px;}
+.provider-card{display:grid;gap:16px;}
+.provider-card .panel-copy{margin-bottom:16px;}
+.oauth-grid{display:grid;gap:12px;}
+.oauth-button{
+  width:100%;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding:16px 18px;
+  border-radius:20px;
+  border:1px solid var(--border);
+  background:linear-gradient(180deg,color-mix(in srgb,var(--surface) 94%,transparent),color-mix(in srgb,var(--surface-2) 92%,transparent));
+  color:var(--text);
+  text-align:left;
+}
+.oauth-button:hover{
+  border-color:color-mix(in srgb,var(--accent) 55%,var(--border));
+  transform:translateY(-1px);
+  box-shadow:0 14px 32px rgba(0,0,0,.18);
+}
+.oauth-provider-copy{
+  display:flex;
+  align-items:center;
+  gap:14px;
+}
+.oauth-provider-copy strong,
+.oauth-provider-copy small{display:block;}
+.oauth-provider-copy small{margin-top:4px;color:var(--text-dim);}
+.oauth-provider-mark{
+  width:42px;
+  height:42px;
+  display:grid;
+  place-items:center;
+  border-radius:14px;
+  border:1px solid var(--border);
+  background:rgba(255,255,255,.06);
+  font-family:var(--font-mono);
+  font-size:.85rem;
+  letter-spacing:.04em;
+  color:var(--text-bright);
+}
+.oauth-status{
+  padding:8px 12px;
+  border-radius:999px;
+  border:1px solid var(--border);
+  font-family:var(--font-mono);
+  font-size:.68rem;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--accent);
+  background:var(--glow);
+}
+.auth-helper-copy{
+  margin:14px 0 0;
+  color:var(--text-dim);
+  line-height:1.7;
+}
+.auth-divider{
+  display:grid;
+  grid-template-columns:1fr auto 1fr;
+  gap:12px;
+  align-items:center;
+  margin-bottom:22px;
+  color:var(--text-dim);
+}
+.auth-divider span{height:1px;background:var(--border);}
+.auth-divider strong{
+  font-family:var(--font-mono);
+  font-size:.72rem;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--text-dim);
+}
+.website-account-block{display:grid;gap:16px;}
 .auth-tabs{display:flex;gap:10px;}
 .auth-tab{
   padding:12px 18px;
@@ -776,7 +863,7 @@ button{border:none;background:none;}
 }
 
 @media (max-width:1220px){
-  .dashboard-grid,.reaction-layout,.studio-layout,.bot-workspace,.auth-layout,.bot-hero,.shell-hero,.dashboard-hero{grid-template-columns:1fr;}
+  .dashboard-grid,.reaction-layout,.studio-layout,.bot-workspace,.auth-layout,.auth-page-hero,.bot-hero,.shell-hero,.dashboard-hero{grid-template-columns:1fr;}
   .topics-grid,.studio-grid,.stats-row,.studio-stats,.highlight-strip,.prep-overview{grid-template-columns:repeat(2,minmax(0,1fr));}
   .studio-grid .wide{grid-column:span 2;}
 }
@@ -790,10 +877,12 @@ button{border:none;background:none;}
   .viewer-atom-legend{position:static;width:100%;max-height:220px;margin-top:12px;}
 }
 @media (max-width:640px){
-  .global-header,.app-shell,.global-footer{width:min(100%,calc(100% - 16px));}
+  .global-header,.app-shell,.auth-page-shell,.global-footer{width:min(100%,calc(100% - 16px));}
   .global-header,.hero-copy-card,.hero-aside-card,.app-panel,.dashboard-panel,.detail-panel,.quiz-section,.rxn-viz,.decision-card,.studio-card,.sidebar-card,.chat-panel,.auth-card,.auth-info-card,.stat-card{padding:18px;}
   .app-nav,.header-utilities,.hero-actions,.hero-pills,.toolbar,.planner-toolbar,.button-row,.sidebar-actions,.chat-form-actions,.auth-tabs,.account-actions,.auth-actions,.panel-jump-links{flex-direction:column;align-items:stretch;}
   .theme-panel{left:0;right:auto;width:min(100vw - 32px,240px);}
   .auth-notice{flex-direction:column;align-items:flex-start;}
   .chat-bubble{max-width:100%;}
+  .oauth-button,.oauth-provider-copy{align-items:flex-start;}
+  .oauth-button{flex-direction:column;}
 }

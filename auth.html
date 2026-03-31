@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OrganoChem | Sign In</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&family=IM+Fell+English:ital@0;1&family=Instrument+Sans:wght@400;500;600;700&family=Rajdhani:wght@400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app-shell.css">
+</head>
+<body data-theme="lab-noir">
+<div class="app-backdrop" aria-hidden="true"></div>
+
+<header class="global-header" id="authPageTop">
+  <a class="brand-lockup" href="index.html#dashboard">
+    <span class="brand-mark">Organo<span>Chem</span></span>
+    <span class="brand-copy">Dedicated sign-in and sign-up page</span>
+  </a>
+
+  <nav class="app-nav" aria-label="Primary">
+    <a class="app-nav-link" href="index.html#dashboard">Dashboard</a>
+    <a class="app-nav-link" href="index.html#studio">Material Studio</a>
+    <a class="app-nav-link" href="index.html#bot">ORGANOBOT</a>
+    <a class="app-nav-link is-active" href="auth.html">Sign In / Sign Up</a>
+  </nav>
+
+  <div class="header-utilities">
+    <div class="session-chip">
+      <span class="session-kicker" id="authChipLabel">Preview Mode</span>
+      <button class="session-action" type="button" id="headerAuthButton">Sign In</button>
+    </div>
+  </div>
+</header>
+
+<main class="auth-page-shell">
+  <section class="auth-page-hero">
+    <article class="hero-copy-card">
+      <p class="eyebrow">Account Access</p>
+      <h1>Choose how you want to enter OrganoChem.</h1>
+      <p class="lead">Continue with Google, Microsoft, GitHub, or create your own OrganoChem account to save progress, sync your study plan, and keep your ORGANOBOT history.</p>
+      <div class="hero-pills">
+        <span class="hero-chip">Standalone auth page</span>
+        <span class="hero-chip">Provider-first choice</span>
+        <span class="hero-chip">Website account option</span>
+      </div>
+    </article>
+
+    <aside class="hero-aside">
+      <div class="hero-aside-card">
+        <span class="hero-card-label">What unlocks after sign-in</span>
+        <ul class="auth-benefits">
+          <li>Topic status, saved reactions, quiz history, and study plans stored in your account</li>
+          <li>Theme preference and ORGANOBOT sessions restored after refresh</li>
+          <li>One-time import of existing local browser study data if your account is new</li>
+        </ul>
+      </div>
+      <div class="hero-aside-card">
+        <span class="hero-card-label">Session Status</span>
+        <div id="authSessionSummary" class="auth-session-summary">Checking your session...</div>
+      </div>
+    </aside>
+  </section>
+
+  <section class="auth-layout auth-standalone-layout">
+    <aside class="auth-aside">
+      <article class="auth-info-card provider-card">
+        <p class="eyebrow">Choose a provider</p>
+        <h3>Social sign-in options</h3>
+        <p class="panel-copy">Pick the provider you want to use, or scroll down to create an OrganoChem account for the website itself.</p>
+        <div class="oauth-grid">
+          <button class="oauth-button oauth-google" type="button" data-provider="google">
+            <span class="oauth-provider-copy">
+              <span class="oauth-provider-mark">G</span>
+              <span>
+                <strong>Continue with Google</strong>
+                <small>Use your Google identity</small>
+              </span>
+            </span>
+            <span class="oauth-status">Choose</span>
+          </button>
+          <button class="oauth-button oauth-microsoft" type="button" data-provider="microsoft">
+            <span class="oauth-provider-copy">
+              <span class="oauth-provider-mark">M</span>
+              <span>
+                <strong>Continue with Microsoft</strong>
+                <small>Use your Microsoft account</small>
+              </span>
+            </span>
+            <span class="oauth-status">Choose</span>
+          </button>
+          <button class="oauth-button oauth-github" type="button" data-provider="github">
+            <span class="oauth-provider-copy">
+              <span class="oauth-provider-mark">GH</span>
+              <span>
+                <strong>Continue with GitHub</strong>
+                <small>Use your GitHub profile</small>
+              </span>
+            </span>
+            <span class="oauth-status">Choose</span>
+          </button>
+        </div>
+        <p class="auth-helper-copy">The provider buttons are in place and ready for backend OAuth connection. Your OrganoChem website account works right now below.</p>
+      </article>
+
+      <article class="auth-info-card">
+        <h3>Manage session</h3>
+        <div class="auth-actions" id="authSessionActions">
+          <button class="button secondary" type="button" id="logoutButton" style="display:none;">Log Out</button>
+        </div>
+      </article>
+    </aside>
+
+    <div class="auth-main">
+      <article class="auth-card" id="authFormCard">
+        <div class="auth-inline-message" id="authGateMessage" hidden></div>
+        <div class="auth-inline-message" id="authStatusMessage" hidden></div>
+
+        <div class="auth-divider" aria-hidden="true">
+          <span></span>
+          <strong>Or use the website account</strong>
+          <span></span>
+        </div>
+
+        <section id="websiteAccount" class="website-account-block">
+          <p class="eyebrow">Website account</p>
+          <h3 id="websiteAccountLabel">Sign in to your OrganoChem account</h3>
+          <p class="panel-copy" id="websiteAccountLead">Use your OrganoChem account to restore your saved study state, planner history, and chat sessions.</p>
+
+          <div class="auth-tabs">
+            <button class="auth-tab active" type="button" data-auth-mode="login">Sign In</button>
+            <button class="auth-tab" type="button" data-auth-mode="signup">Sign Up</button>
+          </div>
+
+          <form id="loginForm" class="auth-form">
+            <label class="field">
+              <span>Email</span>
+              <input type="email" id="loginEmail" required placeholder="you@example.com">
+            </label>
+            <label class="field">
+              <span>Password</span>
+              <input type="password" id="loginPassword" required minlength="8" placeholder="At least 8 characters">
+            </label>
+            <button class="button primary full-width" type="submit">Sign In to OrganoChem</button>
+          </form>
+
+          <form id="signupForm" class="auth-form" hidden>
+            <label class="field">
+              <span>Display Name</span>
+              <input type="text" id="signupDisplayName" required minlength="2" maxlength="60" placeholder="Organic learner">
+            </label>
+            <label class="field">
+              <span>Email</span>
+              <input type="email" id="signupEmail" required placeholder="you@example.com">
+            </label>
+            <label class="field">
+              <span>Password</span>
+              <input type="password" id="signupPassword" required minlength="8" placeholder="At least 8 characters">
+            </label>
+            <button class="button primary full-width" type="submit">Create Website Account</button>
+          </form>
+        </section>
+      </article>
+
+      <article class="auth-card account-card" id="accountCard" hidden>
+        <p class="eyebrow">Signed In</p>
+        <h3 id="accountName">Account</h3>
+        <div class="account-meta" id="accountMeta"></div>
+        <div class="account-actions">
+          <button class="button secondary" type="button" id="accountRefreshButton">Refresh Account Sync</button>
+          <button class="button secondary" type="button" id="accountLogoutButton">Log Out</button>
+        </div>
+      </article>
+    </div>
+  </section>
+</main>
+
+<footer class="global-footer">
+  <p>Choose a sign-in method here, then jump back into the dashboard, material studio, or ORGANOBOT with your account-backed state ready.</p>
+</footer>
+
+<script src="app-shell.js"></script>
+</body>
+</html>

@@ -2,6 +2,20 @@
   const MAIN_STATE_KEY='oc-state-v2';
   const THEME_KEY='oc-theme';
   const BOT_STATE_KEY='oc-organobot-history-v1';
+  const THEME_LABELS={
+    'lab-noir':'Lab Noir',
+    'cyberpunk':'Cyberpunk',
+    'academic-ink':'Academic Ink',
+    'deep-space':'Deep Space',
+    'copper-reactor':'Copper Reactor',
+    'forest-glass':'Forest Glass',
+    'lab-white':'Lab White',
+    'neon-day':'Neon Day',
+    'ivory':'Ivory Academic',
+    'clean-slate':'Clean Slate',
+    'paper-spectrum':'Paper Spectrum',
+    'solar-lab':'Solar Lab'
+  };
   const PANEL_MAP={
     dashboard:'dashboard',
     topics:'dashboard',
@@ -15,14 +29,50 @@
   };
   const DEFAULT_MAIN_STATE={topicStatus:{},savedReactions:[],quizHistory:[],studyPlans:[]};
   const DEFAULT_BOT_STATE={activeId:'',sessions:[]};
-
+  const IS_AUTH_PAGE=/\/auth\.html$/i.test(window.location.pathname)||/auth\.html$/i.test(window.location.pathname.split('/').pop()||'');
   const authState={status:'loading',user:null,syncing:false};
+
   let currentAuthMode='login';
   let syncTimer=0;
 
   function $(id){return document.getElementById(id);}
   function safeParse(raw,fallback){
     try{return raw?JSON.parse(raw):fallback;}catch{return fallback;}
+  }
+  function currentRelativeUrl(){
+    const file=window.location.pathname.split('/').pop()||'index.html';
+    return `${file}${window.location.search||''}${window.location.hash||''}`;
+  }
+  function sanitizeReturnTarget(raw){
+    if(!raw)return 'index.html#dashboard';
+    try{
+      const url=new URL(raw,window.location.href);
+      if(url.origin!==window.location.origin)return 'index.html#dashboard';
+      const file=url.pathname.split('/').pop()||'index.html';
+      const hash=String(url.hash||'').replace(/^#/,'').trim();
+      if(/auth\.html$/i.test(file)||hash==='auth')return 'index.html#dashboard';
+      return `${file}${url.search}${url.hash}`;
+    }catch{
+      return 'index.html#dashboard';
+    }
+  }
+  function buildAuthUrl({mode='login',message='',returnTo=''}={}){
+    const url=new URL('auth.html',window.location.href);
+    if(mode)url.searchParams.set('mode',mode==='signup'?'signup':'login');
+    if(message)url.searchParams.set('message',message);
+    if(returnTo)url.searchParams.set('returnTo',returnTo);
+    return url.toString();
+  }
+  function resolveReturnTarget(){
+    const raw=new URLSearchParams(window.location.search).get('returnTo');
+    return sanitizeReturnTarget(raw);
+  }
+  function openAuthPage(options={}){
+    const nextUrl=buildAuthUrl({
+      returnTo:sanitizeReturnTarget(options.returnTo||currentRelativeUrl()),
+      ...options
+    });
+    window.location.href=nextUrl;
   }
   function readMainState(){
     const parsed=safeParse(localStorage.getItem(MAIN_STATE_KEY),DEFAULT_MAIN_STATE);
@@ -70,9 +120,37 @@
       panel:PANEL_MAP[anchor]||'dashboard'
     };
   }
+  function setText(id,value){
+    const node=$(id);
+    if(node)node.textContent=value;
+  }
+  function setHtml(id,value){
+    const node=$(id);
+    if(node)node.innerHTML=value;
+  }
+  function applyStoredThemePreference(){
+    const savedTheme=localStorage.getItem(THEME_KEY);
+    if(!savedTheme)return;
+    document.body.setAttribute('data-theme',savedTheme);
+    const themeLabel=$('themeLabel');
+    if(themeLabel)themeLabel.textContent=THEME_LABELS[savedTheme]||savedTheme;
+  }
   function setActivePanel(hash,{replace=false}={}){
     const route=resolvePanel(hash);
-    document.querySelectorAll('.app-panel').forEach(panel=>panel.classList.toggle('is-active',panel.dataset.panel===route.panel));
+    const panels=[...document.querySelectorAll('.app-panel')];
+    const hasAuthPanel=panels.some(panel=>panel.dataset.panel==='auth');
+    if(route.panel==='auth'&&!hasAuthPanel&&!IS_AUTH_PAGE){
+      openAuthPage({mode:'login'});
+      return;
+    }
+    if(!panels.length){
+      const anchorTarget=document.getElementById(route.anchor);
+      if(anchorTarget){
+        requestAnimationFrame(()=>anchorTarget.scrollIntoView({block:'start'}));
+      }
+      return;
+    }
+    panels.forEach(panel=>panel.classList.toggle('is-active',panel.dataset.panel===route.panel));
     document.querySelectorAll('[data-panel-link]').forEach(link=>link.classList.toggle('is-active',link.dataset.panelLink===route.panel));
     if(replace){
       history.replaceState(null,'',`#${route.anchor}`);
@@ -86,7 +164,7 @@
   async function apiJson(url,options={}){
     const response=await fetch(url,{
       headers:{
-        'Accept':'application/json',
+        Accept:'application/json',
         ...(options.body?{'Content-Type':'application/json'}:{})
       },
       credentials:'same-origin',
@@ -118,8 +196,12 @@
   function setAuthMode(mode){
     currentAuthMode=mode==='signup'?'signup':'login';
     document.querySelectorAll('[data-auth-mode]').forEach(button=>button.classList.toggle('active',button.dataset.authMode===currentAuthMode));
-    $('loginForm').hidden=currentAuthMode!=='login';
-    $('signupForm').hidden=currentAuthMode!=='signup';
+    const loginForm=$('loginForm');
+    const signupForm=$('signupForm');
+    if(loginForm)loginForm.hidden=currentAuthMode!=='login';
+    if(signupForm)signupForm.hidden=currentAuthMode!=='signup';
+    setText('websiteAccountLabel',currentAuthMode==='signup'?'Create your OrganoChem account':'Sign in to your OrganoChem account');
+    setText('websiteAccountLead',currentAuthMode==='signup'?'Create a dedicated website account to sync your chemistry progress, saved reactions, and bot history.':'Use your OrganoChem account to restore your saved study state, planner history, and chat sessions.');
   }
 
   function applyThemeLocally(theme){
@@ -130,6 +212,8 @@
     }
     document.body.setAttribute('data-theme',theme);
     localStorage.setItem(THEME_KEY,theme);
+    const themeLabel=$('themeLabel');
+    if(themeLabel)themeLabel.textContent=THEME_LABELS[theme]||theme;
   }
 
   function hydrateFromRemote(payload){
@@ -172,25 +256,42 @@
 
   function updateAuthUI(){
     const user=authState.user;
-    $('authChipLabel').textContent=user?'Signed In':'Preview Mode';
-    $('headerAuthButton').textContent=user?'Account':'Sign In';
-    $('heroSessionState').textContent=user?`Signed in as ${user.displayName||user.email}`:'Preview access';
-    $('heroSessionCopy').textContent=user?'Your progress, theme, roadmaps, and chat history now sync through your account.':'Browse every panel freely, then sign in to unlock saved study state, planner history, and ORGANOBOT conversations.';
-    $('authSessionSummary').textContent=user?`Signed in as ${user.displayName||'Learner'} (${user.email}). Theme: ${user.theme||localStorage.getItem(THEME_KEY)||'lab-noir'}.`:'You are not signed in. Use the forms to create an account or start a session.';
-    $('logoutButton').style.display=user?'inline-flex':'none';
-    $('authFormCard').hidden=Boolean(user);
-    $('accountCard').hidden=!user;
+    setText('authChipLabel',user?'Signed In':'Preview Mode');
+    setText('headerAuthButton',user?'Account':'Sign In');
+    setText('heroSessionState',user?`Signed in as ${user.displayName||user.email}`:'Preview access');
+    setText('heroSessionCopy',user?'Your progress, theme, roadmaps, and chat history now sync through your account.':'Browse every panel freely, then sign in to unlock saved study state, planner history, and ORGANOBOT conversations.');
+    setText('authSessionSummary',user?`Signed in as ${user.displayName||'Learner'} (${user.email}). Theme: ${user.theme||localStorage.getItem(THEME_KEY)||'lab-noir'}.`:'You are not signed in. Choose a provider or use your OrganoChem account to start a session.');
+    const logoutButton=$('logoutButton');
+    if(logoutButton)logoutButton.style.display=user?'inline-flex':'none';
+    const authFormCard=$('authFormCard');
+    if(authFormCard)authFormCard.hidden=Boolean(user);
+    const accountCard=$('accountCard');
+    if(accountCard)accountCard.hidden=!user;
     if(user){
-      $('accountName').textContent=user.displayName||'OrganoChem Account';
-      $('accountMeta').innerHTML=`<div><strong>Email</strong><div>${user.email}</div></div><div><strong>User ID</strong><div>${user.id}</div></div><div><strong>Theme</strong><div>${user.theme||localStorage.getItem(THEME_KEY)||'lab-noir'}</div></div>`;
+      setText('accountName',user.displayName||'OrganoChem Account');
+      setHtml('accountMeta',`<div><strong>Email</strong><div>${user.email}</div></div><div><strong>User ID</strong><div>${user.id}</div></div><div><strong>Theme</strong><div>${user.theme||localStorage.getItem(THEME_KEY)||'lab-noir'}</div></div>`);
     }
     updateLockedUI();
     window.dispatchEvent(new CustomEvent('organo:auth-changed',{detail:{user}}));
   }
 
+  function focusWebsiteAccount(mode=currentAuthMode){
+    setAuthMode(mode);
+    const target=$('websiteAccount')||$('authFormCard');
+    target?.scrollIntoView({behavior:'smooth',block:'start'});
+  }
+
   function requireAuth(message){
-    showMessage('authGateMessage',message||'Sign in to unlock this feature.');
-    setActivePanel('auth');
+    const nextMessage=message||'Sign in to unlock this feature.';
+    if(IS_AUTH_PAGE){
+      showMessage('authGateMessage',nextMessage);
+      focusWebsiteAccount('login');
+      return false;
+    }
+    openAuthPage({
+      mode:'login',
+      message:nextMessage
+    });
     return false;
   }
 
@@ -260,6 +361,10 @@
     }
   }
 
+  function redirectAfterAuth(){
+    window.location.href=resolveReturnTarget();
+  }
+
   async function handleLogin(event){
     event.preventDefault();
     showMessage('authStatusMessage','');
@@ -268,14 +373,18 @@
       const data=await apiJson('/api/auth/login',{
         method:'POST',
         body:JSON.stringify({
-          email:$('loginEmail').value.trim(),
-          password:$('loginPassword').value
+          email:$('loginEmail')?.value.trim()||'',
+          password:$('loginPassword')?.value||''
         })
       });
       authState.user=data.user;
       updateAuthUI();
       await loadRemoteState();
-      $('loginForm').reset();
+      $('loginForm')?.reset();
+      if(IS_AUTH_PAGE){
+        redirectAfterAuth();
+        return;
+      }
       showMessage('authStatusMessage','Login successful. Your account data is ready.');
       setActivePanel('dashboard');
     }catch(error){
@@ -291,15 +400,19 @@
       const data=await apiJson('/api/auth/signup',{
         method:'POST',
         body:JSON.stringify({
-          displayName:$('signupDisplayName').value.trim(),
-          email:$('signupEmail').value.trim(),
-          password:$('signupPassword').value
+          displayName:$('signupDisplayName')?.value.trim()||'',
+          email:$('signupEmail')?.value.trim()||'',
+          password:$('signupPassword')?.value||''
         })
       });
       authState.user=data.user;
       updateAuthUI();
       await loadRemoteState();
-      $('signupForm').reset();
+      $('signupForm')?.reset();
+      if(IS_AUTH_PAGE){
+        redirectAfterAuth();
+        return;
+      }
       showMessage('authStatusMessage','Account created. Your browser progress has been linked to this new account.');
       setActivePanel('dashboard');
     }catch(error){
@@ -315,10 +428,26 @@
       clearLocalAccountState();
       updateAuthUI();
       showMessage('authStatusMessage','You have been logged out.');
-      setActivePanel('auth');
+      if(IS_AUTH_PAGE){
+        setAuthMode('login');
+        focusWebsiteAccount('login');
+      }else{
+        openAuthPage({mode:'login',returnTo:'index.html#dashboard'});
+      }
     }catch(error){
       showMessage('authStatusMessage',error.message,'error');
     }
+  }
+
+  function handleProviderChoice(event){
+    const provider=event.currentTarget.dataset.provider||'provider';
+    const label=provider.charAt(0).toUpperCase()+provider.slice(1);
+    showMessage(
+      'authStatusMessage',
+      `${label} sign-in is ready in the interface, but its OAuth backend is not connected yet. Use your OrganoChem account below for now.`,
+      'info'
+    );
+    focusWebsiteAccount(currentAuthMode);
   }
 
   function interceptLockedInteractions(){
@@ -345,32 +474,50 @@
 
   function bindUI(){
     window.addEventListener('hashchange',()=>setActivePanel(window.location.hash,{replace:true}));
-    $('headerAuthButton').addEventListener('click',()=>setActivePanel('auth'));
-    $('logoutButton').addEventListener('click',handleLogout);
-    $('accountLogoutButton').addEventListener('click',handleLogout);
-    $('accountRefreshButton').addEventListener('click',()=>loadRemoteState({allowImport:false}));
-    $('loginForm').addEventListener('submit',handleLogin);
-    $('signupForm').addEventListener('submit',handleSignup);
+    $('headerAuthButton')?.addEventListener('click',()=>{
+      if(IS_AUTH_PAGE){
+        const target=isAuthenticated()?$('accountCard'):$('websiteAccount');
+        target?.scrollIntoView({behavior:'smooth',block:'start'});
+        return;
+      }
+      openAuthPage();
+    });
+    $('logoutButton')?.addEventListener('click',handleLogout);
+    $('accountLogoutButton')?.addEventListener('click',handleLogout);
+    $('accountRefreshButton')?.addEventListener('click',()=>loadRemoteState({allowImport:false}));
+    $('loginForm')?.addEventListener('submit',handleLogin);
+    $('signupForm')?.addEventListener('submit',handleSignup);
     document.querySelectorAll('[data-auth-mode]').forEach(button=>button.addEventListener('click',()=>setAuthMode(button.dataset.authMode)));
+    document.querySelectorAll('[data-provider]').forEach(button=>button.addEventListener('click',handleProviderChoice));
     window.addEventListener('organo:state-changed',event=>queueSync(event.detail?.key||'state'));
     window.addEventListener('organo:theme-changed',()=>queueSync('theme'));
     window.addEventListener('beforeunload',()=>{ if(syncTimer){ syncRemoteState('beforeunload'); } });
     interceptLockedInteractions();
   }
 
+  function applyAuthPageIntent(){
+    if(!IS_AUTH_PAGE)return;
+    const params=new URLSearchParams(window.location.search);
+    setAuthMode(params.get('mode')||'login');
+    const message=params.get('message');
+    if(message)showMessage('authGateMessage',message);
+  }
+
   window.OrganoApp={
     isAuthenticated,
     requireAuth,
-    assertFeatureAccess(message){return isAuthenticated() ? true : requireAuth(message);},
+    assertFeatureAccess(message){return isAuthenticated()?true:requireAuth(message);},
     notifyStateChanged(key){queueSync(key||'state');},
     refreshRemoteState(){return loadRemoteState({allowImport:false});},
     getUser(){return authState.user;},
     setActivePanel
   };
 
+  applyStoredThemePreference();
   bindUI();
   updateAuthUI();
   setAuthMode('login');
-  setActivePanel(window.location.hash||'#dashboard',{replace:!window.location.hash});
+  applyAuthPageIntent();
+  setActivePanel(window.location.hash||'#dashboard',{replace:!window.location.hash&&!IS_AUTH_PAGE});
   loadSession();
 })();
