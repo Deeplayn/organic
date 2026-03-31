@@ -111,19 +111,19 @@ function renderOrganobot(){
 
 async function refreshBotActivationState(){
   if(!AI){
-    setBotStatus('Built-in AI is unavailable right now.');
+    setBotStatus('Shared Grok AI is unavailable right now.');
     return;
   }
   const client=await AI.readHostedProxyStatus();
   if(client.available&&client.configured){
-    setBotStatus('Built-in AI is ready. ORGANOBOT can answer chemistry questions.');
+    setBotStatus(`Shared Grok AI is ready through ${client.provider==='puter'?'Puter':'the server route'}. ORGANOBOT can answer chemistry questions.`);
     return;
   }
   if(client.available&&!client.configured){
-    setBotStatus('Built-in AI is not configured on the server yet.');
+    setBotStatus('Shared Grok AI is not configured on the server yet.');
     return;
   }
-  setBotStatus('Built-in AI is unavailable right now. Check the server connection and try again.');
+  setBotStatus('Shared Grok AI is unavailable right now. Check Puter or the server connection and try again.');
 }
 
 function addMessage(role,content,meta={}){

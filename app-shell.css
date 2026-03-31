@@ -676,6 +676,19 @@ button{border:none;background:none;}
 }
 .summary-grid dd,.data-list dd{margin:8px 0 0;color:var(--text-bright);font-weight:600;}
 .viewer-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:18px;}
+.viewer-head > :first-child{flex:1 1 auto;min-width:0;}
+.viewer-head .button-row{flex:0 0 auto;}
+.viewer-head h3,
+.viewer-status,
+.viewer-copy,
+.summary,
+.stack-card,
+.equation-formula,
+.summary-grid dd,
+.data-list dd{
+  overflow-wrap:anywhere;
+  word-break:break-word;
+}
 .viewer-stage{display:grid;gap:14px;}
 .viewer-canvas{
   position:relative;

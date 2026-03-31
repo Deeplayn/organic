@@ -309,6 +309,13 @@ function normalizeQuery(value){
   return String(value||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
 }
 
+function formatCompoundLabel(value){
+  const text=String(value||'').trim();
+  if(!text)return'';
+  if(text===text.toLowerCase())return text.charAt(0).toUpperCase()+text.slice(1);
+  return text;
+}
+
 function compactQuery(value){
   return normalizeQuery(value).replace(/\s+/g,'');
 }
@@ -809,6 +816,19 @@ function deriveChemicalNotes(localMaterial,props){
   return [...new Set(notes)].slice(0,6);
 }
 
+function selectCompoundDisplayName({localMaterial,query,iupacName}){
+  if(localMaterial?.name)return localMaterial.name;
+  const preferredQuery=formatCompoundLabel(query);
+  const iupac=formatCompoundLabel(iupacName);
+  if(!iupac)return preferredQuery;
+  const normalizedQuery=normalizeQuery(preferredQuery);
+  const normalizedIupac=normalizeQuery(iupac);
+  if(!normalizedQuery)return iupac;
+  if(normalizedIupac===normalizedQuery||normalizedIupac.includes(normalizedQuery))return preferredQuery;
+  if(iupac.length>72&&preferredQuery.length&&preferredQuery.length<iupac.length)return preferredQuery;
+  return iupac;
+}
+
 async function loadCompound(query,localMaterial){
   const resolvedQuery=query.trim();
   if(!resolvedQuery){
@@ -823,7 +843,11 @@ async function loadCompound(query,localMaterial){
 
   try{
     const data=await fetchPubChemData(resolvedQuery);
-    const displayName=localMaterial?.name||data.properties?.IUPACName||resolvedQuery;
+    const displayName=selectCompoundDisplayName({
+      localMaterial,
+      query:resolvedQuery,
+      iupacName:data.properties?.IUPACName
+    });
     const routeSource=data.manufacturingText.length?'PubChem annotation':localMaterial?'Curated studio note':'Unavailable';
     const has3d=Boolean(data.sdf3d);
     const has2d=Boolean(data.sdf2d);
