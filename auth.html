@@ -205,6 +205,57 @@
         </div>
       </div>
       <div class="account-meta" id="accountMeta"></div>
+      <div class="account-meta account-profile" id="accountProfile"></div>
+    </article>
+
+    <article class="auth-card account-card auth-wide-account" id="profileOnboardingCard" hidden>
+      <div class="auth-wide-top">
+        <div>
+          <p class="eyebrow">First-Time Setup</p>
+          <h3>Complete your profile</h3>
+          <p class="panel-copy">Tell OrganoChem a bit about yourself so your account profile is ready after the first sign-in.</p>
+        </div>
+        <div class="auth-actions">
+          <button class="button secondary" type="button" id="profileLogoutButton">Log Out</button>
+        </div>
+      </div>
+      <div class="auth-inline-message" id="profileStatusMessage" hidden></div>
+      <form id="profileOnboardingForm" class="auth-form auth-form-grid" novalidate>
+        <label class="field">
+          <span>Age</span>
+          <input type="number" id="profileAge" min="8" max="120" inputmode="numeric" required placeholder="18">
+        </label>
+        <label class="field">
+          <span>Gender</span>
+          <select id="profileGender" required>
+            <option value="">Choose your gender</option>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+            <option value="Non-binary">Non-binary</option>
+            <option value="Prefer not to say">Prefer not to say</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Country</span>
+          <select id="profileCountry" required>
+            <option value="">Choose your country</option>
+            <option value="Egypt">Egypt</option>
+            <option value="UK">UK</option>
+            <option value="USA">USA</option>
+            <option value="France">France</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Learner Type</span>
+          <select id="profileLearnerType" required>
+            <option value="">Choose your learner type</option>
+            <option value="Free learner">Free learner</option>
+            <option value="High school student">High school student</option>
+            <option value="University student">University student</option>
+          </select>
+        </label>
+        <button class="button primary full-width field-span-2" type="submit">Save Profile and Continue</button>
+      </form>
     </article>
   </section>
 </main>

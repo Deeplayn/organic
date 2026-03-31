@@ -685,37 +685,6 @@ function toggleSavedReaction(){
   renderSavedReactions();renderStats();renderMission();showRxn(currentReaction);
 }
 
-function runDecisionHelper(){
-  const s=document.getElementById('decSubstrate').value,r=document.getElementById('decReagent').value,sol=document.getElementById('decSolvent').value;
-  const scores={SN1:10,SN2:10,E1:10,E2:10},notes=[];
-  const rules={
-    substrate:{
-      methyl:{SN1:-10,SN2:45,E1:-10,E2:5,n:'Methyl centers strongly favor direct backside attack.'},
-      primary:{SN1:-8,SN2:32,E1:-8,E2:16,n:'Primary substrates favor SN2 but can eliminate with strong base.'},
-      secondary:{SN1:18,SN2:18,E1:14,E2:24,n:'Secondary systems sit on the substitution-elimination border.'},
-      tertiary:{SN1:34,SN2:-20,E1:28,E2:34,n:'Tertiary centers block SN2 and favor ionization or elimination.'},
-      allylic:{SN1:26,SN2:22,E1:18,E2:12,n:'Resonance stabilization helps allylic substitution and ionization.'}
-    },
-    reagent:{
-      'strong-nuc':{SN1:5,SN2:30,E1:-4,E2:8,n:'A strong nucleophile increases direct substitution pressure.'},
-      'weak-nuc':{SN1:24,SN2:-5,E1:18,E2:-6,n:'Weak nucleophiles make ionization pathways more plausible.'},
-      'strong-base':{SN1:-6,SN2:10,E1:4,E2:34,n:'Bulky strong bases bias toward elimination.'},
-      neutral:{SN1:20,SN2:-6,E1:16,E2:-4,n:'Neutral conditions often leave carbocation paths more competitive.'}
-    },
-    solvent:{
-      'polar-aprotic':{SN1:-6,SN2:24,E1:-4,E2:10,n:'Polar aprotic solvent keeps anionic nucleophiles reactive.'},
-      'polar-protic':{SN1:24,SN2:-6,E1:18,E2:0,n:'Polar protic solvent stabilizes ions and supports SN1/E1.'},
-      hot:{SN1:4,SN2:-2,E1:24,E2:22,n:'Heat usually shifts borderline systems toward elimination.'}
-    }
-  };
-  [rules.substrate[s],rules.reagent[r],rules.solvent[sol]].forEach(rule=>{Object.entries(rule).forEach(([k,v])=>{if(k!=='n')scores[k]+=v;});notes.push(rule.n);});
-  const sorted=Object.entries(scores).map(([k,v])=>[k,Math.max(0,Math.min(100,v))]).sort((a,b)=>b[1]-a[1]);
-  document.getElementById('decisionTitle').textContent=`${sorted[0][0]} looks most likely`;
-  document.getElementById('decisionSummary').textContent='The helper weighs sterics, nucleophile strength, and solvent effects to rank the likely mechanisms.';
-  document.getElementById('decisionBars').innerHTML=sorted.map(([k,v])=>`<div class="decision-bar"><div class="decision-label"><span>${k}</span><span>${v}</span></div><div class="decision-track"><div class="decision-fill" style="width:${v}%;"></div></div></div>`).join('');
-  document.getElementById('decisionNotes').innerHTML=notes.map(n=>`<div class="note-item">${esc(n)}</div>`).join('');
-}
-
 function setupQuiz(){
   const cat=document.getElementById('quizCategory').value,diff=document.getElementById('quizDifficulty').value,len=Number(document.getElementById('quizLength').value);
   const pool=bank.filter(q=>(cat==='all'||q.cat===cat)&&(diff==='all'||q.diff===diff));
@@ -840,4 +809,3 @@ const initialMol=heroNames[Math.floor(Math.random()*heroNames.length)];
 drawMol(initialMol,document.querySelector(`#heroMol .rxn-btn[data-mol="${initialMol}"]`));
 startHeroRotation();
 setupQuiz();
-runDecisionHelper();

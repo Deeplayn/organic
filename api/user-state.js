@@ -68,7 +68,12 @@ module.exports = async (req, res) => {
     }
 
     const body = parseJsonBody(req) || {};
-    const payload = normalizeIncomingPayload(body);
+    const existingResult = await getPool().query(
+      'SELECT payload FROM user_state WHERE user_id = $1 LIMIT 1',
+      [session.user.id]
+    );
+    const existingPayload = existingResult.rows[0]?.payload || {};
+    const payload = normalizeIncomingPayload(body, existingPayload, session.user.theme);
     const payloadJson = JSON.stringify(payload);
 
     if (payloadJson.length > 1_000_000) {
@@ -102,19 +107,27 @@ module.exports = async (req, res) => {
   }
 };
 
-function normalizeIncomingPayload(body) {
-  return {
-    mainState: normalizeObject(body.mainState),
-    botState: normalizeObject(body.botState),
-    theme: normalizeTheme(body.theme)
-  };
-}
-
 function normalizePayload(payload, fallbackTheme) {
   return {
     mainState: normalizeObject(payload.mainState),
     botState: normalizeObject(payload.botState),
-    theme: normalizeTheme(payload.theme || fallbackTheme)
+    theme: normalizeTheme(payload.theme || fallbackTheme),
+    profile: normalizeProfile(payload.profile)
+  };
+}
+
+function normalizeIncomingPayload(body, existingPayload, fallbackTheme) {
+  const current = normalizePayload(existingPayload, fallbackTheme);
+  const nextTheme = body.theme === undefined ? current.theme : normalizeTheme(body.theme || fallbackTheme);
+  const nextMainState = body.mainState === undefined ? current.mainState : normalizeObject(body.mainState);
+  const nextBotState = body.botState === undefined ? current.botState : normalizeObject(body.botState);
+  const nextProfile = body.profile === undefined ? current.profile : normalizeProfile(body.profile);
+
+  return {
+    mainState: nextMainState,
+    botState: nextBotState,
+    theme: nextTheme,
+    profile: nextProfile
   };
 }
 
@@ -125,4 +138,25 @@ function normalizeObject(value) {
 function normalizeTheme(value) {
   const theme = String(value || '').trim();
   return theme || 'lab-noir';
+}
+
+function normalizeProfile(value) {
+  const profile = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  const ageRaw = Number.parseInt(String(profile.age ?? '').trim(), 10);
+  const age = Number.isInteger(ageRaw) && ageRaw >= 8 && ageRaw <= 120 ? ageRaw : null;
+  const gender = normalizeAllowedValue(profile.gender, ['Male', 'Female', 'Non-binary', 'Prefer not to say']);
+  const country = normalizeAllowedValue(profile.country, ['Egypt', 'UK', 'USA', 'France']);
+  const learnerType = normalizeAllowedValue(profile.learnerType, ['Free learner', 'High school student', 'University student']);
+
+  return {
+    age,
+    gender,
+    country,
+    learnerType
+  };
+}
+
+function normalizeAllowedValue(value, allowed) {
+  const text = String(value || '').trim();
+  return allowed.includes(text) ? text : '';
 }

@@ -299,8 +299,8 @@
       <section class="content-section" id="reactions" aria-labelledby="reactionTitle">
         <div class="section-tag">03</div>
         <div class="section-copy">
-          <h3 id="reactionTitle">Reaction lab and mechanism decision helper</h3>
-          <p>Switch between core mechanisms, save your review stack, and use the helper to compare substitution versus elimination pressure.</p>
+          <h3 id="reactionTitle">Reaction lab and mechanism review</h3>
+          <p>Switch between core mechanisms, compare their signatures, and save your review stack for later revision.</p>
         </div>
         <div class="reaction-layout">
           <div class="rxn-viz">
@@ -331,48 +331,6 @@
           </div>
         </div>
 
-        <div class="decision-card">
-          <div class="panel-header">
-            <div>
-              <div class="panel-eyebrow">Decision Helper</div>
-              <h3 id="decisionTitle">Mechanism ranking</h3>
-            </div>
-          </div>
-          <p class="panel-copy" id="decisionSummary">The helper weighs sterics, nucleophile strength, and solvent effects to rank the likely mechanisms.</p>
-          <div class="control-grid three-up">
-            <label class="field">
-              <span>Substrate</span>
-              <select id="decSubstrate" onchange="runDecisionHelper()">
-                <option value="methyl">Methyl</option>
-                <option value="primary" selected>Primary</option>
-                <option value="secondary">Secondary</option>
-                <option value="tertiary">Tertiary</option>
-                <option value="allylic">Allylic / Benzylic</option>
-              </select>
-            </label>
-            <label class="field">
-              <span>Reagent</span>
-              <select id="decReagent" onchange="runDecisionHelper()">
-                <option value="strong-nuc" selected>Strong nucleophile</option>
-                <option value="weak-nuc">Weak nucleophile</option>
-                <option value="strong-base">Strong bulky base</option>
-                <option value="neutral">Neutral / Solvolysis</option>
-              </select>
-            </label>
-            <label class="field">
-              <span>Solvent</span>
-              <select id="decSolvent" onchange="runDecisionHelper()">
-                <option value="polar-aprotic" selected>Polar aprotic</option>
-                <option value="polar-protic">Polar protic</option>
-                <option value="hot">Heated conditions</option>
-              </select>
-            </label>
-          </div>
-          <div class="decision-grid">
-            <div class="decision-bars" id="decisionBars"></div>
-            <div class="decision-notes" id="decisionNotes"></div>
-          </div>
-        </div>
       </section>
       <section class="content-section" id="quiz" aria-labelledby="quizTitle">
         <div class="section-tag">04</div>

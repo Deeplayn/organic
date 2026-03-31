@@ -29,13 +29,24 @@
   };
   const DEFAULT_MAIN_STATE={topicStatus:{},savedReactions:[],quizHistory:[],studyPlans:[]};
   const DEFAULT_BOT_STATE={activeId:'',sessions:[]};
+  const PROFILE_GENDERS=['Male','Female','Non-binary','Prefer not to say'];
+  const PROFILE_COUNTRIES=['Egypt','UK','USA','France'];
+  const PROFILE_LEARNER_TYPES=['Free learner','High school student','University student'];
   const IS_AUTH_PAGE=/\/auth\.html$/i.test(window.location.pathname)||/auth\.html$/i.test(window.location.pathname.split('/').pop()||'');
-  const authState={status:'loading',user:null,syncing:false};
+  const authState={status:'loading',user:null,profile:null,syncing:false};
 
   let currentAuthMode='login';
   let syncTimer=0;
 
   function $(id){return document.getElementById(id);}
+  function escapeHtml(value){
+    return String(value??'')
+      .replaceAll('&','&amp;')
+      .replaceAll('<','&lt;')
+      .replaceAll('>','&gt;')
+      .replaceAll('"','&quot;')
+      .replaceAll("'",'&#39;');
+  }
   function safeParse(raw,fallback){
     try{return raw?JSON.parse(raw):fallback;}catch{return fallback;}
   }
@@ -109,6 +120,28 @@
   }
   function isAuthenticated(){
     return Boolean(authState.user);
+  }
+  function normalizeAllowedValue(value,allowed){
+    const text=String(value||'').trim();
+    return allowed.includes(text)?text:'';
+  }
+  function normalizeProfile(profile){
+    const source=profile&&typeof profile==='object'&&!Array.isArray(profile)?profile:{};
+    const ageValue=Number.parseInt(String(source.age??'').trim(),10);
+    const age=Number.isInteger(ageValue)&&ageValue>=8&&ageValue<=120?ageValue:null;
+    return{
+      age,
+      gender:normalizeAllowedValue(source.gender,PROFILE_GENDERS),
+      country:normalizeAllowedValue(source.country,PROFILE_COUNTRIES),
+      learnerType:normalizeAllowedValue(source.learnerType,PROFILE_LEARNER_TYPES)
+    };
+  }
+  function isProfileComplete(profile=authState.profile){
+    const normalized=normalizeProfile(profile);
+    return Boolean(normalized.age&&normalized.gender&&normalized.country&&normalized.learnerType);
+  }
+  function shouldForceProfileCompletion(){
+    return isAuthenticated()&&!isProfileComplete();
   }
   function normalizeHash(hash){
     return String(hash||window.location.hash||'#dashboard').replace(/^#/,'').trim()||'dashboard';
@@ -225,6 +258,7 @@
 
   function hydrateFromRemote(payload){
     if(!payload)return;
+    authState.profile=normalizeProfile(payload.profile);
     if(payload.mainState){
       localStorage.setItem(MAIN_STATE_KEY,JSON.stringify(payload.mainState));
       const latestPlan=Array.isArray(payload.mainState.studyPlans)&&payload.mainState.studyPlans.length?payload.mainState.studyPlans[0]:null;
@@ -242,6 +276,30 @@
     }
   }
 
+  function populateProfileForm(profile=authState.profile){
+    const normalized=normalizeProfile(profile);
+    if($('profileAge'))$('profileAge').value=normalized.age?String(normalized.age):'';
+    if($('profileGender'))$('profileGender').value=normalized.gender||'';
+    if($('profileCountry'))$('profileCountry').value=normalized.country||'';
+    if($('profileLearnerType'))$('profileLearnerType').value=normalized.learnerType||'';
+  }
+
+  function renderAccountProfile(profile=authState.profile){
+    const target=$('accountProfile');
+    if(!target)return;
+    const normalized=normalizeProfile(profile);
+    if(!isProfileComplete(normalized)){
+      target.innerHTML='<div><strong>Profile status</strong><div>Complete the first-time profile questions to add your learner details to this account.</div></div>';
+      return;
+    }
+    target.innerHTML=[
+      ['Age',normalized.age],
+      ['Gender',normalized.gender],
+      ['Country',normalized.country],
+      ['Learner Type',normalized.learnerType]
+    ].map(([label,value])=>`<div><strong>${escapeHtml(label)}</strong><div>${escapeHtml(value)}</div></div>`).join('');
+  }
+
   function updateLockedUI(){
     const locked=!isAuthenticated();
     document.querySelectorAll('[data-auth-required]').forEach(node=>{
@@ -254,6 +312,7 @@
   }
 
   function clearLocalAccountState(){
+    authState.profile=null;
     localStorage.setItem(MAIN_STATE_KEY,JSON.stringify(DEFAULT_MAIN_STATE));
     localStorage.setItem(BOT_STATE_KEY,JSON.stringify(DEFAULT_BOT_STATE));
     window.OrganoAI?.clearPlannerCache?.();
@@ -263,21 +322,30 @@
 
   function updateAuthUI(){
     const user=authState.user;
+    const profileComplete=isProfileComplete();
+    const profileCard=$('profileOnboardingCard');
     setText('authChipLabel',user?'Signed In':'Preview Mode');
     setText('headerAuthButtonLabel',user?'Account':'Log In');
     $('headerAuthButton')?.setAttribute('aria-label',user?'Open account':'User Login Button');
     setText('heroSessionState',user?`Signed in as ${user.displayName||user.email}`:'Preview access');
-    setText('heroSessionCopy',user?'Your progress, theme, roadmaps, and chat history now sync through your account.':'Browse every panel freely, then sign in to unlock saved study state, planner history, and ORGANOBOT conversations.');
-    setText('authSessionSummary',user?`Signed in as ${user.displayName||'Learner'} (${user.email}). Theme: ${user.theme||localStorage.getItem(THEME_KEY)||'lab-noir'}.`:'You are not signed in. Choose a provider or use your OrganoChem account to start a session.');
+    setText('heroSessionCopy',user?(profileComplete?'Your progress, theme, roadmaps, and chat history now sync through your account.':'Finish your first-time profile setup to complete your account and start syncing with your learner details attached.'):'Browse every panel freely, then sign in to unlock saved study state, planner history, and ORGANOBOT conversations.');
+    setText('authSessionSummary',user?(profileComplete?`Signed in as ${user.displayName||'Learner'} (${user.email}). Theme: ${user.theme||localStorage.getItem(THEME_KEY)||'lab-noir'}.`:`Signed in as ${user.displayName||'Learner'} (${user.email}). Complete the first-time profile questions below to finish your account setup.`):'You are not signed in. Choose a provider or use your OrganoChem account to start a session.');
     const logoutButton=$('logoutButton');
     if(logoutButton)logoutButton.style.display=user?'inline-flex':'none';
     const authFormCard=$('authFormCard');
     if(authFormCard)authFormCard.hidden=Boolean(user);
     const accountCard=$('accountCard');
-    if(accountCard)accountCard.hidden=!user;
+    if(accountCard)accountCard.hidden=!user||!profileComplete;
+    if(profileCard)profileCard.hidden=!user||profileComplete;
     if(user){
       setText('accountName',user.displayName||'OrganoChem Account');
-      setHtml('accountMeta',`<div><strong>Email</strong><div>${user.email}</div></div><div><strong>User ID</strong><div>${user.id}</div></div><div><strong>Theme</strong><div>${user.theme||localStorage.getItem(THEME_KEY)||'lab-noir'}</div></div>`);
+      setHtml('accountMeta',`<div><strong>Email</strong><div>${escapeHtml(user.email)}</div></div><div><strong>User ID</strong><div>${escapeHtml(user.id)}</div></div><div><strong>Theme</strong><div>${escapeHtml(user.theme||localStorage.getItem(THEME_KEY)||'lab-noir')}</div></div>`);
+      renderAccountProfile(authState.profile);
+      populateProfileForm(authState.profile);
+    }else{
+      setHtml('accountMeta','');
+      setHtml('accountProfile','');
+      populateProfileForm(null);
     }
     updateLockedUI();
     window.dispatchEvent(new CustomEvent('organo:auth-changed',{detail:{user}}));
@@ -341,11 +409,20 @@
       showMessage('authStatusMessage','Imported your existing browser progress into this account.');
       return loadRemoteState({allowImport:false});
     }
+    authState.profile=normalizeProfile(data.payload?.profile);
     if(data.payload){
       hydrateFromRemote(data.payload);
-      if(data.user){
-        authState.user=data.user;
-      }
+    }
+    if(data.user){
+      authState.user=data.user;
+    }
+    if(shouldForceProfileCompletion()&&!IS_AUTH_PAGE){
+      openAuthPage({
+        mode:'login',
+        message:'Complete your profile to finish setting up your account.',
+        returnTo:currentRelativeUrl()
+      });
+      return;
     }
     updateAuthUI();
   }
@@ -355,6 +432,7 @@
     try{
       const data=await apiJson('/api/auth/session');
       authState.user=data.user||null;
+      authState.profile=null;
       updateAuthUI();
       if(authState.user){
         await loadRemoteState();
@@ -363,6 +441,7 @@
       }
     }catch{
       authState.user=null;
+      authState.profile=null;
       updateAuthUI();
     }finally{
       authState.status='ready';
@@ -371,6 +450,42 @@
 
   function redirectAfterAuth(){
     window.location.href=resolveReturnTarget();
+  }
+
+  async function handleProfileOnboarding(event){
+    event.preventDefault();
+    showMessage('profileStatusMessage','');
+    try{
+      const profile=normalizeProfile({
+        age:$('profileAge')?.value,
+        gender:$('profileGender')?.value,
+        country:$('profileCountry')?.value,
+        learnerType:$('profileLearnerType')?.value
+      });
+      if(!isProfileComplete(profile)){
+        showMessage('profileStatusMessage','Please complete age, gender, country, and learner type before continuing.','error');
+        return;
+      }
+      const data=await apiJson('/api/user-state',{
+        method:'PUT',
+        body:JSON.stringify({
+          ...snapshotLocalState(),
+          profile,
+          reason:'profile-onboarding'
+        })
+      });
+      authState.profile=normalizeProfile(data.payload?.profile||profile);
+      if(data.user)authState.user=data.user;
+      updateAuthUI();
+      showMessage('profileStatusMessage','Profile saved. Your account setup is complete.');
+      if(IS_AUTH_PAGE){
+        redirectAfterAuth();
+        return;
+      }
+      setActivePanel('dashboard');
+    }catch(error){
+      showMessage('profileStatusMessage',error.message,'error');
+    }
   }
 
   async function handleLogin(event){
@@ -389,11 +504,11 @@
       updateAuthUI();
       await loadRemoteState();
       $('loginForm')?.reset();
-      if(IS_AUTH_PAGE){
+      if(IS_AUTH_PAGE&&isProfileComplete()){
         redirectAfterAuth();
         return;
       }
-      showMessage('authStatusMessage','Login successful. Your account data is ready.');
+      showMessage('authStatusMessage',isProfileComplete()?'Login successful. Your account data is ready.':'Login successful. Complete your profile to finish setting up this account.');
       setActivePanel('dashboard');
     }catch(error){
       showMessage('authStatusMessage',error.message,'error');
@@ -417,11 +532,11 @@
       updateAuthUI();
       await loadRemoteState();
       $('signupForm')?.reset();
-      if(IS_AUTH_PAGE){
+      if(IS_AUTH_PAGE&&isProfileComplete()){
         redirectAfterAuth();
         return;
       }
-      showMessage('authStatusMessage','Account created. Your browser progress has been linked to this new account.');
+      showMessage('authStatusMessage',isProfileComplete()?'Account created. Your browser progress has been linked to this new account.':'Account created. Complete your profile to finish your first-time setup.');
       setActivePanel('dashboard');
     }catch(error){
       showMessage('authStatusMessage',error.message,'error');
@@ -433,6 +548,7 @@
     try{
       await apiJson('/api/auth/logout',{method:'POST'});
       authState.user=null;
+      authState.profile=null;
       clearLocalAccountState();
       updateAuthUI();
       showMessage('authStatusMessage','You have been logged out.');
@@ -478,7 +594,7 @@
     window.addEventListener('hashchange',()=>setActivePanel(window.location.hash,{replace:true}));
     $('headerAuthButton')?.addEventListener('click',()=>{
       if(IS_AUTH_PAGE){
-        const target=isAuthenticated()?$('accountCard'):$('websiteAccount');
+        const target=isAuthenticated()?(shouldForceProfileCompletion()?$('profileOnboardingCard'):$('accountCard')):$('websiteAccount');
         target?.scrollIntoView({behavior:'smooth',block:'start'});
         return;
       }
@@ -486,9 +602,11 @@
     });
     $('logoutButton')?.addEventListener('click',handleLogout);
     $('accountLogoutButton')?.addEventListener('click',handleLogout);
+    $('profileLogoutButton')?.addEventListener('click',handleLogout);
     $('accountRefreshButton')?.addEventListener('click',()=>loadRemoteState({allowImport:false}));
     $('loginForm')?.addEventListener('submit',handleLogin);
     $('signupForm')?.addEventListener('submit',handleSignup);
+    $('profileOnboardingForm')?.addEventListener('submit',handleProfileOnboarding);
     document.querySelectorAll('[data-auth-mode]').forEach(button=>button.addEventListener('click',()=>setAuthMode(button.dataset.authMode)));
     document.querySelectorAll('[data-provider]').forEach(button=>button.addEventListener('click',handleProviderChoice));
     window.addEventListener('organo:state-changed',event=>queueSync(event.detail?.key||'state'));
