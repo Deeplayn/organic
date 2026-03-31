@@ -540,6 +540,16 @@ function ensureViewer(){
   return currentViewer;
 }
 
+function refreshViewerLayout({recenter=false}={}){
+  if(!currentViewer)return;
+  currentViewer.resize();
+  if(recenter){
+    currentViewer.zoomTo();
+  }
+  clearViewerLabels();
+  currentViewer.render();
+}
+
 function applyViewerStyle(){
   if(!currentViewer||!currentSdf)return;
   currentViewer.setStyle({},{});
@@ -548,10 +558,7 @@ function applyViewerStyle(){
   }else{
     currentViewer.setStyle({},{stick:{radius:.18},sphere:{scale:.24}});
   }
-  currentViewer.resize();
-  currentViewer.zoomTo();
-  clearViewerLabels();
-  currentViewer.render();
+  refreshViewerLayout({recenter:true});
 }
 
 function renderSdfInViewer(sdf,compoundName,mode='3d'){
@@ -930,19 +937,23 @@ document.getElementById('styleSphereBtn').addEventListener('click',()=>{
 
 document.getElementById('resetViewBtn').addEventListener('click',()=>{
   if(currentViewer){
-    currentViewer.resize();
-    currentViewer.zoomTo();
-    clearViewerLabels();
-    currentViewer.render();
+    refreshViewerLayout({recenter:true});
     setViewerStatus('3D view reset.');
   }
 });
 
 window.addEventListener('resize',()=>{
   if(currentViewer){
-    currentViewer.resize();
-    currentViewer.render();
+    refreshViewerLayout();
   }
+});
+
+window.addEventListener('organo:panel-changed',event=>{
+  if(event.detail?.panel!=='studio'||!currentViewer)return;
+  requestAnimationFrame(()=>{
+    refreshViewerLayout({recenter:true});
+    requestAnimationFrame(()=>refreshViewerLayout({recenter:true}));
+  });
 });
 
 frameworkSelect.addEventListener('change',()=>{

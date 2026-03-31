@@ -152,6 +152,7 @@
     }
     panels.forEach(panel=>panel.classList.toggle('is-active',panel.dataset.panel===route.panel));
     document.querySelectorAll('[data-panel-link]').forEach(link=>link.classList.toggle('is-active',link.dataset.panelLink===route.panel));
+    window.dispatchEvent(new CustomEvent('organo:panel-changed',{detail:{panel:route.panel,anchor:route.anchor}}));
     if(replace){
       history.replaceState(null,'',`#${route.anchor}`);
     }
