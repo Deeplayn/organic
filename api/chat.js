@@ -28,7 +28,7 @@ module.exports = async (req, res) => {
   if (req.method === 'GET') {
     sendJson(res, 200, {
       ok: true,
-      configured: Boolean(process.env.OPENROUTER_API_KEY)
+      configured: Boolean(process.env.XAI_API_KEY)
     });
     return;
   }
@@ -50,8 +50,8 @@ module.exports = async (req, res) => {
     return;
   }
 
-  if (!process.env.OPENROUTER_API_KEY) {
-    sendJson(res, 500, { error: { message: 'OPENROUTER_API_KEY is not configured on the server.' } });
+  if (!process.env.XAI_API_KEY) {
+    sendJson(res, 500, { error: { message: 'XAI_API_KEY is not configured on the server.' } });
     return;
   }
 
@@ -64,11 +64,11 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const upstream = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    const upstream = await fetch('https://api.x.ai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`
+        'Authorization': `Bearer ${process.env.XAI_API_KEY}`
       },
       body: JSON.stringify(validation.payload)
     });
@@ -77,6 +77,6 @@ module.exports = async (req, res) => {
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.status(upstream.status).send(text);
   } catch {
-    sendJson(res, 502, { error: { message: 'The OpenRouter proxy could not reach the upstream service.' } });
+    sendJson(res, 502, { error: { message: 'The xAI proxy could not reach the upstream service.' } });
   }
 };

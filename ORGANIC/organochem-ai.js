@@ -3,7 +3,7 @@
   const AI_PLANNER_KEY='oc-ai-planner-v1';
   const ORGANOBOT_HISTORY_KEY='oc-organobot-history-v1';
   const AI_PROXY_URL='/api/chat';
-  const DEFAULT_AI_MODEL='x-ai/grok-4.20-beta';
+  const DEFAULT_AI_MODEL='grok-4';
   const AI_PROVIDER_PRESETS={
     builtIn:{
       id:'builtIn',
@@ -193,8 +193,6 @@
       messages:normalizeRequestMessages(messages),
       temperature
     };
-    if(jsonMode)payload.response_format={type:'json_object'};
-    if(reasoningEnabled)payload.reasoning={enabled:true};
 
     let response;
     try{

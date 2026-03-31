@@ -139,17 +139,6 @@ function validateProxyPayload(body) {
     temperature
   };
 
-  if (body.response_format) {
-    if (body.response_format?.type !== 'json_object') {
-      return { ok: false, message: 'Unsupported response format requested.' };
-    }
-    payload.response_format = { type: 'json_object' };
-  }
-
-  if (body.reasoning) {
-    payload.reasoning = { enabled: Boolean(body.reasoning?.enabled) };
-  }
-
   return {
     ok: true,
     payload
