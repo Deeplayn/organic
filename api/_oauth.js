@@ -153,8 +153,11 @@ function getProviderConfig(provider) {
   const config = resolveProviderAuthorize(provider);
   const clientId = String(process.env[config.clientIdEnv] || '').trim();
   const clientSecret = String(process.env[config.clientSecretEnv] || '').trim();
-  if (!clientId || !clientSecret) {
-    throw new Error(`${config.label} OAuth is not configured on the server.`);
+  const missing = [];
+  if (!clientId) missing.push(config.clientIdEnv);
+  if (!clientSecret) missing.push(config.clientSecretEnv);
+  if (missing.length) {
+    throw new Error(`${config.label} OAuth is not configured on the server. Missing ${missing.join(' and ')}.`);
   }
   return {
     ...config,
