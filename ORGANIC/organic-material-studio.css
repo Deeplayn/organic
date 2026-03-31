@@ -299,6 +299,8 @@ select:focus,input[type="search"]:focus{border-color:var(--accent);outline:none;
   flex-direction:column;
   align-items:flex-start;
   gap:.18rem;
+  min-width:0;
+  max-width:100%;
   padding:.7rem .9rem;
   border-radius:999px;
   border:1px solid var(--border);
@@ -306,6 +308,13 @@ select:focus,input[type="search"]:focus{border-color:var(--accent);outline:none;
   color:var(--text);
   cursor:pointer;
   text-align:left;
+}
+.search-suggestion-name,
+.search-suggestion-meta{
+  display:block;
+  max-width:100%;
+  overflow-wrap:anywhere;
+  word-break:break-word;
 }
 .search-suggestion:hover{
   border-color:var(--accent);
@@ -341,6 +350,10 @@ select:focus,input[type="search"]:focus{border-color:var(--accent);outline:none;
   border:1px solid var(--border);
   font-size:.8rem;
   color:var(--text-dim);
+  max-width:100%;
+  white-space:normal;
+  overflow-wrap:anywhere;
+  word-break:break-word;
 }
 .summary-grid{
   display:grid;
@@ -370,6 +383,20 @@ select:focus,input[type="search"]:focus{border-color:var(--accent);outline:none;
   gap:1rem;
   align-items:flex-start;
   margin-bottom:1rem;
+}
+.preview-card,.blueprint,.status-line,.summary-grid div,.data-list div,.chip-row > *{min-width:0;}
+#previewTitle,
+.status-line,
+.summary,
+.stack-card,
+.equation-formula,
+.summary-grid dd,
+.data-list dd,
+.viewer-head h3,
+.viewer-status,
+.viewer-copy{
+  overflow-wrap:anywhere;
+  word-break:break-word;
 }
 .viewer-stage{
   position:relative;

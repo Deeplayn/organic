@@ -650,12 +650,21 @@ label{display:block;color:var(--text-bright);font-weight:600;}
   flex-direction:column;
   align-items:flex-start;
   gap:4px;
+  min-width:0;
+  max-width:100%;
   padding:10px 14px;
   border-radius:18px;
   border:1px solid var(--border);
   background:color-mix(in srgb,var(--surface-2) 86%,transparent);
   color:var(--text);
   box-shadow:0 6px 18px rgba(0,0,0,.08);
+}
+.search-suggestion-name,
+.search-suggestion-meta{
+  display:block;
+  max-width:100%;
+  overflow-wrap:anywhere;
+  word-break:break-word;
 }
 .search-suggestion-name{font-weight:600;}
 .search-suggestion-meta{font-size:.75rem;color:var(--text-dim);}
@@ -689,7 +698,23 @@ label{display:block;color:var(--text-bright);font-weight:600;}
 .viewer-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:18px;}
 .viewer-head > :first-child{flex:1 1 auto;min-width:0;}
 .viewer-head .button-row{flex:0 0 auto;}
+.preview-card,
+.blueprint,
+.status-line,
+.summary-grid div,
+.data-list div,
+.chip-row > *{
+  min-width:0;
+}
+.chip{
+  max-width:100%;
+  white-space:normal;
+  overflow-wrap:anywhere;
+  word-break:break-word;
+}
 .viewer-head h3,
+#previewTitle,
+.status-line,
 .viewer-status,
 .viewer-copy,
 .summary,
