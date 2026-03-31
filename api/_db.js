@@ -1,3 +1,5 @@
+require('./_env');
+
 const { Pool } = require('pg');
 
 let pool;

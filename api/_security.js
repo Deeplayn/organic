@@ -1,3 +1,5 @@
+require('./_env');
+
 const rateLimitBuckets = new Map();
 
 function applySecurityHeaders(req, res, corsOrigin) {

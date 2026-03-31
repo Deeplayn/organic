@@ -1,3 +1,5 @@
+require('./_env');
+
 const crypto = require('crypto');
 const { getPool, ensureSchema } = require('./_db');
 

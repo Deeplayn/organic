@@ -1,3 +1,5 @@
+require('./_env');
+
 const {
   applySecurityHeaders,
   buildCorsContext,
