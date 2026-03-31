@@ -505,6 +505,7 @@ label{display:block;color:var(--text-bright);font-weight:600;}
 .button:hover,.btn:hover,.bot-btn:hover,.prompt-chip:hover,.quiz-opt:hover,.topic-card:hover,.search-suggestion:hover,.session-item:hover{transform:translateY(-2px);}
 .button.secondary,.btn-secondary,.bot-btn-secondary{background:color-mix(in srgb,var(--surface-2) 84%,transparent);}
 .button.secondary:hover,.btn-secondary:hover,.bot-btn-secondary:hover{border-color:var(--accent);color:var(--accent);background:var(--glow);}
+.button.secondary.is-active,.btn-secondary.is-active,.bot-btn-secondary.is-active{border-color:var(--accent);color:var(--accent);background:var(--glow);}
 .button.primary:hover,.btn-primary:hover,.bot-btn-primary:hover{
   box-shadow:0 14px 28px color-mix(in srgb,var(--accent) 28%,transparent);
   filter:saturate(1.05) brightness(1.03);

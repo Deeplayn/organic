@@ -262,6 +262,7 @@ h3{font-size:1.3rem;}
 .secondary{background:transparent;color:var(--text);border:1px solid var(--border);}
 .primary:hover,.secondary:hover{transform:translateY(-2px);}
 .secondary:hover{border-color:var(--accent);color:var(--accent);}
+.secondary.is-active{border-color:var(--accent);color:var(--accent);background:var(--glow);}
 
 /* ===================== BUILDER ===================== */
 .builder-shell{padding:2rem 0 1rem;}

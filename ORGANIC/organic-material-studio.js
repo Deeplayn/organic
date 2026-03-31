@@ -251,6 +251,8 @@ const builderStatus=document.getElementById('builderStatus');
 const viewerStatus=document.getElementById('viewerStatus');
 const viewerCaption=document.getElementById('viewerCaption');
 const viewerAtomLegend=document.getElementById('viewerAtomLegend');
+const view2dBtn=document.getElementById('view2dBtn');
+const view3dBtn=document.getElementById('view3dBtn');
 const apiDataList=document.getElementById('apiDataList');
 const propertyHighlights=document.getElementById('propertyHighlights');
 const prepOverview=document.getElementById('prepOverview');
@@ -260,6 +262,10 @@ let currentViewerStyle='stick';
 let currentSdf='';
 let currentRenderMode='none';
 let currentViewerAtoms=[];
+let currentSdf2d='';
+let currentSdf3d='';
+let currentCompoundName='';
+let preferredStructureMode='3d';
 
 function escapeHtml(value){
   return String(value)
@@ -446,6 +452,30 @@ function setViewerStatus(message){
   viewerStatus.textContent=message;
 }
 
+function updateViewToggleState(){
+  if(view2dBtn){
+    const has2d=Boolean(currentSdf2d);
+    const isActive=currentRenderMode==='2d'&&has2d;
+    view2dBtn.disabled=!has2d;
+    view2dBtn.classList.toggle('is-active',isActive);
+    view2dBtn.setAttribute('aria-pressed',String(isActive));
+  }
+  if(view3dBtn){
+    const has3d=Boolean(currentSdf3d);
+    const isActive=currentRenderMode==='3d'&&has3d;
+    view3dBtn.disabled=!has3d;
+    view3dBtn.classList.toggle('is-active',isActive);
+    view3dBtn.setAttribute('aria-pressed',String(isActive));
+  }
+}
+
+function setAvailableStructures({name='',sdf2d='',sdf3d=''}={}){
+  currentCompoundName=name;
+  currentSdf2d=sdf2d||'';
+  currentSdf3d=sdf3d||'';
+  updateViewToggleState();
+}
+
 function atomColor(element){
   const palette={
     H:'#f6f9ff',
@@ -538,6 +568,7 @@ function resetViewerShell(message='3D viewer will update when a compound is load
   currentSdf='';
   currentRenderMode='none';
   currentViewerAtoms=[];
+  setAvailableStructures();
   renderViewerAtomLegend([]);
   setViewerStatus(message);
 }
@@ -577,8 +608,28 @@ function renderSdfInViewer(sdf,compoundName,mode='3d'){
   currentRenderMode=mode;
   renderViewerAtomLegend(parseSdfAtoms(sdf));
   applyViewerStyle();
+  updateViewToggleState();
   viewerCaption.textContent=`${mode==='3d'?'3D conformer':'2D structure'} for ${compoundName}. Drag to rotate and scroll to zoom.`;
   setViewerStatus(`${mode==='3d'?'3D conformer':'2D structure'} loaded for ${compoundName} with atom labels.`);
+}
+
+function switchViewerMode(mode,{manual=true}={}){
+  if(manual&&(mode==='2d'||mode==='3d'))preferredStructureMode=mode;
+  if(mode==='2d'){
+    if(!currentSdf2d){
+      setViewerStatus(`2D structure is not available for ${currentCompoundName||'this compound'}.`);
+      return;
+    }
+    renderSdfInViewer(currentSdf2d,currentCompoundName||'this compound','2d');
+    return;
+  }
+  if(mode==='3d'){
+    if(!currentSdf3d){
+      setViewerStatus(`3D conformer is not available for ${currentCompoundName||'this compound'}.`);
+      return;
+    }
+    renderSdfInViewer(currentSdf3d,currentCompoundName||'this compound','3d');
+  }
 }
 
 function renderLocalMaterial(material){
@@ -836,6 +887,7 @@ async function loadCompound(query,localMaterial){
     return;
   }
 
+  setAvailableStructures({name:resolvedQuery});
   setBuilderStatus(`Looking up ${resolvedQuery} in PubChem...`);
   setViewerStatus(`Fetching 3D structure for ${resolvedQuery}...`);
   if(localMaterial)renderLocalMaterial(localMaterial);
@@ -852,6 +904,11 @@ async function loadCompound(query,localMaterial){
     const has3d=Boolean(data.sdf3d);
     const has2d=Boolean(data.sdf2d);
     const viewState=has3d?'3D ready':has2d?'2D ready':'Unavailable';
+    setAvailableStructures({
+      name:displayName,
+      sdf2d:data.sdf2d,
+      sdf3d:data.sdf3d
+    });
 
     document.getElementById('previewTitle').textContent=displayName;
     document.getElementById('materialSummary').textContent=localMaterial?.summary||`Live compound data loaded from PubChem for ${displayName}.`;
@@ -894,10 +951,9 @@ async function loadCompound(query,localMaterial){
       {label:'Equation layer',value:localMaterial?.equations?.length?'Curated':'Unavailable'}
     ]);
 
-    if(has3d){
-      renderSdfInViewer(data.sdf3d,displayName,'3d');
-    }else if(has2d){
-      renderSdfInViewer(data.sdf2d,displayName,'2d');
+    const preferredMode=preferredStructureMode==='2d'&&has2d?'2d':has3d?'3d':has2d?'2d':'';
+    if(preferredMode){
+      switchViewerMode(preferredMode,{manual:false});
     }else{
       resetViewerShell(`PubChem did not return a usable 2D or 3D structure for ${displayName}.`);
       viewerCaption.textContent='The selected compound did not return a usable 2D or 3D structure from this lookup.';
@@ -977,13 +1033,21 @@ document.getElementById('styleSphereBtn').addEventListener('click',()=>{
   applyViewerStyle();
 });
 
+view2dBtn?.addEventListener('click',()=>{
+  switchViewerMode('2d');
+});
+
+view3dBtn?.addEventListener('click',()=>{
+  switchViewerMode('3d');
+});
+
 document.getElementById('resetViewBtn').addEventListener('click',()=>{
   if(currentViewer){
     currentViewer.resize();
     currentViewer.zoomTo();
     renderViewerAtomLabels();
     currentViewer.render();
-    setViewerStatus('3D view reset.');
+    setViewerStatus(`${currentRenderMode==='2d'?'2D structure':'3D conformer'} reset.`);
   }
 });
 
@@ -1047,4 +1111,5 @@ renderLocalMaterial(first);
 compoundSearch.value=first?.pubchemQuery||'';
 renderSearchSuggestions(compoundSearch.value);
 resetViewerShell('3D viewer will load after the first PubChem lookup finishes.');
+updateViewToggleState();
 if(first)loadCompound(first.pubchemQuery,first);
