@@ -63,122 +63,149 @@
         </ul>
       </div>
       <div class="hero-aside-card">
-        <span class="hero-card-label">Session Status</span>
-        <div id="authSessionSummary" class="auth-session-summary">Checking your session...</div>
+        <span class="hero-card-label">Account Flow</span>
+        <div class="auth-session-summary">One wide card below lets learners choose a provider first, then switch between sign in and sign up for a website account.</div>
       </div>
     </aside>
   </section>
 
-  <section class="auth-layout auth-standalone-layout">
-    <aside class="auth-aside">
-      <article class="auth-info-card provider-card">
-        <p class="eyebrow">Choose a provider</p>
-        <h3>Social sign-in options</h3>
-        <p class="panel-copy">Pick the provider you want to use, or scroll down to create an OrganoChem account for the website itself.</p>
-        <div class="oauth-grid">
+  <section class="auth-single-shell">
+    <article class="auth-card auth-wide-card" id="authFormCard">
+      <div class="auth-inline-message" id="authGateMessage" hidden></div>
+      <div class="auth-inline-message" id="authStatusMessage" hidden></div>
+
+      <div class="auth-wide-top">
+        <div>
+          <p class="eyebrow">Authentication</p>
+          <h3>Continue with a provider or use your OrganoChem account</h3>
+          <p class="panel-copy">Choose Google, Microsoft, or GitHub for instant sign-in, or switch between sign in and sign up below for a website account.</p>
+        </div>
+        <div class="auth-status-panel">
+          <div class="auth-status-label">Session Status</div>
+          <div id="authSessionSummary" class="auth-session-summary">Checking your session...</div>
+          <div class="auth-actions" id="authSessionActions">
+            <button class="button secondary" type="button" id="logoutButton" style="display:none;">Log Out</button>
+          </div>
+        </div>
+      </div>
+
+      <section class="provider-card auth-provider-section">
+        <div class="oauth-grid oauth-grid-wide">
           <button class="oauth-button oauth-google" type="button" data-provider="google">
             <span class="oauth-provider-copy">
-              <span class="oauth-provider-mark">G</span>
+              <span class="oauth-provider-mark" aria-hidden="true">
+                <svg viewBox="0 0 48 48" focusable="false">
+                  <path fill="#FFC107" d="M43.61 20.08H42V20H24v8h11.3C33.65 32.66 29.2 36 24 36c-6.63 0-12-5.37-12-12s5.37-12 12-12c3.06 0 5.84 1.15 7.96 3.04l5.66-5.66C34.06 6.05 29.27 4 24 4 12.95 4 4 12.95 4 24s8.95 20 20 20 20-8.95 20-20c0-1.34-.14-2.65-.39-3.92Z"></path>
+                  <path fill="#FF3D00" d="M6.31 14.69l6.57 4.82C14.66 15.11 18.96 12 24 12c3.06 0 5.84 1.15 7.96 3.04l5.66-5.66C34.06 6.05 29.27 4 24 4c-7.68 0-14.34 4.34-17.69 10.69Z"></path>
+                  <path fill="#4CAF50" d="M24 44c5.17 0 9.86-1.98 13.41-5.2l-6.19-5.24C29.15 35.09 26.7 36 24 36c-5.18 0-9.62-3.32-11.28-7.93l-6.52 5.02C9.51 39.56 16.24 44 24 44Z"></path>
+                  <path fill="#1976D2" d="M43.61 20.08H42V20H24v8h11.3c-.79 2.24-2.23 4.17-4.08 5.56l.01-.01 6.19 5.24C36.97 39.09 44 34 44 24c0-1.34-.14-2.65-.39-3.92Z"></path>
+                </svg>
+              </span>
               <span>
                 <strong>Continue with Google</strong>
                 <small>Use your Google identity</small>
               </span>
             </span>
-            <span class="oauth-status">Choose</span>
+            <span class="oauth-status">Google</span>
           </button>
+
           <button class="oauth-button oauth-microsoft" type="button" data-provider="microsoft">
             <span class="oauth-provider-copy">
-              <span class="oauth-provider-mark">M</span>
+              <span class="oauth-provider-mark" aria-hidden="true">
+                <svg viewBox="0 0 32 32" focusable="false">
+                  <path fill="#f25022" d="M2 2h13v13H2z"></path>
+                  <path fill="#00a4ef" d="M17 2h13v13H17z"></path>
+                  <path fill="#7fba00" d="M2 17h13v13H2z"></path>
+                  <path fill="#ffb900" d="M17 17h13v13H17z"></path>
+                </svg>
+              </span>
               <span>
                 <strong>Continue with Microsoft</strong>
                 <small>Use your Microsoft account</small>
               </span>
             </span>
-            <span class="oauth-status">Choose</span>
+            <span class="oauth-status">Microsoft</span>
           </button>
+
           <button class="oauth-button oauth-github" type="button" data-provider="github">
             <span class="oauth-provider-copy">
-              <span class="oauth-provider-mark">GH</span>
+              <span class="oauth-provider-mark" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false">
+                  <path fill="currentColor" d="M12 .5a12 12 0 0 0-3.79 23.39c.6.11.82-.26.82-.58v-2.02c-3.34.73-4.04-1.41-4.04-1.41-.55-1.38-1.33-1.75-1.33-1.75-1.09-.75.08-.73.08-.73 1.2.09 1.83 1.23 1.83 1.23 1.08 1.84 2.83 1.31 3.52 1 .11-.78.42-1.31.77-1.61-2.67-.31-5.48-1.34-5.48-5.95 0-1.31.47-2.38 1.23-3.22-.12-.31-.53-1.56.12-3.24 0 0 1.01-.32 3.3 1.23a11.4 11.4 0 0 1 6 0c2.29-1.55 3.29-1.23 3.29-1.23.66 1.68.25 2.93.13 3.24.77.84 1.23 1.91 1.23 3.22 0 4.62-2.81 5.63-5.5 5.94.43.37.82 1.09.82 2.21v3.27c0 .32.22.7.83.58A12 12 0 0 0 12 .5Z"></path>
+                </svg>
+              </span>
               <span>
                 <strong>Continue with GitHub</strong>
                 <small>Use your GitHub profile</small>
               </span>
             </span>
-            <span class="oauth-status">Choose</span>
+            <span class="oauth-status">GitHub</span>
           </button>
         </div>
-        <p class="auth-helper-copy">The provider buttons are in place and ready for backend OAuth connection. Your OrganoChem website account works right now below.</p>
-      </article>
+      </section>
 
-      <article class="auth-info-card">
-        <h3>Manage session</h3>
-        <div class="auth-actions" id="authSessionActions">
-          <button class="button secondary" type="button" id="logoutButton" style="display:none;">Log Out</button>
-        </div>
-      </article>
-    </aside>
+      <div class="auth-divider" aria-hidden="true">
+        <span></span>
+        <strong>Or use the website account</strong>
+        <span></span>
+      </div>
 
-    <div class="auth-main">
-      <article class="auth-card" id="authFormCard">
-        <div class="auth-inline-message" id="authGateMessage" hidden></div>
-        <div class="auth-inline-message" id="authStatusMessage" hidden></div>
-
-        <div class="auth-divider" aria-hidden="true">
-          <span></span>
-          <strong>Or use the website account</strong>
-          <span></span>
-        </div>
-
-        <section id="websiteAccount" class="website-account-block">
-          <p class="eyebrow">Website account</p>
-          <h3 id="websiteAccountLabel">Sign in to your OrganoChem account</h3>
-          <p class="panel-copy" id="websiteAccountLead">Use your OrganoChem account to restore your saved study state, planner history, and chat sessions.</p>
-
+      <section id="websiteAccount" class="website-account-block">
+        <div class="website-account-header">
+          <div>
+            <p class="eyebrow">Website account</p>
+            <h3 id="websiteAccountLabel">Sign in to your OrganoChem account</h3>
+            <p class="panel-copy" id="websiteAccountLead">Use your OrganoChem account to restore your saved study state, planner history, and chat sessions.</p>
+          </div>
           <div class="auth-tabs">
             <button class="auth-tab active" type="button" data-auth-mode="login">Sign In</button>
             <button class="auth-tab" type="button" data-auth-mode="signup">Sign Up</button>
           </div>
+        </div>
 
-          <form id="loginForm" class="auth-form">
-            <label class="field">
-              <span>Email</span>
-              <input type="email" id="loginEmail" required placeholder="you@example.com">
-            </label>
-            <label class="field">
-              <span>Password</span>
-              <input type="password" id="loginPassword" required minlength="8" placeholder="At least 8 characters">
-            </label>
-            <button class="button primary full-width" type="submit">Sign In to OrganoChem</button>
-          </form>
+        <form id="loginForm" class="auth-form auth-form-grid">
+          <label class="field field-span-2">
+            <span>Email</span>
+            <input type="email" id="loginEmail" required placeholder="you@example.com">
+          </label>
+          <label class="field field-span-2">
+            <span>Password</span>
+            <input type="password" id="loginPassword" required minlength="8" placeholder="At least 8 characters">
+          </label>
+          <button class="button primary full-width field-span-2" type="submit">Sign In to OrganoChem</button>
+        </form>
 
-          <form id="signupForm" class="auth-form" hidden>
-            <label class="field">
-              <span>Display Name</span>
-              <input type="text" id="signupDisplayName" required minlength="2" maxlength="60" placeholder="Organic learner">
-            </label>
-            <label class="field">
-              <span>Email</span>
-              <input type="email" id="signupEmail" required placeholder="you@example.com">
-            </label>
-            <label class="field">
-              <span>Password</span>
-              <input type="password" id="signupPassword" required minlength="8" placeholder="At least 8 characters">
-            </label>
-            <button class="button primary full-width" type="submit">Create Website Account</button>
-          </form>
-        </section>
-      </article>
+        <form id="signupForm" class="auth-form auth-form-grid" hidden>
+          <label class="field">
+            <span>Display Name</span>
+            <input type="text" id="signupDisplayName" required minlength="2" maxlength="60" placeholder="Organic learner">
+          </label>
+          <label class="field">
+            <span>Email</span>
+            <input type="email" id="signupEmail" required placeholder="you@example.com">
+          </label>
+          <label class="field field-span-2">
+            <span>Password</span>
+            <input type="password" id="signupPassword" required minlength="8" placeholder="At least 8 characters">
+          </label>
+          <button class="button primary full-width field-span-2" type="submit">Create Website Account</button>
+        </form>
+      </section>
+    </article>
 
-      <article class="auth-card account-card" id="accountCard" hidden>
-        <p class="eyebrow">Signed In</p>
-        <h3 id="accountName">Account</h3>
-        <div class="account-meta" id="accountMeta"></div>
-        <div class="account-actions">
+    <article class="auth-card account-card auth-wide-account" id="accountCard" hidden>
+      <div class="auth-wide-top">
+        <div>
+          <p class="eyebrow">Signed In</p>
+          <h3 id="accountName">Account</h3>
+        </div>
+        <div class="auth-actions">
           <button class="button secondary" type="button" id="accountRefreshButton">Refresh Account Sync</button>
           <button class="button secondary" type="button" id="accountLogoutButton">Log Out</button>
         </div>
-      </article>
-    </div>
+      </div>
+      <div class="account-meta" id="accountMeta"></div>
+    </article>
   </section>
 </main>
 

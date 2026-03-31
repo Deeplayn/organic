@@ -1,0 +1,334 @@
+const {
+  createId,
+  createSession,
+  buildSessionCookie,
+  sanitizeUser,
+  normalizeEmail,
+  validateEmail,
+  validateDisplayName,
+  getRequestOrigin,
+  sanitizeReturnTo,
+  buildAuthPageUrl,
+  createOAuthStateCookie,
+  readOAuthState,
+  buildExpiredOAuthStateCookie
+} = require('./_auth');
+const { getPool, ensureSchema } = require('./_db');
+
+const PROVIDERS = {
+  google: {
+    label: 'Google',
+    scopes: ['openid', 'email', 'profile'],
+    authorizeUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
+    tokenUrl: 'https://oauth2.googleapis.com/token',
+    clientIdEnv: 'GOOGLE_CLIENT_ID',
+    clientSecretEnv: 'GOOGLE_CLIENT_SECRET',
+    async exchangeProfile({ code, redirectUri, clientId, clientSecret }) {
+      const token = await postFormJson('https://oauth2.googleapis.com/token', {
+        code,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: redirectUri,
+        grant_type: 'authorization_code'
+      });
+
+      const profile = await fetchJson('https://openidconnect.googleapis.com/v1/userinfo', {
+        headers: {
+          Authorization: `Bearer ${token.access_token}`
+        }
+      });
+
+      const email = normalizeEmail(profile.email);
+      if (!validateEmail(email) || profile.email_verified === false) {
+        throw new Error('Google did not return a verified email address.');
+      }
+
+      return {
+        providerUserId: String(profile.sub || ''),
+        email,
+        displayName: String(profile.name || profile.given_name || email.split('@')[0] || 'Google User').trim()
+      };
+    }
+  },
+  microsoft: {
+    label: 'Microsoft',
+    scopes: ['openid', 'email', 'profile', 'User.Read'],
+    clientIdEnv: 'MICROSOFT_CLIENT_ID',
+    clientSecretEnv: 'MICROSOFT_CLIENT_SECRET',
+    tenantEnv: 'MICROSOFT_TENANT_ID',
+    authorizeUrl() {
+      const tenant = String(process.env.MICROSOFT_TENANT_ID || 'common').trim() || 'common';
+      return `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/authorize`;
+    },
+    tokenUrl() {
+      const tenant = String(process.env.MICROSOFT_TENANT_ID || 'common').trim() || 'common';
+      return `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/token`;
+    },
+    async exchangeProfile({ code, redirectUri, clientId, clientSecret, provider }) {
+      const token = await postFormJson(resolveProviderAuthorize(provider).tokenUrl(), {
+        code,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: redirectUri,
+        grant_type: 'authorization_code'
+      });
+
+      const profile = await fetchJson('https://graph.microsoft.com/v1.0/me?$select=id,displayName,mail,userPrincipalName', {
+        headers: {
+          Authorization: `Bearer ${token.access_token}`
+        }
+      });
+
+      const email = normalizeEmail(profile.mail || profile.userPrincipalName);
+      if (!validateEmail(email)) {
+        throw new Error('Microsoft did not return a usable email address.');
+      }
+
+      return {
+        providerUserId: String(profile.id || ''),
+        email,
+        displayName: String(profile.displayName || email.split('@')[0] || 'Microsoft User').trim()
+      };
+    }
+  },
+  github: {
+    label: 'GitHub',
+    scopes: ['read:user', 'user:email'],
+    authorizeUrl: 'https://github.com/login/oauth/authorize',
+    tokenUrl: 'https://github.com/login/oauth/access_token',
+    clientIdEnv: 'GITHUB_CLIENT_ID',
+    clientSecretEnv: 'GITHUB_CLIENT_SECRET',
+    async exchangeProfile({ code, redirectUri, clientId, clientSecret }) {
+      const token = await postFormJson('https://github.com/login/oauth/access_token', {
+        code,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: redirectUri
+      }, {
+        Accept: 'application/json'
+      });
+
+      const profile = await fetchJson('https://api.github.com/user', {
+        headers: {
+          Authorization: `Bearer ${token.access_token}`,
+          Accept: 'application/vnd.github+json',
+          'User-Agent': 'OrganoChem'
+        }
+      });
+
+      const emails = await fetchJson('https://api.github.com/user/emails', {
+        headers: {
+          Authorization: `Bearer ${token.access_token}`,
+          Accept: 'application/vnd.github+json',
+          'User-Agent': 'OrganoChem'
+        }
+      });
+
+      const primaryEmail = Array.isArray(emails)
+        ? emails.find(item => item.primary && item.verified) || emails.find(item => item.verified) || emails[0]
+        : null;
+      const email = normalizeEmail(primaryEmail?.email || profile.email);
+      if (!validateEmail(email) || primaryEmail?.verified === false) {
+        throw new Error('GitHub did not return a verified email address.');
+      }
+
+      return {
+        providerUserId: String(profile.id || ''),
+        email,
+        displayName: String(profile.name || profile.login || email.split('@')[0] || 'GitHub User').trim()
+      };
+    }
+  }
+};
+
+function resolveProviderAuthorize(provider) {
+  const config = PROVIDERS[provider];
+  if (!config) {
+    throw new Error('Unsupported OAuth provider.');
+  }
+  return config;
+}
+
+function getProviderConfig(provider) {
+  const config = resolveProviderAuthorize(provider);
+  const clientId = String(process.env[config.clientIdEnv] || '').trim();
+  const clientSecret = String(process.env[config.clientSecretEnv] || '').trim();
+  if (!clientId || !clientSecret) {
+    throw new Error(`${config.label} OAuth is not configured on the server.`);
+  }
+  return {
+    ...config,
+    clientId,
+    clientSecret
+  };
+}
+
+function buildProviderStartUrl(req, provider, returnTo) {
+  const config = getProviderConfig(provider);
+  const origin = getRequestOrigin(req);
+  const redirectUri = new URL(`/api/auth/oauth/callback?provider=${encodeURIComponent(provider)}`, `${origin}/`).toString();
+  const { state, cookie } = createOAuthStateCookie(req, {
+    provider,
+    returnTo: sanitizeReturnTo(returnTo, origin)
+  });
+  const authorizeUrl = new URL(typeof config.authorizeUrl === 'function' ? config.authorizeUrl() : config.authorizeUrl);
+  authorizeUrl.searchParams.set('client_id', config.clientId);
+  authorizeUrl.searchParams.set('redirect_uri', redirectUri);
+  authorizeUrl.searchParams.set('response_type', 'code');
+  authorizeUrl.searchParams.set('scope', config.scopes.join(' '));
+  authorizeUrl.searchParams.set('state', state);
+  if (provider === 'google') authorizeUrl.searchParams.set('access_type', 'online');
+  return {
+    location: authorizeUrl.toString(),
+    cookie
+  };
+}
+
+async function completeProviderLogin(req, provider, params) {
+  const config = getProviderConfig(provider);
+  const origin = getRequestOrigin(req);
+  const oauthState = readOAuthState(req, provider, params.get('state'));
+  const redirectUri = new URL(`/api/auth/oauth/callback?provider=${encodeURIComponent(provider)}`, `${origin}/`).toString();
+  const profile = await config.exchangeProfile({
+    code: params.get('code'),
+    redirectUri,
+    clientId: config.clientId,
+    clientSecret: config.clientSecret,
+    provider
+  });
+
+  if (!profile.providerUserId) {
+    throw new Error(`${config.label} did not return a valid account identifier.`);
+  }
+
+  const user = await findOrCreateOAuthUser(provider, profile);
+  const session = await createSession(req, user.id);
+
+  return {
+    user,
+    returnTo: oauthState.returnTo,
+    cookies: [
+      buildSessionCookie(req, session.sessionId, session.expiresAt),
+      buildExpiredOAuthStateCookie(req)
+    ]
+  };
+}
+
+function buildOAuthErrorRedirect(req, message, returnTo = '') {
+  const location = buildAuthPageUrl(req, {
+    mode: 'login',
+    message,
+    returnTo
+  });
+  return {
+    location,
+    cookie: buildExpiredOAuthStateCookie(req)
+  };
+}
+
+async function findOrCreateOAuthUser(provider, profile) {
+  await ensureSchema();
+  const pool = getPool();
+  const email = normalizeEmail(profile.email);
+  if (!validateEmail(email)) {
+    throw new Error('A valid email address is required for OAuth sign-in.');
+  }
+
+  const identityResult = await pool.query(
+    `SELECT users.id, users.email, users.display_name, users.theme
+     FROM oauth_identities
+     JOIN users ON users.id = oauth_identities.user_id
+     WHERE oauth_identities.provider = $1 AND oauth_identities.provider_user_id = $2
+     LIMIT 1`,
+    [provider, String(profile.providerUserId)]
+  );
+  if (identityResult.rows[0]) {
+    return sanitizeUser(identityResult.rows[0]);
+  }
+
+  let userRow;
+  const existingUser = await pool.query(
+    'SELECT id, email, display_name, theme FROM users WHERE email = $1 LIMIT 1',
+    [email]
+  );
+
+  if (existingUser.rows[0]) {
+    userRow = existingUser.rows[0];
+  } else {
+    const userId = createId('user');
+    const displayName = validateDisplayName(profile.displayName) ? profile.displayName.trim() : email.split('@')[0];
+    const insertedUser = await pool.query(
+      `INSERT INTO users (id, email, display_name, password_hash)
+       VALUES ($1, $2, $3, NULL)
+       RETURNING id, email, display_name, theme`,
+      [userId, email, displayName]
+    );
+    await pool.query(
+      'INSERT INTO user_state (user_id, payload) VALUES ($1, $2::jsonb) ON CONFLICT (user_id) DO NOTHING',
+      [userId, JSON.stringify({})]
+    );
+    userRow = insertedUser.rows[0];
+  }
+
+  await pool.query(
+    `INSERT INTO oauth_identities (id, user_id, provider, provider_user_id, provider_email)
+     VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT (provider, provider_user_id)
+     DO UPDATE SET provider_email = EXCLUDED.provider_email, updated_at = NOW()`,
+    [createId('oauth'), userRow.id, provider, String(profile.providerUserId), email]
+  );
+
+  return sanitizeUser(userRow);
+}
+
+async function postFormJson(url, body, extraHeaders = {}) {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/x-www-form-urlencoded',
+      ...extraHeaders
+    },
+    body: new URLSearchParams(body)
+  });
+  const data = await parseResponseData(response);
+  if (!response.ok || data?.error) {
+    throw new Error(data?.error_description || data?.error?.message || data?.error || 'OAuth token exchange failed.');
+  }
+  if (!data?.access_token) {
+    throw new Error('OAuth token exchange did not return an access token.');
+  }
+  return data;
+}
+
+async function fetchJson(url, options = {}) {
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      Accept: 'application/json',
+      ...(options.headers || {})
+    }
+  });
+  const data = await parseResponseData(response);
+  if (!response.ok) {
+    throw new Error(data?.error_description || data?.message || 'OAuth profile request failed.');
+  }
+  return data;
+}
+
+async function parseResponseData(response) {
+  const text = await response.text();
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    return Object.fromEntries(new URLSearchParams(text));
+  }
+}
+
+module.exports = {
+  getProviderConfig,
+  buildProviderStartUrl,
+  completeProviderLogin,
+  buildOAuthErrorRedirect
+};

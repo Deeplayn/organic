@@ -27,7 +27,7 @@ async function ensureSchema() {
       id TEXT PRIMARY KEY,
       email TEXT NOT NULL UNIQUE,
       display_name TEXT NOT NULL,
-      password_hash TEXT NOT NULL,
+      password_hash TEXT,
       theme TEXT NOT NULL DEFAULT 'lab-noir',
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -49,6 +49,24 @@ async function ensureSchema() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+
+    CREATE TABLE IF NOT EXISTS oauth_identities (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      provider TEXT NOT NULL,
+      provider_user_id TEXT NOT NULL,
+      provider_email TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (provider, provider_user_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS oauth_identities_user_id_idx ON oauth_identities(user_id);
+    CREATE INDEX IF NOT EXISTS oauth_identities_provider_email_idx ON oauth_identities(provider_email);
+
+    ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
+    ALTER TABLE oauth_identities
+      ADD COLUMN IF NOT EXISTS provider_email TEXT NOT NULL DEFAULT '';
   `);
 
   return schemaReady;

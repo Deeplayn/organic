@@ -2,6 +2,8 @@ const crypto = require('crypto');
 const { getPool, ensureSchema } = require('./_db');
 
 const COOKIE_NAME = 'oc_session';
+const OAUTH_STATE_COOKIE = 'oc_oauth_state';
+const OAUTH_STATE_TTL_MS = 15 * 60 * 1000;
 
 function normalizeEmail(value) {
   return String(value || '').trim().toLowerCase();
@@ -54,15 +56,60 @@ function sessionDays() {
   return Number.isFinite(value) && value > 0 ? value : 30;
 }
 
-function buildSessionCookie(req, sessionId, expiresAt) {
+function getRequestOrigin(req) {
+  const forwardedProto = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim();
+  const forwardedHost = String(req.headers['x-forwarded-host'] || '').split(',')[0].trim();
+  const host = forwardedHost || String(req.headers.host || '').trim();
+  if (!host) return '';
+  const proto = forwardedProto || 'https';
+  return `${proto}://${host}`;
+}
+
+function parseQuery(req) {
+  const origin = getRequestOrigin(req) || 'https://localhost';
+  return new URL(req.url || '/', origin).searchParams;
+}
+
+function sanitizeReturnTo(value, requestOrigin = '') {
+  const fallback = 'index.html#dashboard';
+  const origin = requestOrigin || 'https://localhost';
+  const raw = String(value || '').trim();
+  if (!raw) return fallback;
+
+  try {
+    const url = new URL(raw, origin);
+    if (requestOrigin && url.origin !== requestOrigin) {
+      return fallback;
+    }
+    const file = url.pathname.split('/').pop() || 'index.html';
+    const hash = String(url.hash || '').replace(/^#/, '').trim();
+    if (/auth\.html$/i.test(file) || hash === 'auth') {
+      return fallback;
+    }
+    return `${file}${url.search}${url.hash}`;
+  } catch {
+    return fallback;
+  }
+}
+
+function buildAuthPageUrl(req, { mode = 'login', message = '', returnTo = '' } = {}) {
+  const origin = getRequestOrigin(req) || 'https://localhost';
+  const url = new URL('/auth.html', origin);
+  url.searchParams.set('mode', mode === 'signup' ? 'signup' : 'login');
+  if (message) url.searchParams.set('message', message);
+  if (returnTo) url.searchParams.set('returnTo', sanitizeReturnTo(returnTo, getRequestOrigin(req)));
+  return url.toString();
+}
+
+function buildCookie(req, name, value, options = {}) {
   const parts = [
-    `${COOKIE_NAME}=${encodeURIComponent(sessionId)}`,
-    'Path=/',
-    'HttpOnly',
-    'SameSite=Lax',
-    `Expires=${expiresAt.toUTCString()}`,
-    `Max-Age=${Math.max(1, Math.round((expiresAt.getTime() - Date.now()) / 1000))}`
+    `${name}=${encodeURIComponent(value)}`,
+    `Path=${options.path || '/'}`,
+    `SameSite=${options.sameSite || 'Lax'}`
   ];
+  if (options.httpOnly !== false) parts.push('HttpOnly');
+  if (options.expires) parts.push(`Expires=${options.expires.toUTCString()}`);
+  if (typeof options.maxAge === 'number') parts.push(`Max-Age=${Math.max(0, Math.round(options.maxAge))}`);
 
   const proto = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim().toLowerCase();
   if (proto === 'https') {
@@ -72,20 +119,22 @@ function buildSessionCookie(req, sessionId, expiresAt) {
   return parts.join('; ');
 }
 
+function buildSessionCookie(req, sessionId, expiresAt) {
+  return buildCookie(req, COOKIE_NAME, sessionId, {
+    expires: expiresAt,
+    maxAge: (expiresAt.getTime() - Date.now()) / 1000
+  });
+}
+
+function buildExpiredCookie(req, name) {
+  return buildCookie(req, name, '', {
+    expires: new Date(0),
+    maxAge: 0
+  });
+}
+
 function buildExpiredSessionCookie(req) {
-  const parts = [
-    `${COOKIE_NAME}=`,
-    'Path=/',
-    'HttpOnly',
-    'SameSite=Lax',
-    'Expires=Thu, 01 Jan 1970 00:00:00 GMT',
-    'Max-Age=0'
-  ];
-  const proto = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim().toLowerCase();
-  if (proto === 'https') {
-    parts.push('Secure');
-  }
-  return parts.join('; ');
+  return buildExpiredCookie(req, COOKIE_NAME);
 }
 
 function sanitizeUser(row) {
@@ -147,8 +196,92 @@ async function getSessionUser(req) {
   };
 }
 
+function base64urlEncode(value) {
+  return Buffer.from(value).toString('base64url');
+}
+
+function base64urlDecode(value) {
+  return Buffer.from(String(value || ''), 'base64url').toString('utf8');
+}
+
+function resolveOAuthSecret() {
+  const material = [
+    process.env.AUTH_STATE_SECRET,
+    process.env.DATABASE_URL,
+    process.env.GOOGLE_CLIENT_SECRET,
+    process.env.MICROSOFT_CLIENT_SECRET,
+    process.env.GITHUB_CLIENT_SECRET
+  ]
+    .map(value => String(value || '').trim())
+    .filter(Boolean)
+    .join('|');
+
+  if (!material) {
+    throw new Error('OAuth secret material is not configured.');
+  }
+
+  return material;
+}
+
+function signOAuthPayload(payload) {
+  return crypto.createHmac('sha256', resolveOAuthSecret()).update(payload).digest('base64url');
+}
+
+function createOAuthStateCookie(req, { provider, returnTo }) {
+  const nonce = crypto.randomBytes(24).toString('hex');
+  const payload = JSON.stringify({
+    nonce,
+    provider,
+    returnTo: sanitizeReturnTo(returnTo, getRequestOrigin(req)),
+    issuedAt: Date.now()
+  });
+  const encodedPayload = base64urlEncode(payload);
+  const signature = signOAuthPayload(encodedPayload);
+  return {
+    state: nonce,
+    cookie: buildCookie(req, OAUTH_STATE_COOKIE, `${encodedPayload}.${signature}`, {
+      maxAge: OAUTH_STATE_TTL_MS / 1000,
+      expires: new Date(Date.now() + OAUTH_STATE_TTL_MS)
+    })
+  };
+}
+
+function readOAuthState(req, expectedProvider, expectedState) {
+  const cookies = parseCookies(req);
+  const raw = String(cookies[OAUTH_STATE_COOKIE] || '');
+  const [encodedPayload, signature] = raw.split('.');
+  if (!encodedPayload || !signature) {
+    throw new Error('OAuth state is missing.');
+  }
+
+  const expectedSignature = signOAuthPayload(encodedPayload);
+  const actualBuffer = Buffer.from(signature);
+  const expectedBuffer = Buffer.from(expectedSignature);
+  if (actualBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(actualBuffer, expectedBuffer)) {
+    throw new Error('OAuth state signature is invalid.');
+  }
+
+  const parsed = JSON.parse(base64urlDecode(encodedPayload));
+  if (parsed.provider !== expectedProvider) {
+    throw new Error('OAuth provider mismatch.');
+  }
+  if (parsed.nonce !== expectedState) {
+    throw new Error('OAuth state did not match.');
+  }
+  if (!parsed.issuedAt || Date.now() - Number(parsed.issuedAt) > OAUTH_STATE_TTL_MS) {
+    throw new Error('OAuth state has expired.');
+  }
+
+  return parsed;
+}
+
+function buildExpiredOAuthStateCookie(req) {
+  return buildExpiredCookie(req, OAUTH_STATE_COOKIE);
+}
+
 module.exports = {
   COOKIE_NAME,
+  OAUTH_STATE_COOKIE,
   normalizeEmail,
   validateEmail,
   validatePassword,
@@ -157,10 +290,18 @@ module.exports = {
   verifyPassword,
   createId,
   parseCookies,
+  parseQuery,
+  getRequestOrigin,
+  sanitizeReturnTo,
+  buildAuthPageUrl,
   buildSessionCookie,
   buildExpiredSessionCookie,
+  buildExpiredCookie,
   sanitizeUser,
   createSession,
   clearSession,
-  getSessionUser
+  getSessionUser,
+  createOAuthStateCookie,
+  readOAuthState,
+  buildExpiredOAuthStateCookie
 };

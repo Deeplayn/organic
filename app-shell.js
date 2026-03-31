@@ -203,6 +203,12 @@
     setText('websiteAccountLabel',currentAuthMode==='signup'?'Create your OrganoChem account':'Sign in to your OrganoChem account');
     setText('websiteAccountLead',currentAuthMode==='signup'?'Create a dedicated website account to sync your chemistry progress, saved reactions, and bot history.':'Use your OrganoChem account to restore your saved study state, planner history, and chat sessions.');
   }
+  function buildOAuthStartUrl(provider){
+    const url=new URL('/api/auth/oauth/start',window.location.origin);
+    url.searchParams.set('provider',provider);
+    url.searchParams.set('returnTo',resolveReturnTarget());
+    return url.toString();
+  }
 
   function applyThemeLocally(theme){
     if(typeof window.setTheme==='function'){
@@ -442,13 +448,7 @@
 
   function handleProviderChoice(event){
     const provider=event.currentTarget.dataset.provider||'provider';
-    const label=provider.charAt(0).toUpperCase()+provider.slice(1);
-    showMessage(
-      'authStatusMessage',
-      `${label} sign-in is ready in the interface, but its OAuth backend is not connected yet. Use your OrganoChem account below for now.`,
-      'info'
-    );
-    focusWebsiteAccount(currentAuthMode);
+    window.location.href=buildOAuthStartUrl(provider);
   }
 
   function interceptLockedInteractions(){

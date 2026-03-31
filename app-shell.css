@@ -237,11 +237,11 @@ button{border:none;background:none;}
   border-radius:999px;
 }
 .user-profile{
-  width:131px;
+  width:118px;
   max-width:100%;
-  height:51px;
+  height:45px;
   padding:0;
-  border-radius:15px;
+  border-radius:14px;
   transition:.3s ease;
   background:linear-gradient(to bottom right,#2e8eff 0%,rgba(46,142,255,0) 30%);
   background-color:rgba(46,142,255,.2);
@@ -258,25 +258,26 @@ button{border:none;background:none;}
   outline:none;
 }
 .user-profile-inner{
-  width:127px;
-  height:47px;
-  border-radius:13px;
+  width:114px;
+  height:41px;
+  border-radius:12px;
   background-color:#1a1a1a;
   display:flex;
   align-items:center;
   justify-content:center;
-  gap:15px;
+  gap:12px;
   color:#fff;
   font-weight:600;
 }
 .user-profile-inner svg{
-  width:27px;
-  height:27px;
+  width:20px;
+  height:20px;
   fill:#fff;
   flex:none;
 }
 .user-profile-inner span{
   white-space:nowrap;
+  font-size:.92rem;
 }
 .session-kicker{
   font-family:var(--font-mono);
@@ -805,6 +806,11 @@ button{border:none;background:none;}
   grid-template-columns:1.08fr .92fr;
   gap:18px;
 }
+.auth-single-shell{
+  width:min(1120px,100%);
+  margin:0 auto;
+  display:grid;
+}
 .auth-standalone-layout{align-items:start;}
 .auth-layout{display:grid;grid-template-columns:360px 1fr;gap:18px;}
 .auth-aside,.auth-main{display:grid;gap:18px;align-content:start;}
@@ -812,6 +818,36 @@ button{border:none;background:none;}
 .auth-benefits{margin:0;padding-left:20px;display:grid;gap:10px;}
 .provider-card{display:grid;gap:16px;}
 .provider-card .panel-copy{margin-bottom:16px;}
+.auth-wide-card,.auth-wide-account{padding:28px 30px;border-radius:30px;}
+.auth-wide-top{
+  display:grid;
+  grid-template-columns:1.25fr .75fr;
+  gap:20px;
+  align-items:start;
+  margin-bottom:24px;
+}
+.auth-status-panel{
+  padding:18px 20px;
+  border-radius:22px;
+  border:1px solid var(--border);
+  background:color-mix(in srgb,var(--surface) 90%,transparent);
+  display:grid;
+  gap:10px;
+}
+.auth-status-label{
+  font-family:var(--font-mono);
+  font-size:.68rem;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  color:var(--accent2);
+}
+.auth-provider-section{
+  margin-bottom:6px;
+  padding:0;
+}
+.oauth-grid-wide{
+  grid-template-columns:repeat(3,minmax(0,1fr));
+}
 .oauth-grid{display:grid;gap:12px;}
 .oauth-button{
   width:100%;
@@ -826,6 +862,7 @@ button{border:none;background:none;}
   color:var(--text);
   text-align:left;
 }
+.oauth-button svg{width:22px;height:22px;display:block;}
 .oauth-button:hover{
   border-color:color-mix(in srgb,var(--accent) 55%,var(--border));
   transform:translateY(-1px);
@@ -847,10 +884,8 @@ button{border:none;background:none;}
   border-radius:14px;
   border:1px solid var(--border);
   background:rgba(255,255,255,.06);
-  font-family:var(--font-mono);
-  font-size:.85rem;
-  letter-spacing:.04em;
   color:var(--text-bright);
+  flex:none;
 }
 .oauth-status{
   padding:8px 12px;
@@ -884,7 +919,18 @@ button{border:none;background:none;}
   text-transform:uppercase;
   color:var(--text-dim);
 }
+.website-account-header{
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:18px;
+  align-items:end;
+}
 .website-account-block{display:grid;gap:16px;}
+.auth-form-grid{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:14px;
+}
+.field-span-2{grid-column:span 2;}
 .auth-tabs{display:flex;gap:10px;}
 .auth-tab{
   padding:12px 18px;
@@ -924,6 +970,8 @@ button{border:none;background:none;}
   .dashboard-grid,.reaction-layout,.studio-layout,.bot-workspace,.auth-layout,.auth-page-hero,.bot-hero,.shell-hero,.dashboard-hero{grid-template-columns:1fr;}
   .topics-grid,.studio-grid,.stats-row,.studio-stats,.highlight-strip,.prep-overview{grid-template-columns:repeat(2,minmax(0,1fr));}
   .studio-grid .wide{grid-column:span 2;}
+  .oauth-grid-wide,.auth-wide-top,.website-account-header,.auth-form-grid{grid-template-columns:1fr;}
+  .field-span-2{grid-column:auto;}
 }
 @media (max-width:920px){
   .global-header{grid-template-columns:1fr;justify-items:start;}
@@ -943,4 +991,7 @@ button{border:none;background:none;}
   .chat-bubble{max-width:100%;}
   .oauth-button,.oauth-provider-copy{align-items:flex-start;}
   .oauth-button{flex-direction:column;}
+  .user-profile{width:108px;height:42px;}
+  .user-profile-inner{width:104px;height:38px;gap:10px;}
+  .user-profile-inner svg{width:18px;height:18px;}
 }

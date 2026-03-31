@@ -67,6 +67,11 @@ module.exports = async (req, res) => {
     );
     const row = result.rows[0];
 
+    if (row && !row.password_hash) {
+      sendJson(res, 400, { error: { message: 'This account uses social sign-in. Continue with Google, Microsoft, or GitHub instead.' } });
+      return;
+    }
+
     if (!row || !verifyPassword(password, row.password_hash)) {
       sendJson(res, 401, { error: { message: 'Email or password is incorrect.' } });
       return;
