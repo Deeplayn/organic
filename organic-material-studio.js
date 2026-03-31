@@ -446,8 +446,30 @@ function atomColor(element){
   return palette[element]||'#c7d3ea';
 }
 
-function formatAtomCode(atom){
-  return `${atom.element}${atom.index}`;
+function elementName(element){
+  const names={
+    H:'Hydrogen',
+    C:'Carbon',
+    N:'Nitrogen',
+    O:'Oxygen',
+    S:'Sulfur',
+    P:'Phosphorus',
+    F:'Fluorine',
+    Cl:'Chlorine',
+    Br:'Bromine',
+    I:'Iodine'
+  };
+  return names[element]||element;
+}
+
+function collectUniqueElements(atoms){
+  const seen=new Set();
+  return atoms.filter(atom=>{
+    const key=String(atom.element||'').trim();
+    if(!key||seen.has(key))return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function parseSdfAtoms(sdf){
@@ -473,32 +495,17 @@ function renderViewerAtomLegend(atoms=[]){
   currentViewerAtoms=atoms;
   if(!viewerAtomLegend)return;
   if(!atoms.length){
-    viewerAtomLegend.innerHTML='<div class="viewer-atom-legend-title">Atom guide</div><div class="viewer-atom-empty">Load a structure to see atom labels and the full legend.</div>';
+    viewerAtomLegend.innerHTML='<div class="viewer-atom-legend-title">Atom guide</div><div class="viewer-atom-empty">Load a structure to see the element color key.</div>';
     return;
   }
-  viewerAtomLegend.innerHTML=`<div class="viewer-atom-legend-title">Atom guide</div><div class="viewer-atom-legend-list">${atoms.map(atom=>`<div class="viewer-atom-legend-item"><span class="viewer-atom-swatch" style="background:${atomColor(atom.element)}"></span><span class="viewer-atom-code">${formatAtomCode(atom)}</span><span>${escapeHtml(atom.element)}</span></div>`).join('')}</div>`;
+  const elements=collectUniqueElements(atoms);
+  viewerAtomLegend.innerHTML=`<div class="viewer-atom-legend-title">Atom guide</div><div class="viewer-atom-legend-list">${elements.map(atom=>`<div class="viewer-atom-legend-item"><span class="viewer-atom-swatch" style="background:${atomColor(atom.element)}"></span><span class="viewer-atom-code">${escapeHtml(atom.element)}</span><span>${escapeHtml(elementName(atom.element))}</span></div>`).join('')}</div>`;
 }
 
 function clearViewerLabels(){
   if(currentViewer&&typeof currentViewer.removeAllLabels==='function'){
     currentViewer.removeAllLabels();
   }
-}
-
-function renderViewerAtomLabels(){
-  if(!currentViewer||!currentViewerAtoms.length||typeof currentViewer.addLabel!=='function')return;
-  clearViewerLabels();
-  currentViewerAtoms.forEach(atom=>{
-    currentViewer.addLabel(formatAtomCode(atom),{
-      position:{x:atom.x+.12,y:atom.y+.12,z:atom.z+.12},
-      fontSize:12,
-      fontColor:atomColor(atom.element),
-      backgroundColor:'rgba(7,11,22,0.82)',
-      borderColor:'rgba(123,156,255,0.22)',
-      showBackground:true,
-      inFront:true
-    });
-  });
 }
 
 function getSelectedLocalMaterial(){
@@ -543,7 +550,7 @@ function applyViewerStyle(){
   }
   currentViewer.resize();
   currentViewer.zoomTo();
-  renderViewerAtomLabels();
+  clearViewerLabels();
   currentViewer.render();
 }
 
@@ -562,7 +569,7 @@ function renderSdfInViewer(sdf,compoundName,mode='3d'){
   renderViewerAtomLegend(parseSdfAtoms(sdf));
   applyViewerStyle();
   viewerCaption.textContent=`${mode==='3d'?'3D conformer':'2D structure'} for ${compoundName}. Drag to rotate and scroll to zoom.`;
-  setViewerStatus(`${mode==='3d'?'3D conformer':'2D structure'} loaded for ${compoundName} with atom labels.`);
+  setViewerStatus(`${mode==='3d'?'3D conformer':'2D structure'} loaded for ${compoundName}.`);
 }
 
 function renderLocalMaterial(material){
@@ -680,16 +687,6 @@ function renderApiData(data){
   apiDataList.innerHTML=items.length?items.map(item=>`<div class="stack-card">${item}</div>`).join(''):'<div class="stack-card">PubChem returned limited live descriptor data for this compound.</div>';
 }
 
-function renderSafetyData(localMaterial,safetyItems){
-  const localSafety=localMaterial?.safety||[];
-  const merged=[...safetyItems,...localSafety].filter(Boolean);
-  const unique=[];
-  merged.forEach(item=>{
-    if(!unique.includes(item))unique.push(item);
-  });
-  renderCardList('safetyList',unique.length?unique.slice(0,6):['No safety summary was returned from PubChem for this compound.']);
-}
-
 function renderRouteData(localMaterial,manufacturingItems){
   if(manufacturingItems.length){
     document.getElementById('routeLead').textContent='PubChem returned a manufacturing or preparation note for this compound.';
@@ -754,19 +751,16 @@ async function fetchPubChemData(query){
 
   const propertyNames='MolecularFormula,MolecularWeight,IUPACName,CanonicalSMILES,XLogP,TPSA,HBondDonorCount,HBondAcceptorCount,Complexity,Charge';
   const propUrl=`https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${cid}/property/${propertyNames}/JSON`;
-  const lcssUrl=`https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/${cid}/JSON?toc=LCSS+TOC`;
   const manufHeadings=['Methods of Manufacturing','Manufacturing Process','Synthesis Reference'];
 
-  const [propertiesResult,lcssResult,sdf3dResult,sdf2dResult,...manufacturingResults]=await Promise.allSettled([
+  const [propertiesResult,sdf3dResult,sdf2dResult,...manufacturingResults]=await Promise.allSettled([
     fetchJson(propUrl),
-    fetchJson(lcssUrl),
     fetchText(`https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${cid}/SDF?record_type=3d`),
     fetchText(`https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${cid}/SDF`),
     ...manufHeadings.map(heading=>fetchJson(`https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/${cid}/JSON?heading=${encodeURIComponent(heading)}`))
   ]);
 
   const properties=propertiesResult.status==='fulfilled'?propertiesResult.value?.PropertyTable?.Properties?.[0]||{}:{};
-  const lcssSections=lcssResult.status==='fulfilled'?collectSectionText(lcssResult.value?.Record):[];
   const manufacturingText=manufacturingResults
     .filter(result=>result.status==='fulfilled')
     .flatMap(result=>collectSectionText(result.value?.Record).map(entry=>entry.text));
@@ -774,20 +768,11 @@ async function fetchPubChemData(query){
   return{
     cid,
     properties,
-    lcssSections,
     manufacturingText:[...new Set(manufacturingText)].slice(0,5),
     sdf3d:sdf3dResult.status==='fulfilled'&&sdf3dResult.value.includes('M  END')?sdf3dResult.value:'',
     sdf2d:sdf2dResult.status==='fulfilled'&&sdf2dResult.value.includes('M  END')?sdf2dResult.value:'',
     url:`https://pubchem.ncbi.nlm.nih.gov/compound/${cid}`
   };
-}
-
-function deriveSafetyNotes(lcssSections){
-  return [...new Set(
-    lcssSections
-      .filter(entry=>/hazard|safety|first aid|flammab|storage|exposure|tox/i.test(entry.heading)||/flamm|toxic|irrit|avoid|store|PPE|exposure/i.test(entry.text))
-      .map(entry=>`${entry.heading}: ${entry.text}`)
-  )].slice(0,6);
 }
 
 function deriveChemicalNotes(localMaterial,props){
@@ -844,7 +829,6 @@ async function loadCompound(query,localMaterial){
 
     mergePhysicalProfile(localMaterial,data.properties);
     renderCardList('chemicalList',deriveChemicalNotes(localMaterial,data.properties));
-    renderSafetyData(localMaterial,deriveSafetyNotes(data.lcssSections));
     renderRouteData(localMaterial,data.manufacturingText);
     renderUseData(localMaterial);
     renderApiData(data);
@@ -948,7 +932,7 @@ document.getElementById('resetViewBtn').addEventListener('click',()=>{
   if(currentViewer){
     currentViewer.resize();
     currentViewer.zoomTo();
-    renderViewerAtomLabels();
+    clearViewerLabels();
     currentViewer.render();
     setViewerStatus('3D view reset.');
   }
