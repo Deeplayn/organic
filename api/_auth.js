@@ -67,6 +67,28 @@ function getRequestOrigin(req) {
   return `${proto}://${host}`;
 }
 
+function normalizeOrigin(value) {
+  const input = String(value || '').trim();
+  if (!input) return '';
+
+  try {
+    return new URL(input).origin;
+  } catch {
+    return '';
+  }
+}
+
+function getConfiguredAppOrigin() {
+  return (
+    normalizeOrigin(process.env.APP_BASE_URL) ||
+    normalizeOrigin(process.env.PUBLIC_APP_URL)
+  );
+}
+
+function getAppOrigin(req) {
+  return getConfiguredAppOrigin() || getRequestOrigin(req);
+}
+
 function inferRequestProtocol(req, host = '') {
   if (req.socket?.encrypted || req.connection?.encrypted) {
     return 'https';
@@ -105,11 +127,11 @@ function sanitizeReturnTo(value, requestOrigin = '') {
 }
 
 function buildAuthPageUrl(req, { mode = 'login', message = '', returnTo = '' } = {}) {
-  const origin = getRequestOrigin(req) || 'https://localhost';
+  const origin = getAppOrigin(req) || 'https://localhost';
   const url = new URL('/auth.html', origin);
   url.searchParams.set('mode', mode === 'signup' ? 'signup' : 'login');
   if (message) url.searchParams.set('message', message);
-  if (returnTo) url.searchParams.set('returnTo', sanitizeReturnTo(returnTo, getRequestOrigin(req)));
+  if (returnTo) url.searchParams.set('returnTo', sanitizeReturnTo(returnTo, origin));
   return url.toString();
 }
 
@@ -304,6 +326,8 @@ module.exports = {
   parseCookies,
   parseQuery,
   getRequestOrigin,
+  getConfiguredAppOrigin,
+  getAppOrigin,
   sanitizeReturnTo,
   buildAuthPageUrl,
   buildSessionCookie,

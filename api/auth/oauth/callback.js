@@ -5,7 +5,8 @@ const {
 const {
   parseQuery,
   sanitizeReturnTo,
-  getRequestOrigin
+  getRequestOrigin,
+  getAppOrigin
 } = require('../../_auth');
 const { completeProviderLogin, buildOAuthErrorRedirect } = require('../../_oauth');
 
@@ -30,8 +31,16 @@ module.exports = async (req, res) => {
   }
 
   const params = parseQuery(req);
+  const requestOrigin = getRequestOrigin(req);
+  const appOrigin = getAppOrigin(req);
+  if (requestOrigin && appOrigin && requestOrigin !== appOrigin) {
+    res.writeHead(302, { Location: new URL(req.url || '/api/auth/oauth/callback', `${appOrigin}/`).toString() });
+    res.end();
+    return;
+  }
+
   const provider = String(params.get('provider') || '').trim().toLowerCase();
-  const returnTo = sanitizeReturnTo(params.get('returnTo'), getRequestOrigin(req));
+  const returnTo = sanitizeReturnTo(params.get('returnTo'), appOrigin || requestOrigin);
 
   if (params.get('error')) {
     const redirect = buildOAuthErrorRedirect(req, String(params.get('error_description') || params.get('error') || 'Authentication was cancelled.'), returnTo);
@@ -52,7 +61,7 @@ module.exports = async (req, res) => {
   try {
     const completed = await completeProviderLogin(req, provider, params);
     res.setHeader('Set-Cookie', completed.cookies);
-    res.writeHead(302, { Location: new URL(completed.returnTo, `${getRequestOrigin(req)}/`).toString() });
+    res.writeHead(302, { Location: new URL(completed.returnTo, `${appOrigin || requestOrigin}/`).toString() });
     res.end();
   } catch (error) {
     const redirect = buildOAuthErrorRedirect(req, error.message || 'OAuth sign-in failed.', returnTo);

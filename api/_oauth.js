@@ -8,7 +8,7 @@ const {
   normalizeEmail,
   validateEmail,
   validateDisplayName,
-  getRequestOrigin,
+  getAppOrigin,
   sanitizeReturnTo,
   buildAuthPageUrl,
   createOAuthStateCookie,
@@ -170,7 +170,7 @@ function getProviderConfig(provider) {
 
 function buildProviderStartUrl(req, provider, returnTo) {
   const config = getProviderConfig(provider);
-  const origin = getRequestOrigin(req);
+  const origin = getAppOrigin(req);
   const redirectUri = new URL(`/api/auth/oauth/callback?provider=${encodeURIComponent(provider)}`, `${origin}/`).toString();
   const { state, cookie } = createOAuthStateCookie(req, {
     provider,
@@ -191,7 +191,7 @@ function buildProviderStartUrl(req, provider, returnTo) {
 
 async function completeProviderLogin(req, provider, params) {
   const config = getProviderConfig(provider);
-  const origin = getRequestOrigin(req);
+  const origin = getAppOrigin(req);
   const oauthState = readOAuthState(req, provider, params.get('state'));
   const redirectUri = new URL(`/api/auth/oauth/callback?provider=${encodeURIComponent(provider)}`, `${origin}/`).toString();
   const profile = await config.exchangeProfile({

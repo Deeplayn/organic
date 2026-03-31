@@ -6,6 +6,7 @@ const {
   parseQuery,
   sanitizeReturnTo,
   getRequestOrigin,
+  getAppOrigin,
   buildAuthPageUrl
 } = require('../../_auth');
 const { buildProviderStartUrl } = require('../../_oauth');
@@ -31,8 +32,16 @@ module.exports = async (req, res) => {
   }
 
   const params = parseQuery(req);
+  const requestOrigin = getRequestOrigin(req);
+  const appOrigin = getAppOrigin(req);
+  if (requestOrigin && appOrigin && requestOrigin !== appOrigin) {
+    res.writeHead(302, { Location: new URL(req.url || '/api/auth/oauth/start', `${appOrigin}/`).toString() });
+    res.end();
+    return;
+  }
+
   const provider = String(params.get('provider') || '').trim().toLowerCase();
-  const returnTo = sanitizeReturnTo(params.get('returnTo'), getRequestOrigin(req));
+  const returnTo = sanitizeReturnTo(params.get('returnTo'), appOrigin || requestOrigin);
 
   try {
     const start = buildProviderStartUrl(req, provider, returnTo);

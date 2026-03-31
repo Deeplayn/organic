@@ -18,6 +18,7 @@ Add these values in your deployment environment and local `.env`:
 
 ```env
 DATABASE_URL=postgres://username:password@host:5432/database
+APP_BASE_URL=https://your-domain.com
 ALLOWED_ORIGINS=https://your-domain.com,http://localhost:3000
 AUTH_SESSION_DAYS=30
 AUTH_STATE_SECRET=replace-with-a-long-random-secret
@@ -36,6 +37,7 @@ GITHUB_CLIENT_SECRET=replace-with-github-client-secret
 ## Redirect URI examples
 
 Register the callback URL for each provider with your real domain.
+Set `APP_BASE_URL` to that same production origin so OAuth always starts and finishes on the exact host registered with Google.
 
 Production examples:
 
@@ -55,3 +57,4 @@ Local development examples:
 - Provider identities are linked in `oauth_identities`.
 - If an email already exists in `users`, OAuth will link that provider to the existing account.
 - The backend now detects `http://localhost` correctly when proxy headers are missing, so local callback URLs no longer default to `https`.
+- If you use both a Vercel preview URL and a custom domain, set `APP_BASE_URL` to the custom domain. The OAuth start and callback endpoints will redirect to that host before creating or validating OAuth state.
