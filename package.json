@@ -3,7 +3,16 @@
   "private": true,
   "version": "1.0.0",
   "description": "Single-page OrganoChem workspace with serverless auth and account-backed study state.",
+  "scripts": {
+    "build": "node scripts/build-static.js",
+    "vercel-build": "node scripts/build-static.js"
+  },
   "dependencies": {
     "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "clean-css-cli": "^5.6.3",
+    "html-minifier-terser": "^7.2.0",
+    "terser": "^5.46.1"
   }
 }

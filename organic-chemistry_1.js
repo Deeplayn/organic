@@ -806,6 +806,7 @@ window.addEventListener('organo:hydrate-main-state',()=>{
   renderTopicDetail();
   renderWeakAreas();
   renderSavedReactions();
+  showRxn(currentReaction);
   renderMission();
   renderQuizHistory();
   renderReference();
@@ -816,6 +817,7 @@ window.addEventListener('organo:auth-changed',()=>{
   renderWeakAreas();
   renderMission();
   renderSavedReactions();
+  showRxn(currentReaction);
   renderQuizHistory();
   renderTopicDetail();
 });
@@ -829,6 +831,7 @@ renderTopics();
 renderTopicDetail();
 renderWeakAreas();
 renderSavedReactions();
+showRxn(currentReaction);
 renderMission();
 renderQuizHistory();
 renderReference();
