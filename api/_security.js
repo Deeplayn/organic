@@ -233,8 +233,18 @@ function buildRequestOrigin(req) {
     return '';
   }
 
-  const proto = forwardedProto || 'https';
+  const proto = forwardedProto || inferRequestProtocol(req, host);
   return `${proto}://${host}`;
+}
+
+function inferRequestProtocol(req, host = '') {
+  if (req.socket?.encrypted || req.connection?.encrypted) {
+    return 'https';
+  }
+
+  return /^localhost(?::\d+)?$|^127(?:\.\d{1,3}){3}(?::\d+)?$/i.test(String(host || '').trim())
+    ? 'http'
+    : 'https';
 }
 
 function normalizeOrigin(value) {

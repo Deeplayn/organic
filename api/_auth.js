@@ -61,8 +61,18 @@ function getRequestOrigin(req) {
   const forwardedHost = String(req.headers['x-forwarded-host'] || '').split(',')[0].trim();
   const host = forwardedHost || String(req.headers.host || '').trim();
   if (!host) return '';
-  const proto = forwardedProto || 'https';
+  const proto = forwardedProto || inferRequestProtocol(req, host);
   return `${proto}://${host}`;
+}
+
+function inferRequestProtocol(req, host = '') {
+  if (req.socket?.encrypted || req.connection?.encrypted) {
+    return 'https';
+  }
+
+  return /^localhost(?::\d+)?$|^127(?:\.\d{1,3}){3}(?::\d+)?$/i.test(String(host || '').trim())
+    ? 'http'
+    : 'https';
 }
 
 function parseQuery(req) {
