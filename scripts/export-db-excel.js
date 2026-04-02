@@ -10,6 +10,8 @@ async function main() {
   if (!connectionString) {
     throw new Error('DATABASE_URL is not configured. Add DATABASE_URL or EXPORT_DATABASE_URL to .env before running the export.');
   }
+  const originalDatabaseUrl = process.env.DATABASE_URL;
+  process.env.DATABASE_URL = connectionString;
 
   const client = new Client({
     connectionString,
@@ -44,6 +46,7 @@ async function main() {
   } finally {
     await client.end().catch(() => {});
     await getPool().end().catch(() => {});
+    process.env.DATABASE_URL = originalDatabaseUrl;
   }
 }
 
@@ -98,6 +101,8 @@ async function fetchWebAccountRows(client) {
   const result = await client.query(`
     SELECT
       users.account_serial,
+      users.daily_serial_date::text AS daily_serial_date,
+      users.daily_serial,
       users.id,
       users.email,
       users.display_name,

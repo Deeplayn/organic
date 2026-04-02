@@ -110,6 +110,7 @@
         </div>
         <div class="panel-jump-links">
           <a href="#topics">Topics</a>
+          <a href="#curriculum">Curriculum</a>
           <a href="#reactions">Reactions</a>
           <a href="#quiz">Quiz</a>
           <a href="#reference">Reference</a>
@@ -296,8 +297,21 @@
         </div>
       </section>
 
-      <section class="content-section" id="reactions" aria-labelledby="reactionTitle">
+      <section class="content-section" id="curriculum" aria-labelledby="curriculumTitle">
         <div class="section-tag">03</div>
+        <div class="section-copy">
+          <h3 id="curriculumTitle">Curriculum tracks by country</h3>
+          <p>Compare high school and university organic chemistry coverage across countries, then jump into matching lesson cards when a topic already exists in the dashboard.</p>
+        </div>
+        <div class="curriculum-toolbar">
+          <div class="curriculum-country-pills" id="curriculumCountries"></div>
+        </div>
+        <div class="reference-summary" id="curriculumSummary"></div>
+        <div class="curriculum-grid" id="curriculumGrid"></div>
+      </section>
+
+      <section class="content-section" id="reactions" aria-labelledby="reactionTitle">
+        <div class="section-tag">04</div>
         <div class="section-copy">
           <h3 id="reactionTitle">Reaction lab and mechanism review</h3>
           <p>Switch between core mechanisms, compare their signatures, and save your review stack for later revision.</p>
@@ -333,7 +347,7 @@
 
       </section>
       <section class="content-section" id="quiz" aria-labelledby="quizTitle">
-        <div class="section-tag">04</div>
+        <div class="section-tag">05</div>
         <div class="section-copy">
           <h3 id="quizTitle">Adaptive quiz mode</h3>
           <p>Build a custom quiz by topic and difficulty, then review your score immediately. Sign in to save quiz history to your account.</p>
@@ -400,7 +414,7 @@
       </section>
 
       <section class="content-section" id="reference" aria-labelledby="referenceTitle">
-        <div class="section-tag">05</div>
+        <div class="section-tag">06</div>
         <div class="section-copy">
           <h3 id="referenceTitle">Reference explorer</h3>
           <p>Search across functional groups, filter by family or difficulty, and use the table as a live study sheet rather than a static chart.</p>
@@ -677,6 +691,7 @@
 <script src="https://js.puter.com/v2/" data-puter-sdk></script>
 <script src="organochem-ai.js"></script>
 <script src="app-shell.js"></script>
+<script src="curriculum-data.js"></script>
 <script src="organic-chemistry_1.js"></script>
 <script src="organic-material-studio.js"></script>
 <script src="organobot.js"></script>

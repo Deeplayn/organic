@@ -17,7 +17,8 @@ const {
   sanitizeUser,
   createSession,
   createId,
-  USER_SELECT_COLUMNS
+  USER_SELECT_COLUMNS,
+  reserveDailyUserSerial
 } = require('../_auth');
 
 module.exports = async (req, res) => {
@@ -73,27 +74,42 @@ module.exports = async (req, res) => {
       return;
     }
 
-    const existing = await getPool().query('SELECT id FROM users WHERE email = $1 LIMIT 1', [email]);
-    if (existing.rows.length) {
-      sendJson(res, 409, { error: { message: 'An account with that email already exists.' } });
-      return;
+    const client = await getPool().connect();
+    let row;
+    try {
+      await client.query('BEGIN');
+
+      const existing = await client.query('SELECT id FROM users WHERE email = $1 LIMIT 1', [email]);
+      if (existing.rows.length) {
+        await client.query('ROLLBACK');
+        sendJson(res, 409, { error: { message: 'An account with that email already exists.' } });
+        return;
+      }
+
+      const userId = createId('user');
+      const passwordHash = hashPassword(password);
+      const dailySerial = await reserveDailyUserSerial(client);
+      const created = await client.query(
+        `INSERT INTO users (id, email, display_name, password_hash, daily_serial_date, daily_serial)
+         VALUES ($1, $2, $3, $4, $5::date, $6)
+         RETURNING ${USER_SELECT_COLUMNS}`,
+        [userId, email, displayName, passwordHash, dailySerial.dailySerialDate, dailySerial.dailySerial]
+      );
+
+      await client.query(
+        'INSERT INTO user_state (user_id, payload) VALUES ($1, $2::jsonb) ON CONFLICT (user_id) DO NOTHING',
+        [userId, JSON.stringify({})]
+      );
+
+      await client.query('COMMIT');
+      row = created.rows[0];
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw error;
+    } finally {
+      client.release();
     }
 
-    const userId = createId('user');
-    const passwordHash = hashPassword(password);
-    const created = await getPool().query(
-      `INSERT INTO users (id, email, display_name, password_hash)
-       VALUES ($1, $2, $3, $4)
-       RETURNING ${USER_SELECT_COLUMNS}`,
-      [userId, email, displayName, passwordHash]
-    );
-
-    await getPool().query(
-      'INSERT INTO user_state (user_id, payload) VALUES ($1, $2::jsonb) ON CONFLICT (user_id) DO NOTHING',
-      [userId, JSON.stringify({})]
-    );
-
-    const row = created.rows[0];
     const session = await createSession(req, row.id);
     res.setHeader('Set-Cookie', buildSessionCookie(req, session.sessionId, session.expiresAt));
     sendJson(res, 201, {

@@ -21,6 +21,7 @@
   const PANEL_MAP={
     dashboard:'dashboard',
     topics:'dashboard',
+    curriculum:'dashboard',
     reactions:'dashboard',
     quiz:'dashboard',
     reference:'dashboard',
@@ -563,7 +564,7 @@
     if(profileCard)profileCard.hidden=!user||profileComplete;
     if(user){
       setText('accountName',user.displayName||'OrganoChem Account');
-      setHtml('accountMeta',`<div><strong>Email</strong><div>${escapeHtml(user.email)}</div></div><div><strong>Account Serial</strong><div>${escapeHtml(user.accountSerial||'Pending')}</div></div><div><strong>User ID</strong><div>${escapeHtml(user.id)}</div></div><div><strong>Theme</strong><div>${escapeHtml(user.theme||localStorage.getItem(THEME_KEY)||'lab-noir')}</div></div>`);
+      setHtml('accountMeta',`<div><strong>Email</strong><div>${escapeHtml(user.email)}</div></div><div><strong>Account Serial</strong><div>${escapeHtml(user.accountSerial||'Pending')}</div></div><div><strong>Daily Serial</strong><div>${escapeHtml(user.dailySerial||'Pending')}</div></div><div><strong>Daily Serial Date</strong><div>${escapeHtml(user.dailySerialDate||'Pending')}</div></div><div><strong>User ID</strong><div>${escapeHtml(user.id)}</div></div><div><strong>Theme</strong><div>${escapeHtml(user.theme||localStorage.getItem(THEME_KEY)||'lab-noir')}</div></div>`);
       renderAccountProfile(authState.profile);
       populateProfileForm(authState.profile);
     }else{

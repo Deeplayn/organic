@@ -4,6 +4,9 @@ const { Pool } = require('pg');
 
 let pool;
 let schemaReady;
+const ACCOUNT_SERIAL_MIN = 100000000000;
+const ACCOUNT_SERIAL_MAX = 999999999999;
+const DAILY_SERIAL_MAX = 999999;
 
 function getPool() {
   if (pool) return pool;
@@ -32,6 +35,8 @@ async function ensureSchema() {
       password_hash TEXT,
       theme TEXT NOT NULL DEFAULT 'lab-noir',
       account_serial BIGINT,
+      daily_serial_date DATE,
+      daily_serial TEXT,
       age INTEGER,
       gender TEXT,
       country TEXT,
@@ -40,7 +45,14 @@ async function ensureSchema() {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
-    CREATE SEQUENCE IF NOT EXISTS user_account_serial_seq START WITH 1 INCREMENT BY 1;
+    CREATE SEQUENCE IF NOT EXISTS user_account_serial_seq START WITH ${ACCOUNT_SERIAL_MIN + 1} INCREMENT BY 1;
+
+    CREATE TABLE IF NOT EXISTS user_daily_serial_counters (
+      serial_date DATE PRIMARY KEY,
+      last_value INTEGER NOT NULL DEFAULT 0,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CHECK (last_value >= 0 AND last_value <= ${DAILY_SERIAL_MAX})
+    );
 
     CREATE TABLE IF NOT EXISTS sessions (
       id TEXT PRIMARY KEY,
@@ -75,6 +87,8 @@ async function ensureSchema() {
 
     ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS account_serial BIGINT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS daily_serial_date DATE;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS daily_serial TEXT;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS age INTEGER;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS gender TEXT;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS country TEXT;
@@ -99,19 +113,91 @@ async function ensureSchema() {
     FROM user_state
     WHERE user_state.user_id = users.id;
 
+    WITH invalid_serial_users AS (
+      SELECT
+        id,
+        ROW_NUMBER() OVER (ORDER BY created_at, id) AS row_num
+      FROM users
+      WHERE account_serial IS NULL
+         OR account_serial < ${ACCOUNT_SERIAL_MIN}
+         OR account_serial > ${ACCOUNT_SERIAL_MAX}
+    )
+    UPDATE users
+    SET account_serial = ${ACCOUNT_SERIAL_MIN} + invalid_serial_users.row_num
+    FROM invalid_serial_users
+    WHERE invalid_serial_users.id = users.id;
+
     DO $$
     DECLARE
       next_serial BIGINT;
     BEGIN
-      SELECT COALESCE(MAX(account_serial), 0) + 1 INTO next_serial FROM users;
-      PERFORM setval('user_account_serial_seq', GREATEST(next_serial, 1), false);
+      SELECT GREATEST(COALESCE(MAX(account_serial), 0) + 1, ${ACCOUNT_SERIAL_MIN + 1}) INTO next_serial FROM users;
+      PERFORM setval('user_account_serial_seq', next_serial, false);
     END $$;
 
     UPDATE users
     SET account_serial = nextval('user_account_serial_seq')
     WHERE account_serial IS NULL;
 
+    WITH ranked_daily_serials AS (
+      SELECT
+        id,
+        (created_at AT TIME ZONE 'UTC')::date AS serial_date,
+        LPAD(
+          ROW_NUMBER() OVER (
+            PARTITION BY (created_at AT TIME ZONE 'UTC')::date
+            ORDER BY created_at, id
+          )::text,
+          6,
+          '0'
+        ) AS serial_value
+      FROM users
+    )
+    UPDATE users
+    SET daily_serial_date = ranked_daily_serials.serial_date,
+        daily_serial = ranked_daily_serials.serial_value
+    FROM ranked_daily_serials
+    WHERE ranked_daily_serials.id = users.id
+      AND (
+        users.daily_serial_date IS DISTINCT FROM ranked_daily_serials.serial_date
+        OR users.daily_serial IS DISTINCT FROM ranked_daily_serials.serial_value
+      );
+
+    INSERT INTO user_daily_serial_counters (serial_date, last_value, updated_at)
+    SELECT daily_serial_date, MAX(daily_serial::INTEGER), NOW()
+    FROM users
+    WHERE daily_serial_date IS NOT NULL
+      AND daily_serial ~ '^[0-9]{6}$'
+    GROUP BY daily_serial_date
+    ON CONFLICT (serial_date)
+    DO UPDATE SET last_value = EXCLUDED.last_value, updated_at = NOW();
+
     CREATE UNIQUE INDEX IF NOT EXISTS users_account_serial_idx ON users(account_serial);
+    CREATE UNIQUE INDEX IF NOT EXISTS users_daily_serial_per_day_idx ON users(daily_serial_date, daily_serial);
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'users_account_serial_12_digits_chk'
+      ) THEN
+        ALTER TABLE users
+          ADD CONSTRAINT users_account_serial_12_digits_chk
+          CHECK (account_serial BETWEEN ${ACCOUNT_SERIAL_MIN} AND ${ACCOUNT_SERIAL_MAX});
+      END IF;
+    END $$;
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'users_daily_serial_6_digits_chk'
+      ) THEN
+        ALTER TABLE users
+          ADD CONSTRAINT users_daily_serial_6_digits_chk
+          CHECK (daily_serial IS NULL OR daily_serial ~ '^[0-9]{6}$');
+      END IF;
+    END $$;
   `);
 
   return schemaReady;

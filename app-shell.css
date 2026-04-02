@@ -766,6 +766,38 @@ label{display:block;color:var(--text-bright);font-weight:600;}
 .card-green2 .topic-icon{background:rgba(77,200,180,.12);}
 .detail-panel{margin-top:18px;}
 .topic-meta,.topic-goals,.topic-pitfalls,.mission-checklist,.weak-areas,.study-plan,.saved-reaction-list,.history-list,.score-breakdown,.viewer-atom-legend-list,.stack-list,.data-list,.equation-list,.roadmap-grid,.session-blocks,.priority-list,.advice-list{display:grid;gap:10px;}
+.curriculum-toolbar{margin-bottom:16px;}
+.curriculum-country-pills{display:flex;gap:10px;flex-wrap:wrap;}
+.curriculum-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;}
+.curriculum-card{display:grid;gap:14px;}
+.curriculum-meta{display:flex;gap:8px;flex-wrap:wrap;}
+.curriculum-topic-list{display:flex;gap:8px;flex-wrap:wrap;}
+.curriculum-topic-link,.curriculum-topic-plain{
+  display:inline-flex;
+  align-items:center;
+  padding:7px 11px;
+  border-radius:999px;
+  border:1px solid var(--border);
+  font-family:var(--font-mono);
+  font-size:.72rem;
+  line-height:1.35;
+  text-decoration:none;
+}
+.curriculum-topic-link{color:var(--accent);background:var(--glow);}
+.curriculum-topic-link:hover{border-color:var(--accent);color:var(--accent);}
+.curriculum-topic-plain{color:var(--text-dim);background:color-mix(in srgb,var(--surface-2) 82%,transparent);}
+.curriculum-source-list{display:grid;gap:10px;}
+.curriculum-source{
+  display:block;
+  padding:12px 14px;
+  border-radius:18px;
+  border:1px solid var(--border);
+  background:var(--surface);
+  color:var(--text);
+  text-decoration:none;
+}
+.curriculum-source:hover{border-color:var(--accent);color:var(--accent);}
+.curriculum-source strong{display:block;margin-bottom:4px;}
 .plan-columns{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;}
 .plan-panel,.plan-summary,.roadmap-card,.session-block{
   padding:14px 16px;
@@ -1263,7 +1295,7 @@ label{display:block;color:var(--text-bright);font-weight:600;}
 
 @media (max-width:1140px){
   .dashboard-grid,.reaction-layout,.studio-layout,.bot-workspace,.auth-layout,.auth-page-hero,.bot-hero,.shell-hero,.dashboard-hero{grid-template-columns:1fr;}
-  .topics-grid,.highlight-strip,.prep-overview{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .topics-grid,.highlight-strip,.prep-overview,.curriculum-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
   .studio-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
   .studio-card-physical,.studio-card-chemical,.studio-card-api{grid-column:span 1;}
   .studio-card-route,.studio-card-equations,.studio-card-notes,.studio-card-uses{grid-column:span 2;}
@@ -1275,7 +1307,7 @@ label{display:block;color:var(--text-bright);font-weight:600;}
 @media (max-width:920px){
   .global-header{grid-template-columns:1fr;justify-items:start;}
   .app-nav{justify-content:flex-start;}
-  .dashboard-grid,.topics-grid,.quiz-options,.score-card,.control-grid,.three-up,.studio-grid,.stats-row,.highlight-strip,.prep-overview,.summary-grid{grid-template-columns:1fr;}
+  .dashboard-grid,.topics-grid,.curriculum-grid,.quiz-options,.score-card,.control-grid,.three-up,.studio-grid,.stats-row,.highlight-strip,.prep-overview,.summary-grid{grid-template-columns:1fr;}
   .studio-card-physical,.studio-card-chemical,.studio-card-api,.studio-card-route,.studio-card-equations,.studio-card-notes,.studio-card-uses{grid-column:span 1;}
   .chat-panel-head,.panel-header-block,.panel-header,.viewer-head,.quiz-header{flex-direction:column;align-items:flex-start;}
   .chat-status{text-align:left;max-width:none;}

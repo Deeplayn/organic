@@ -6,9 +6,12 @@ const { getPool, ensureSchema } = require('./_db');
 const COOKIE_NAME = 'oc_session';
 const OAUTH_STATE_COOKIE = 'oc_oauth_state';
 const OAUTH_STATE_TTL_MS = 15 * 60 * 1000;
+const DAILY_SERIAL_MAX = 999999;
 const USER_SELECT_COLUMNS = [
   'id',
   'account_serial',
+  'daily_serial_date',
+  'daily_serial',
   'email',
   'display_name',
   'theme',
@@ -187,11 +190,22 @@ function parseOptionalInteger(value) {
   return Number.isInteger(parsed) ? parsed : null;
 }
 
+function normalizeDateOnly(value) {
+  if (!value) return '';
+  if (value instanceof Date) {
+    return value.toISOString().slice(0, 10);
+  }
+  const text = String(value).trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : text.slice(0, 10);
+}
+
 function sanitizeUser(row) {
   if (!row) return null;
   return {
     id: row.id,
     accountSerial: row.account_serial == null ? '' : String(row.account_serial),
+    dailySerialDate: normalizeDateOnly(row.daily_serial_date),
+    dailySerial: String(row.daily_serial || '').trim(),
     email: row.email,
     displayName: row.display_name,
     theme: row.theme || 'lab-noir',
@@ -227,6 +241,28 @@ async function clearSession(sessionId) {
   await getPool().query('DELETE FROM sessions WHERE id = $1', [sessionId]);
 }
 
+async function reserveDailyUserSerial(client, dateValue = new Date()) {
+  const serialDate = normalizeDateOnly(dateValue) || new Date().toISOString().slice(0, 10);
+  const result = await client.query(
+    `INSERT INTO user_daily_serial_counters (serial_date, last_value, updated_at)
+     VALUES ($1::date, 1, NOW())
+     ON CONFLICT (serial_date)
+     DO UPDATE SET last_value = user_daily_serial_counters.last_value + 1, updated_at = NOW()
+     RETURNING last_value`,
+    [serialDate]
+  );
+
+  const nextValue = Number(result.rows[0]?.last_value);
+  if (!Number.isInteger(nextValue) || nextValue < 1 || nextValue > DAILY_SERIAL_MAX) {
+    throw new Error('Daily account serial limit reached for this date.');
+  }
+
+  return {
+    dailySerialDate: serialDate,
+    dailySerial: String(nextValue).padStart(6, '0')
+  };
+}
+
 async function purgeExpiredSessions() {
   await ensureSchema();
   await getPool().query('DELETE FROM sessions WHERE expires_at <= NOW()');
@@ -241,6 +277,8 @@ async function getSessionUser(req) {
   const result = await getPool().query(
     `SELECT users.id,
             users.account_serial,
+            users.daily_serial_date,
+            users.daily_serial,
             users.email,
             users.display_name,
             users.theme,
@@ -366,6 +404,7 @@ module.exports = {
   buildExpiredCookie,
   USER_SELECT_COLUMNS,
   sanitizeUser,
+  reserveDailyUserSerial,
   createSession,
   clearSession,
   getSessionUser,

@@ -14,7 +14,8 @@ const {
   createOAuthStateCookie,
   readOAuthState,
   buildExpiredOAuthStateCookie,
-  USER_SELECT_COLUMNS
+  USER_SELECT_COLUMNS,
+  reserveDailyUserSerial
 } = require('./_auth');
 const { getPool, ensureSchema } = require('./_db');
 
@@ -240,62 +241,77 @@ async function findOrCreateOAuthUser(provider, profile) {
     throw new Error('A valid email address is required for OAuth sign-in.');
   }
 
-  const identityResult = await pool.query(
-    `SELECT users.id,
-            users.account_serial,
-            users.email,
-            users.display_name,
-            users.theme,
-            users.age,
-            users.gender,
-            users.country,
-            users.learner_type
-     FROM oauth_identities
-     JOIN users ON users.id = oauth_identities.user_id
-     WHERE oauth_identities.provider = $1 AND oauth_identities.provider_user_id = $2
-     LIMIT 1`,
-    [provider, String(profile.providerUserId)]
-  );
-  if (identityResult.rows[0]) {
-    return sanitizeUser(identityResult.rows[0]);
-  }
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
 
-  let userRow;
-  const existingUser = await pool.query(
-    `SELECT ${USER_SELECT_COLUMNS}
-     FROM users
-     WHERE email = $1
-     LIMIT 1`,
-    [email]
-  );
-
-  if (existingUser.rows[0]) {
-    userRow = existingUser.rows[0];
-  } else {
-    const userId = createId('user');
-    const displayName = validateDisplayName(profile.displayName) ? profile.displayName.trim() : email.split('@')[0];
-    const insertedUser = await pool.query(
-      `INSERT INTO users (id, email, display_name, password_hash)
-       VALUES ($1, $2, $3, NULL)
-       RETURNING ${USER_SELECT_COLUMNS}`,
-      [userId, email, displayName]
+    const identityResult = await client.query(
+      `SELECT users.id,
+              users.account_serial,
+              users.daily_serial_date,
+              users.daily_serial,
+              users.email,
+              users.display_name,
+              users.theme,
+              users.age,
+              users.gender,
+              users.country,
+              users.learner_type
+       FROM oauth_identities
+       JOIN users ON users.id = oauth_identities.user_id
+       WHERE oauth_identities.provider = $1 AND oauth_identities.provider_user_id = $2
+       LIMIT 1`,
+      [provider, String(profile.providerUserId)]
     );
-    await pool.query(
-      'INSERT INTO user_state (user_id, payload) VALUES ($1, $2::jsonb) ON CONFLICT (user_id) DO NOTHING',
-      [userId, JSON.stringify({})]
+    if (identityResult.rows[0]) {
+      await client.query('COMMIT');
+      return sanitizeUser(identityResult.rows[0]);
+    }
+
+    let userRow;
+    const existingUser = await client.query(
+      `SELECT ${USER_SELECT_COLUMNS}
+       FROM users
+       WHERE email = $1
+       LIMIT 1`,
+      [email]
     );
-    userRow = insertedUser.rows[0];
+
+    if (existingUser.rows[0]) {
+      userRow = existingUser.rows[0];
+    } else {
+      const userId = createId('user');
+      const displayName = validateDisplayName(profile.displayName) ? profile.displayName.trim() : email.split('@')[0];
+      const dailySerial = await reserveDailyUserSerial(client);
+      const insertedUser = await client.query(
+        `INSERT INTO users (id, email, display_name, password_hash, daily_serial_date, daily_serial)
+         VALUES ($1, $2, $3, NULL, $4::date, $5)
+         RETURNING ${USER_SELECT_COLUMNS}`,
+        [userId, email, displayName, dailySerial.dailySerialDate, dailySerial.dailySerial]
+      );
+      await client.query(
+        'INSERT INTO user_state (user_id, payload) VALUES ($1, $2::jsonb) ON CONFLICT (user_id) DO NOTHING',
+        [userId, JSON.stringify({})]
+      );
+      userRow = insertedUser.rows[0];
+    }
+
+    await client.query(
+      `INSERT INTO oauth_identities (id, user_id, provider, provider_user_id, provider_email)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (provider, provider_user_id)
+       DO UPDATE SET provider_email = EXCLUDED.provider_email, updated_at = NOW()`,
+      [createId('oauth'), userRow.id, provider, String(profile.providerUserId), email]
+    );
+
+    await client.query('COMMIT');
+    return sanitizeUser(userRow);
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw error;
+  } finally {
+    client.release();
   }
-
-  await pool.query(
-    `INSERT INTO oauth_identities (id, user_id, provider, provider_user_id, provider_email)
-     VALUES ($1, $2, $3, $4, $5)
-     ON CONFLICT (provider, provider_user_id)
-     DO UPDATE SET provider_email = EXCLUDED.provider_email, updated_at = NOW()`,
-    [createId('oauth'), userRow.id, provider, String(profile.providerUserId), email]
-  );
-
-  return sanitizeUser(userRow);
 }
 
 async function postFormJson(url, body, extraHeaders = {}) {

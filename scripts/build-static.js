@@ -12,6 +12,7 @@ const staticFiles = [
   'auth.html',
   'app-shell.css',
   'app-shell.js',
+  'curriculum-data.js',
   'organic-chemistry_1.css',
   'organic-chemistry_1.js',
   'organic-material-studio.css',

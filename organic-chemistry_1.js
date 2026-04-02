@@ -144,6 +144,21 @@ const bank=[
 let activeTopic=topics[0].id,currentReaction='sn2',quiz=[],qi=0,score=0,answered=false,quizMeta={category:'All categories',difficulty:'Mixed difficulty'},catResults={};
 const topicStatus=id=>state.topicStatus[id]||'new';
 const statusLabel=s=>s==='confident'?'Confident':s==='review'?'Needs review':'Unmarked';
+const curriculumData=window.OrganoCurriculumData||{countries:[],entries:[]};
+let activeCurriculumCountry=curriculumData.countries[0]||'';
+
+const curriculumTopicTitle=topic=>typeof topic==='string'?topic:topic?.title||'';
+const curriculumTopicLessonSlug=topic=>typeof topic==='string'?'':topic?.lessonSlug||'';
+const curriculumLevelLabel=level=>level==='high-school'?'High School':'University';
+const curriculumSourceTypeLabel=type=>String(type||'source').replaceAll('-',' ').replace(/\b\w/g,char=>char.toUpperCase());
+
+function openLessonTopic(slug){
+  const topic=topics.find(item=>item.id===slug);
+  if(!topic)return;
+  activeTopic=topic.id;
+  renderTopics();
+  renderTopicDetail();
+}
 
 function renderStats(){
   const mastered=Object.values(state.topicStatus).filter(v=>v==='confident').length;
@@ -696,6 +711,31 @@ function renderTopicDetail(){
   panel.innerHTML=`<div class="panel-header"><div><div class="panel-eyebrow">Topic detail</div><h3>${esc(t.title)}</h3></div><span class="status-pill">${esc(t.difficulty)}</span></div><p class="panel-copy">${esc(t.overview)}</p><div class="topic-meta"><div class="goal-item"><strong>Current status</strong>${esc(statusLabel(status))}</div><div class="goal-item"><strong>Suggested next move</strong>${status==='review'?'Rebuild it with examples before moving on.':status==='confident'?'Maintain it with a short recall drill.':'Start with recognition, naming, and one application example.'}</div></div>${locked?'<div class="note-item">Sign in to save topic status and progress tracking.</div>':''}<div class="pill-row" style="justify-content:flex-start;"><button class="btn btn-primary" type="button" onclick="setTopicState('${t.id}','confident')" ${locked?'data-auth-required data-auth-message="Sign in to save topic status and progress tracking."':''}>Mark Confident</button><button class="btn btn-secondary" type="button" onclick="setTopicState('${t.id}','review')" ${locked?'data-auth-required data-auth-message="Sign in to save topic status and progress tracking."':''}>Needs Review</button><button class="btn btn-secondary" type="button" onclick="setTopicState('${t.id}','new')" ${locked?'data-auth-required data-auth-message="Sign in to save topic status and progress tracking."':''}>Clear Status</button></div><div class="topic-goals">${t.goals.map(g=>`<div class="goal-item"><strong>Goal</strong>${esc(g)}</div>`).join('')}</div><div class="topic-pitfalls">${t.pitfalls.map(p=>`<div class="pitfall-item"><strong>Watch for</strong>${esc(p)}</div>`).join('')}</div>`;
 }
 
+function renderCurriculum(){
+  const countriesNode=document.getElementById('curriculumCountries');
+  const summaryNode=document.getElementById('curriculumSummary');
+  const grid=document.getElementById('curriculumGrid');
+  if(!countriesNode||!summaryNode||!grid)return;
+  const countries=Array.isArray(curriculumData.countries)?curriculumData.countries:[];
+  const entries=Array.isArray(curriculumData.entries)?curriculumData.entries:[];
+  if(!countries.length||!entries.length){
+    countriesNode.innerHTML='';
+    summaryNode.textContent='Curriculum data is unavailable right now.';
+    grid.innerHTML='<article class="dashboard-panel curriculum-card"><h3>No curriculum entries</h3><p class="panel-copy">Add local curriculum data to populate this section.</p></article>';
+    return;
+  }
+  if(!countries.includes(activeCurriculumCountry))activeCurriculumCountry=countries[0];
+  countriesNode.innerHTML=countries.map(country=>`<button class="btn ${country===activeCurriculumCountry?'btn-primary':'btn-secondary'}" type="button" data-curriculum-country="${esc(country)}">${esc(country)}</button>`).join('');
+  countriesNode.querySelectorAll('[data-curriculum-country]').forEach(button=>button.addEventListener('click',()=>{activeCurriculumCountry=button.dataset.curriculumCountry||countries[0];renderCurriculum();}));
+  const visibleEntries=entries
+    .filter(entry=>entry.country===activeCurriculumCountry)
+    .sort((a,b)=>(a.level==='high-school'?0:1)-(b.level==='high-school'?0:1));
+  const linkedCount=visibleEntries.reduce((count,entry)=>count+entry.topics.filter(topic=>curriculumTopicLessonSlug(topic)).length,0);
+  summaryNode.textContent=`Showing ${activeCurriculumCountry} with ${visibleEntries.length} track${visibleEntries.length===1?'':'s'} and ${linkedCount} topic${linkedCount===1?'':'s'} linked to existing lesson cards.`;
+  grid.innerHTML=visibleEntries.map(entry=>`<article class="dashboard-panel curriculum-card"><div class="panel-header"><div><div class="panel-eyebrow">${esc(entry.country)}</div><h3>${esc(curriculumLevelLabel(entry.level))}</h3></div><span class="status-pill">${entry.topics.length} topics</span></div><p class="panel-copy">${esc(entry.title)}</p><div class="curriculum-meta"><span class="topic-tag">${esc(curriculumLevelLabel(entry.level))}</span><span class="topic-tag">${entry.sources.length} source${entry.sources.length===1?'':'s'}</span></div><div><div class="panel-eyebrow">Topics</div><div class="curriculum-topic-list">${entry.topics.map(topic=>{const title=curriculumTopicTitle(topic),slug=curriculumTopicLessonSlug(topic);return slug?`<a class="curriculum-topic-link" href="#topics" data-curriculum-lesson="${esc(slug)}">${esc(title)}</a>`:`<span class="curriculum-topic-plain">${esc(title)}</span>`;}).join('')}</div></div><div><div class="panel-eyebrow">Sources</div><div class="curriculum-source-list">${entry.sources.map(source=>`<a class="curriculum-source" href="${esc(source.url)}" target="_blank" rel="noreferrer"><strong>${esc(source.label)}</strong><span class="panel-copy">${esc(curriculumSourceTypeLabel(source.type))}</span></a>`).join('')}</div></div></article>`).join('');
+  grid.querySelectorAll('[data-curriculum-lesson]').forEach(link=>link.addEventListener('click',()=>openLessonTopic(link.dataset.curriculumLesson||'')));
+}
+
 function renderReactionControls(){
   document.getElementById('rxnControls').innerHTML=Object.entries(reactions).map(([id,r])=>`<button class="rxn-btn ${id===currentReaction?'active':''}" type="button" onclick="showRxn('${id}')">${esc(r.name)}</button>`).join('');
 }
@@ -831,6 +871,7 @@ window.addEventListener('organo:hydrate-main-state',()=>{
   renderStudyPlan();
   renderTopics();
   renderTopicDetail();
+  renderCurriculum();
   renderWeakAreas();
   renderSavedReactions();
   showRxn(currentReaction);
@@ -847,6 +888,7 @@ window.addEventListener('organo:auth-changed',()=>{
   showRxn(currentReaction);
   renderQuizHistory();
   renderTopicDetail();
+  renderCurriculum();
 });
 hydratePlannerInputs();
 syncPlannerAISettingsUI();
@@ -856,6 +898,7 @@ renderStats();
 renderStudyPlan();
 renderTopics();
 renderTopicDetail();
+renderCurriculum();
 renderWeakAreas();
 renderSavedReactions();
 showRxn(currentReaction);
