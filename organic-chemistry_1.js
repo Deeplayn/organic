@@ -151,6 +151,61 @@ const curriculumTopicTitle=topic=>typeof topic==='string'?topic:topic?.title||''
 const curriculumTopicLessonSlug=topic=>typeof topic==='string'?'':topic?.lessonSlug||'';
 const curriculumLevelLabel=level=>level==='high-school'?'High School':'University';
 const curriculumSourceTypeLabel=type=>String(type||'source').replaceAll('-',' ').replace(/\b\w/g,char=>char.toUpperCase());
+const curriculumLevelStartingLevel=level=>level==='university'?'Intermediate':'Beginner';
+
+function getSignedInProfile(){
+  return window.OrganoApp?.getProfile?.()||{};
+}
+
+function getAssignedCurriculumEntry(){
+  const track=getSignedInProfile().curriculumTrack;
+  if(!track)return null;
+  return curriculumData.entries.find(entry=>entry.title===track)||null;
+}
+
+function curriculumTopicToCategory(topic){
+  const slug=curriculumTopicLessonSlug(topic);
+  if(slug){
+    return topics.find(item=>item.id===slug)?.title||'';
+  }
+  const text=curriculumTopicTitle(topic).toLowerCase();
+  if(/stereo|isomer|conformation|chiral|configuration/.test(text))return'Stereochemistry';
+  if(/aromatic|benzene|arene/.test(text))return'Aromatic Chemistry';
+  if(/spectro|nmr|ir|mass|ms|chromatography|identification/.test(text))return'Spectroscopy';
+  if(/mechanism|substitution|elimination|addition|synthesis|reaction/.test(text))return'Reaction Mechanisms';
+  if(/naming|formula|locant/.test(text))return'IUPAC Naming';
+  if(/functional group|alcohol|ether|aldehyde|ketone|acid|amine|amide|ester|carbonyl|hydrocarbon|alkane|alkene|alkyne|organic molecules|resonance|acid-base/.test(text))return'Functional Groups';
+  return'';
+}
+
+function getCurriculumPriorityTopics(entry=getAssignedCurriculumEntry()){
+  if(!entry)return[];
+  return[...new Set((entry.topics||[]).map(curriculumTopicToCategory).filter(Boolean))];
+}
+
+function getCurriculumTopicLabels(entry=getAssignedCurriculumEntry()){
+  return entry?(entry.topics||[]).map(curriculumTopicTitle).filter(Boolean):[];
+}
+
+function renderPlannerCurriculumSummary(){
+  const node=document.getElementById('plannerCurriculumSummary');
+  if(!node)return;
+  if(!window.OrganoApp?.isAuthenticated?.()){
+    node.textContent='Sign in and complete your profile to attach a curriculum track to the planner and ORGANOBOT.';
+    return;
+  }
+  const profile=getSignedInProfile();
+  if(!profile.curriculumTrack){
+    node.textContent='No curriculum is attached to this account yet. Complete your profile to let the planner and ORGANOBOT adapt to your assigned track.';
+    return;
+  }
+  const entry=getAssignedCurriculumEntry();
+  if(!entry){
+    node.textContent=`Curriculum "${profile.curriculumTrack}" is saved on your account, but it is not present in the loaded curriculum library.`;
+    return;
+  }
+  node.textContent=`Planner and ORGANOBOT are using ${entry.title}. ${entry.topics.length} curriculum topics will be used to bias roadmap priorities and explanations.`;
+}
 
 function openLessonTopic(slug){
   const topic=topics.find(item=>item.id===slug);
@@ -272,17 +327,26 @@ async function refreshPlannerActivationState(){
 }
 
 function readPlannerInputs(){
+  const curriculumEntry=getAssignedCurriculumEntry();
   return{
     focusArea:document.getElementById('studyFocus').value,
     sessionMinutes:Number(document.getElementById('sessionMinutes').value),
     courseWeeks:Math.max(2,Math.min(52,Number(document.getElementById('courseWeeks').value)||12)),
     completedQuizzes:Math.max(0,Number(document.getElementById('completedQuizzes').value)||0),
     completedMajorExams:Math.max(0,Number(document.getElementById('completedMajorExams').value)||0),
-    startingLevel:document.getElementById('startingLevel').value
+    startingLevel:document.getElementById('startingLevel').value,
+    curriculum:curriculumEntry?{
+      track:curriculumEntry.title,
+      country:curriculumEntry.country,
+      level:curriculumLevelLabel(curriculumEntry.level),
+      topics:getCurriculumTopicLabels(curriculumEntry),
+      priorityTopics:getCurriculumPriorityTopics(curriculumEntry)
+    }:null
   };
 }
 
 function hydratePlannerInputs(){
+  const curriculumEntry=getAssignedCurriculumEntry();
   const cachedInputs=getLatestStoredPlan()?.inputs;
   if(cachedInputs?.focusArea)document.getElementById('studyFocus').value=cachedInputs.focusArea;
   if(cachedInputs?.sessionMinutes)document.getElementById('sessionMinutes').value=String(cachedInputs.sessionMinutes);
@@ -291,6 +355,8 @@ function hydratePlannerInputs(){
   else document.getElementById('completedQuizzes').value=String(state.quizHistory.length);
   if(cachedInputs?.completedMajorExams!==undefined)document.getElementById('completedMajorExams').value=String(cachedInputs.completedMajorExams);
   if(cachedInputs?.startingLevel)document.getElementById('startingLevel').value=cachedInputs.startingLevel;
+  else if(curriculumEntry)document.getElementById('startingLevel').value=curriculumLevelStartingLevel(curriculumEntry.level);
+  renderPlannerCurriculumSummary();
 }
 
 function savePlanHistory(plan,input){
@@ -353,7 +419,13 @@ function buildProgressSnapshot(input){
       difficulty:entry.difficulty,
       createdAt:entry.createdAt
     })),
-    requestedFocus:input.focusArea
+    requestedFocus:input.focusArea,
+    curriculum:input.curriculum?{
+      track:input.curriculum.track,
+      level:input.curriculum.level,
+      priorityTopics:input.curriculum.priorityTopics,
+      topics:input.curriculum.topics.slice(0,10)
+    }:null
   };
 }
 
@@ -438,7 +510,8 @@ function normalizeSessionBlocks(blocks,totalMinutes,fallbackCategory){
 
 function normalizePlanObject(raw,input,source='ai'){
   const focusLabel=input.focusArea==='all'?'Balanced review':input.focusArea;
-  const priorityTopics=normalizeStringArray(raw?.priorityTopics,[focusLabel,input.startingLevel==='Beginner'?'Functional Groups':'Reaction Mechanisms']).slice(0,5);
+  const curriculumPriority=Array.isArray(input.curriculum?.priorityTopics)?input.curriculum.priorityTopics:[];
+  const priorityTopics=normalizeStringArray(raw?.priorityTopics,[...curriculumPriority,focusLabel,input.startingLevel==='Beginner'?'Functional Groups':'Reaction Mechanisms']).slice(0,5);
   const roadmap=normalizeRoadmapEntries(raw?.roadmap,input);
   const sessionTitle=normalizeText(raw?.nextSession?.title,`${focusLabel} next-session plan`);
   const totalMinutes=Math.max(20,Math.round(Number(raw?.nextSession?.totalMinutes)||input.sessionMinutes));
@@ -463,12 +536,13 @@ function normalizePlanObject(raw,input,source='ai'){
     createdAt:new Date().toISOString(),
     inputs:{...input},
     focusArea:input.focusArea,
-    summary:normalizeText(raw?.summary,`Build from ${input.startingLevel.toLowerCase()} toward mastery by spacing quizzes, topic rebuilds, and exam checkpoints across ${input.courseWeeks} weeks.`),
+    summary:normalizeText(raw?.summary,`Build from ${input.startingLevel.toLowerCase()} toward mastery by spacing quizzes, topic rebuilds, and exam checkpoints across ${input.courseWeeks} weeks${input.curriculum?.track?` while staying aligned with ${input.curriculum.track}.`:'.'}`),
     learnerProfile:{
       startingLevel:normalizeText(raw?.learnerProfile?.startingLevel,input.startingLevel),
       targetLevel:'Master',
       pace:normalizeText(raw?.learnerProfile?.pace,`${input.sessionMinutes}-minute sessions across ${input.courseWeeks} weeks`)
     },
+    curriculum:input.curriculum?{...input.curriculum}:null,
     roadmap,
     nextSession:{
       title:sessionTitle,
@@ -492,7 +566,8 @@ function buildOfflineStudyPlanObject(input){
     .filter(([,value])=>value==='review')
     .map(([id])=>topics.find(topic=>topic.id===id)?.title)
     .filter(Boolean);
-  const emphasis=[input.focusArea==='all'?weakTopics[0]||'Functional Groups':input.focusArea,...reviewTopics,...weakTopics].filter(Boolean);
+  const curriculumPriority=Array.isArray(input.curriculum?.priorityTopics)?input.curriculum.priorityTopics:[];
+  const emphasis=[...curriculumPriority,input.focusArea==='all'?weakTopics[0]||curriculumPriority[0]||'Functional Groups':input.focusArea,...reviewTopics,...weakTopics].filter(Boolean);
   const priorityTopics=[...new Set(emphasis.concat(chemistryCategories()))].slice(0,5);
   const recommendedPerWeek=Math.max(1,Math.min(4,Math.round((input.sessionMinutes>=50?3:2)+(input.startingLevel==='Advanced'?1:0)-(input.courseWeeks>=16?1:0))));
   const roadmap=normalizeRoadmapEntries(Array.from({length:Math.max(2,input.courseWeeks)},(_,index)=>({
@@ -504,7 +579,7 @@ function buildOfflineStudyPlanObject(input){
     notes:index===0?'Start with recognition, naming, and pattern recall before pushing speed.':'Mix one retrieval block with one worked-example block each week.'
   })),input);
   return normalizePlanObject({
-    summary:`This offline roadmap uses your ${input.startingLevel.toLowerCase()} starting level, ${input.courseWeeks}-week course timeline, and saved weak areas to keep progress moving toward mastery.`,
+    summary:`This offline roadmap uses your ${input.startingLevel.toLowerCase()} starting level, ${input.courseWeeks}-week course timeline, saved weak areas,${input.curriculum?.track?` and ${input.curriculum.track}`:' and your current topic data'} to keep progress moving toward mastery.`,
     learnerProfile:{startingLevel:input.startingLevel,targetLevel:'Master',pace:`${input.sessionMinutes}-minute sessions with ${recommendedPerWeek} quizzes per week`},
     roadmap,
     nextSession:{
@@ -522,6 +597,7 @@ function buildOfflineStudyPlanObject(input){
     ],
     priorityTopics,
     advice:[
+      input.curriculum?.track?`Keep ${input.curriculum.track} in view by revisiting ${curriculumPriority.slice(0,2).join(' and ')||'its core topics'} every week.`:'',
       weakTopics.length?`Front-load ${weakTopics.join(' and ')} because they are currently your weakest quiz categories.`:'Front-load recognition-heavy topics before switching into mechanism drills.',
       input.completedQuizzes>=8?'Use completed quizzes as revision checkpoints, not just score reports.':'Build quiz volume steadily so recall becomes routine.',
       input.completedMajorExams?`You have already taken ${input.completedMajorExams} major exam${input.completedMajorExams>1?'s':''}, so shift more time toward error correction and synthesis.`:'Add at least one timed exam-style review checkpoint before the final mastery week.'
@@ -544,6 +620,7 @@ function renderStudyPlan(plan=getLatestStoredPlan()){
   const summaryChips=[
     `<span class="inline-chip">${esc((plan.source||'offline').toUpperCase())} Planner</span>`,
     `<span class="inline-chip">${esc(plan.learnerProfile?.startingLevel||'Beginner')} to ${esc(plan.learnerProfile?.targetLevel||'Master')}</span>`,
+    `${plan.curriculum?.track?`<span class="inline-chip">${esc(plan.curriculum.track)}</span>`:''}`,
     `<span class="inline-chip">${esc(plan.nextSession?.totalMinutes||0)} min session</span>`
   ].join('');
   const weakList=weakCats().slice(0,3).map(item=>`<li>${esc(item.cat)} - ${item.p}% accuracy</li>`).join('')||'<li>No weak quiz categories yet. Finish a quiz to surface one here.</li>';
@@ -881,7 +958,9 @@ window.addEventListener('organo:hydrate-main-state',()=>{
 });
 window.addEventListener('organo:auth-changed',()=>{
   state=readState();
+  hydratePlannerInputs();
   renderStats();
+  renderStudyPlan();
   renderWeakAreas();
   renderMission();
   renderSavedReactions();

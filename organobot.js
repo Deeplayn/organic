@@ -81,6 +81,20 @@ function summarizeBotText(value,limit=120){
   return `${text.slice(0,limit-1).trim()}...`;
 }
 
+function buildBotProfileContext(){
+  const profile=window.OrganoApp?.getProfile?.()||{};
+  if(!profile.curriculumTrack)return'';
+  const entry=(window.OrganoCurriculumData?.entries||[]).find(item=>item.title===profile.curriculumTrack);
+  const topicList=entry?(entry.topics||[]).map(topic=>typeof topic==='string'?topic:topic?.title||'').filter(Boolean).slice(0,10):[];
+  return[
+    `The signed-in learner is assigned to the ${profile.curriculumTrack} curriculum.`,
+    profile.learnerType?`Learner type: ${profile.learnerType}.`:'',
+    profile.country?`Profile country: ${profile.country}.`:'',
+    topicList.length?`Bias study advice and examples toward these curriculum topics: ${topicList.join(', ')}.`:'',
+    'Keep answers chemistry-only, but when study guidance is requested, prioritize this curriculum track.'
+  ].filter(Boolean).join(' ');
+}
+
 function renderSessions(){
   const activeId=getActiveSession().id;
   const box=document.getElementById('sessionList');
@@ -175,9 +189,11 @@ async function sendToOrganobot(prompt){
     }));
 
   try{
+    const profileContext=buildBotProfileContext();
     const result=await AI.createChatCompletion({
       messages:[
         {role:'system',content:AI.CHEMISTRY_CHAT_SYSTEM_PROMPT},
+        ...(profileContext?[{role:'system',content:profileContext}]:[]),
         ...recentMessages
       ],
       jsonMode:false,

@@ -18,7 +18,8 @@ const USER_SELECT_COLUMNS = [
   'age',
   'gender',
   'country',
-  'learner_type'
+  'learner_type',
+  'curriculum_track'
 ].join(', ');
 
 function normalizeEmail(value) {
@@ -213,7 +214,8 @@ function sanitizeUser(row) {
       age: parseOptionalInteger(row.age),
       gender: String(row.gender || '').trim(),
       country: String(row.country || '').trim(),
-      learnerType: String(row.learner_type || '').trim()
+      learnerType: String(row.learner_type || '').trim(),
+      curriculumTrack: String(row.curriculum_track || '').trim()
     }
   };
 }
@@ -285,7 +287,8 @@ async function getSessionUser(req) {
             users.age,
             users.gender,
             users.country,
-            users.learner_type
+            users.learner_type,
+            users.curriculum_track
      FROM sessions
      JOIN users ON users.id = sessions.user_id
      WHERE sessions.id = $1 AND sessions.expires_at > NOW()

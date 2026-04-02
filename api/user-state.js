@@ -104,6 +104,7 @@ module.exports = async (req, res) => {
            gender = $4,
            country = $5,
            learner_type = $6,
+           curriculum_track = $7,
            updated_at = NOW()
        WHERE id = $1`,
       [
@@ -112,7 +113,8 @@ module.exports = async (req, res) => {
         payload.profile.age,
         nullableText(payload.profile.gender),
         nullableText(payload.profile.country),
-        nullableText(payload.profile.learnerType)
+        nullableText(payload.profile.learnerType),
+        nullableText(payload.profile.curriculumTrack)
       ]
     );
 
@@ -170,12 +172,23 @@ function normalizeProfile(value) {
   const gender = normalizeAllowedValue(profile.gender, ['Male', 'Female', 'Non-binary', 'Prefer not to say']);
   const country = normalizeAllowedValue(profile.country, ['Egypt', 'UK', 'USA', 'France']);
   const learnerType = normalizeAllowedValue(profile.learnerType, ['Free learner', 'High school student', 'University student']);
+  const curriculumTrack = normalizeAllowedValue(profile.curriculumTrack, [
+    'Egypt High School',
+    'Egypt University',
+    'England High School',
+    'England University',
+    'United States High School',
+    'United States University',
+    'France High School',
+    'France University'
+  ]);
 
   return {
     age,
     gender,
     country,
-    learnerType
+    learnerType,
+    curriculumTrack
   };
 }
 
@@ -192,6 +205,6 @@ function nullableText(value) {
 function hasProfileData(profile) {
   return Boolean(
     profile &&
-    (profile.age || profile.gender || profile.country || profile.learnerType)
+    (profile.age || profile.gender || profile.country || profile.learnerType || profile.curriculumTrack)
   );
 }
