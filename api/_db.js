@@ -31,9 +31,16 @@ async function ensureSchema() {
       display_name TEXT NOT NULL,
       password_hash TEXT,
       theme TEXT NOT NULL DEFAULT 'lab-noir',
+      account_serial BIGINT,
+      age INTEGER,
+      gender TEXT,
+      country TEXT,
+      learner_type TEXT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+
+    CREATE SEQUENCE IF NOT EXISTS user_account_serial_seq START WITH 1 INCREMENT BY 1;
 
     CREATE TABLE IF NOT EXISTS sessions (
       id TEXT PRIMARY KEY,
@@ -67,8 +74,44 @@ async function ensureSchema() {
     CREATE INDEX IF NOT EXISTS oauth_identities_provider_email_idx ON oauth_identities(provider_email);
 
     ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS account_serial BIGINT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS age INTEGER;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS gender TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS country TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS learner_type TEXT;
+    ALTER TABLE users ALTER COLUMN account_serial SET DEFAULT nextval('user_account_serial_seq');
     ALTER TABLE oauth_identities
       ADD COLUMN IF NOT EXISTS provider_email TEXT NOT NULL DEFAULT '';
+
+    UPDATE users
+    SET
+      age = COALESCE(
+        users.age,
+        CASE
+          WHEN COALESCE(user_state.payload->'profile'->>'age', '') ~ '^[0-9]{1,3}$'
+            THEN (user_state.payload->'profile'->>'age')::INTEGER
+          ELSE NULL
+        END
+      ),
+      gender = COALESCE(NULLIF(users.gender, ''), NULLIF(user_state.payload->'profile'->>'gender', '')),
+      country = COALESCE(NULLIF(users.country, ''), NULLIF(user_state.payload->'profile'->>'country', '')),
+      learner_type = COALESCE(NULLIF(users.learner_type, ''), NULLIF(user_state.payload->'profile'->>'learnerType', ''))
+    FROM user_state
+    WHERE user_state.user_id = users.id;
+
+    DO $$
+    DECLARE
+      next_serial BIGINT;
+    BEGIN
+      SELECT COALESCE(MAX(account_serial), 0) + 1 INTO next_serial FROM users;
+      PERFORM setval('user_account_serial_seq', GREATEST(next_serial, 1), false);
+    END $$;
+
+    UPDATE users
+    SET account_serial = nextval('user_account_serial_seq')
+    WHERE account_serial IS NULL;
+
+    CREATE UNIQUE INDEX IF NOT EXISTS users_account_serial_idx ON users(account_serial);
   `);
 
   return schemaReady;

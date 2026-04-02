@@ -13,7 +13,8 @@ const {
   buildAuthPageUrl,
   createOAuthStateCookie,
   readOAuthState,
-  buildExpiredOAuthStateCookie
+  buildExpiredOAuthStateCookie,
+  USER_SELECT_COLUMNS
 } = require('./_auth');
 const { getPool, ensureSchema } = require('./_db');
 
@@ -240,7 +241,15 @@ async function findOrCreateOAuthUser(provider, profile) {
   }
 
   const identityResult = await pool.query(
-    `SELECT users.id, users.email, users.display_name, users.theme
+    `SELECT users.id,
+            users.account_serial,
+            users.email,
+            users.display_name,
+            users.theme,
+            users.age,
+            users.gender,
+            users.country,
+            users.learner_type
      FROM oauth_identities
      JOIN users ON users.id = oauth_identities.user_id
      WHERE oauth_identities.provider = $1 AND oauth_identities.provider_user_id = $2
@@ -253,7 +262,10 @@ async function findOrCreateOAuthUser(provider, profile) {
 
   let userRow;
   const existingUser = await pool.query(
-    'SELECT id, email, display_name, theme FROM users WHERE email = $1 LIMIT 1',
+    `SELECT ${USER_SELECT_COLUMNS}
+     FROM users
+     WHERE email = $1
+     LIMIT 1`,
     [email]
   );
 
@@ -265,7 +277,7 @@ async function findOrCreateOAuthUser(provider, profile) {
     const insertedUser = await pool.query(
       `INSERT INTO users (id, email, display_name, password_hash)
        VALUES ($1, $2, $3, NULL)
-       RETURNING id, email, display_name, theme`,
+       RETURNING ${USER_SELECT_COLUMNS}`,
       [userId, email, displayName]
     );
     await pool.query(

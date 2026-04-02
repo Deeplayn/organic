@@ -14,7 +14,8 @@ const {
   verifyPassword,
   buildSessionCookie,
   sanitizeUser,
-  createSession
+  createSession,
+  USER_SELECT_COLUMNS
 } = require('../_auth');
 
 module.exports = async (req, res) => {
@@ -62,7 +63,10 @@ module.exports = async (req, res) => {
     }
 
     const result = await getPool().query(
-      'SELECT id, email, display_name, theme, password_hash FROM users WHERE email = $1 LIMIT 1',
+      `SELECT ${USER_SELECT_COLUMNS}, password_hash
+       FROM users
+       WHERE email = $1
+       LIMIT 1`,
       [email]
     );
     const row = result.rows[0];

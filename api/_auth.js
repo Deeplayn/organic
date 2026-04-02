@@ -6,6 +6,17 @@ const { getPool, ensureSchema } = require('./_db');
 const COOKIE_NAME = 'oc_session';
 const OAUTH_STATE_COOKIE = 'oc_oauth_state';
 const OAUTH_STATE_TTL_MS = 15 * 60 * 1000;
+const USER_SELECT_COLUMNS = [
+  'id',
+  'account_serial',
+  'email',
+  'display_name',
+  'theme',
+  'age',
+  'gender',
+  'country',
+  'learner_type'
+].join(', ');
 
 function normalizeEmail(value) {
   return String(value || '').trim().toLowerCase();
@@ -171,13 +182,25 @@ function buildExpiredSessionCookie(req) {
   return buildExpiredCookie(req, COOKIE_NAME);
 }
 
+function parseOptionalInteger(value) {
+  const parsed = Number.parseInt(String(value ?? '').trim(), 10);
+  return Number.isInteger(parsed) ? parsed : null;
+}
+
 function sanitizeUser(row) {
   if (!row) return null;
   return {
     id: row.id,
+    accountSerial: row.account_serial == null ? '' : String(row.account_serial),
     email: row.email,
     displayName: row.display_name,
-    theme: row.theme || 'lab-noir'
+    theme: row.theme || 'lab-noir',
+    profile: {
+      age: parseOptionalInteger(row.age),
+      gender: String(row.gender || '').trim(),
+      country: String(row.country || '').trim(),
+      learnerType: String(row.learner_type || '').trim()
+    }
   };
 }
 
@@ -216,7 +239,15 @@ async function getSessionUser(req) {
   if (!sessionId) return null;
 
   const result = await getPool().query(
-    `SELECT users.id, users.email, users.display_name, users.theme
+    `SELECT users.id,
+            users.account_serial,
+            users.email,
+            users.display_name,
+            users.theme,
+            users.age,
+            users.gender,
+            users.country,
+            users.learner_type
      FROM sessions
      JOIN users ON users.id = sessions.user_id
      WHERE sessions.id = $1 AND sessions.expires_at > NOW()
@@ -333,6 +364,7 @@ module.exports = {
   buildSessionCookie,
   buildExpiredSessionCookie,
   buildExpiredCookie,
+  USER_SELECT_COLUMNS,
   sanitizeUser,
   createSession,
   clearSession,

@@ -3,6 +3,7 @@ require('../api/_env');
 const fs = require('fs');
 const path = require('path');
 const { Client } = require('pg');
+const { ensureSchema, getPool } = require('../api/_db');
 
 async function main() {
   const connectionString = String(process.env.DATABASE_URL || '').trim();
@@ -15,9 +16,10 @@ async function main() {
     ssl: shouldUseSsl(connectionString) ? { rejectUnauthorized: false } : undefined
   });
 
-  await client.connect();
-
   try {
+    await ensureSchema();
+    await client.connect();
+
     const tables = await getPublicTables(client);
     if (!tables.length) {
       throw new Error('No public tables were found to export.');
@@ -33,7 +35,8 @@ async function main() {
     console.log(`Export complete: ${filePath}`);
     console.log(`Tables exported: ${tables.join(', ')}`);
   } finally {
-    await client.end();
+    await client.end().catch(() => {});
+    await getPool().end().catch(() => {});
   }
 }
 
@@ -50,6 +53,7 @@ async function getPublicTables(client) {
 
 async function buildWorkbookXml(client, tables, connectionString) {
   const exportedAt = new Date().toISOString();
+  const webAccountRows = await fetchWebAccountRows(client);
   const workbookParts = [
     '<?xml version="1.0"?>',
     '<?mso-application progid="Excel.Sheet"?>',
@@ -70,7 +74,8 @@ async function buildWorkbookXml(client, tables, connectionString) {
     '   <Interior ss:Color="#D9EAD3" ss:Pattern="Solid"/>',
     '  </Style>',
     ' </Styles>',
-    buildMetaWorksheet(exportedAt, connectionString, tables)
+    buildMetaWorksheet(exportedAt, connectionString, tables),
+    buildTableWorksheet('web_accounts', webAccountRows)
   ];
 
   for (const tableName of tables) {
@@ -80,6 +85,54 @@ async function buildWorkbookXml(client, tables, connectionString) {
 
   workbookParts.push('</Workbook>');
   return workbookParts.join('\n');
+}
+
+async function fetchWebAccountRows(client) {
+  const result = await client.query(`
+    SELECT
+      users.account_serial,
+      users.id,
+      users.email,
+      users.display_name,
+      users.theme,
+      COALESCE(
+        users.age,
+        CASE
+          WHEN COALESCE(user_state.payload->'profile'->>'age', '') ~ '^[0-9]{1,3}$'
+            THEN (user_state.payload->'profile'->>'age')::INTEGER
+          ELSE NULL
+        END
+      ) AS age,
+      COALESCE(NULLIF(users.gender, ''), NULLIF(user_state.payload->'profile'->>'gender', '')) AS gender,
+      COALESCE(NULLIF(users.country, ''), NULLIF(user_state.payload->'profile'->>'country', '')) AS country,
+      COALESCE(NULLIF(users.learner_type, ''), NULLIF(user_state.payload->'profile'->>'learnerType', '')) AS learner_type,
+      CASE WHEN users.password_hash IS NULL THEN 'No' ELSE 'Yes' END AS password_login_enabled,
+      COALESCE(identity_summary.providers, '') AS linked_oauth_providers,
+      COALESCE(identity_summary.provider_count, 0) AS linked_oauth_provider_count,
+      COALESCE(session_summary.active_session_count, 0) AS active_session_count,
+      users.created_at,
+      users.updated_at
+    FROM users
+    LEFT JOIN user_state ON user_state.user_id = users.id
+    LEFT JOIN (
+      SELECT
+        user_id,
+        STRING_AGG(DISTINCT provider, ', ' ORDER BY provider) AS providers,
+        COUNT(DISTINCT provider) AS provider_count
+      FROM oauth_identities
+      GROUP BY user_id
+    ) AS identity_summary ON identity_summary.user_id = users.id
+    LEFT JOIN (
+      SELECT
+        user_id,
+        COUNT(*) FILTER (WHERE expires_at > NOW()) AS active_session_count
+      FROM sessions
+      GROUP BY user_id
+    ) AS session_summary ON session_summary.user_id = users.id
+    ORDER BY users.account_serial NULLS LAST, users.created_at, users.email
+  `);
+
+  return result.rows;
 }
 
 function buildMetaWorksheet(exportedAt, connectionString, tables) {

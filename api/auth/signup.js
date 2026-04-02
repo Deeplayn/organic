@@ -16,7 +16,8 @@ const {
   buildSessionCookie,
   sanitizeUser,
   createSession,
-  createId
+  createId,
+  USER_SELECT_COLUMNS
 } = require('../_auth');
 
 module.exports = async (req, res) => {
@@ -83,7 +84,7 @@ module.exports = async (req, res) => {
     const created = await getPool().query(
       `INSERT INTO users (id, email, display_name, password_hash)
        VALUES ($1, $2, $3, $4)
-       RETURNING id, email, display_name, theme`,
+       RETURNING ${USER_SELECT_COLUMNS}`,
       [userId, email, displayName, passwordHash]
     );
 

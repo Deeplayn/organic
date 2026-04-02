@@ -58,11 +58,19 @@ module.exports = async (req, res) => {
         [session.user.id]
       );
       const payload = result.rows[0]?.payload || null;
+      const normalizedPayload = normalizePayload(
+        {
+          ...(payload || {}),
+          profile: payload?.profile ?? session.user.profile,
+          theme: payload?.theme ?? session.user.theme
+        },
+        session.user.theme
+      );
       sendJson(res, 200, {
         ok: true,
         user: session.user,
-        hasData: Boolean(payload && Object.keys(payload).length),
-        payload: payload ? normalizePayload(payload, session.user.theme) : null
+        hasData: Boolean((payload && Object.keys(payload).length) || hasProfileData(session.user.profile)),
+        payload: normalizedPayload
       });
       return;
     }
@@ -90,15 +98,30 @@ module.exports = async (req, res) => {
     );
 
     await getPool().query(
-      'UPDATE users SET theme = $2, updated_at = NOW() WHERE id = $1',
-      [session.user.id, payload.theme]
+      `UPDATE users
+       SET theme = $2,
+           age = $3,
+           gender = $4,
+           country = $5,
+           learner_type = $6,
+           updated_at = NOW()
+       WHERE id = $1`,
+      [
+        session.user.id,
+        payload.theme,
+        payload.profile.age,
+        nullableText(payload.profile.gender),
+        nullableText(payload.profile.country),
+        nullableText(payload.profile.learnerType)
+      ]
     );
 
     sendJson(res, 200, {
       ok: true,
       user: {
         ...session.user,
-        theme: payload.theme
+        theme: payload.theme,
+        profile: payload.profile
       },
       payload
     });
@@ -159,4 +182,16 @@ function normalizeProfile(value) {
 function normalizeAllowedValue(value, allowed) {
   const text = String(value || '').trim();
   return allowed.includes(text) ? text : '';
+}
+
+function nullableText(value) {
+  const text = String(value || '').trim();
+  return text || null;
+}
+
+function hasProfileData(profile) {
+  return Boolean(
+    profile &&
+    (profile.age || profile.gender || profile.country || profile.learnerType)
+  );
 }
