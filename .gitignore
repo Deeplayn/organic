@@ -3,5 +3,6 @@
 .env.*.local
 node_modules
 public
+exports
 
 .vercel

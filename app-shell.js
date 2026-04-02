@@ -2,6 +2,8 @@
   const MAIN_STATE_KEY='oc-state-v2';
   const THEME_KEY='oc-theme';
   const BOT_STATE_KEY='oc-organobot-history-v1';
+  const NOTIFICATION_STORE_KEY='oc-notification-center-v1';
+  const NOTIFICATION_LIMIT=24;
   const THEME_LABELS={
     'lab-noir':'Lab Noir',
     'cyberpunk':'Cyberpunk',
@@ -29,14 +31,18 @@
   };
   const DEFAULT_MAIN_STATE={topicStatus:{},savedReactions:[],quizHistory:[],studyPlans:[]};
   const DEFAULT_BOT_STATE={activeId:'',sessions:[]};
+  const DEFAULT_NOTIFICATION_STATE={items:[]};
   const PROFILE_GENDERS=['Male','Female','Non-binary','Prefer not to say'];
   const PROFILE_COUNTRIES=['Egypt','UK','USA','France'];
   const PROFILE_LEARNER_TYPES=['Free learner','High school student','University student'];
   const IS_AUTH_PAGE=/\/auth\.html$/i.test(window.location.pathname)||/auth\.html$/i.test(window.location.pathname.split('/').pop()||'');
   const authState={status:'loading',user:null,profile:null,syncing:false};
+  const notificationState=DEFAULT_NOTIFICATION_STATE;
 
   let currentAuthMode='login';
   let syncTimer=0;
+  let notificationPanelOpen=false;
+  let authNotificationBaseline=null;
 
   function $(id){return document.getElementById(id);}
   function escapeHtml(value){
@@ -102,6 +108,224 @@
       activeId:parsed?.activeId||'',
       sessions:Array.isArray(parsed?.sessions)?parsed.sessions:[]
     };
+  }
+  function normalizeNotification(item){
+    const source=item&&typeof item==='object'&&!Array.isArray(item)?item:{};
+    const allowedKinds=['info','success','warning','system'];
+    const createdAtText=String(source.createdAt||'').trim();
+    const createdAt=Number.isNaN(new Date(createdAtText).getTime())?new Date().toISOString():createdAtText;
+    return{
+      id:String(source.id||`note-${Date.now()}-${Math.random().toString(36).slice(2,8)}`),
+      title:String(source.title||'Workspace update').trim()||'Workspace update',
+      body:String(source.body||'').trim(),
+      kind:allowedKinds.includes(source.kind)?source.kind:'info',
+      createdAt,
+      unread:Boolean(source.unread),
+      actionHref:String(source.actionHref||'').trim(),
+      actionLabel:String(source.actionLabel||'').trim(),
+      dedupeKey:String(source.dedupeKey||'').trim()
+    };
+  }
+  function readNotificationState(){
+    const parsed=safeParse(localStorage.getItem(NOTIFICATION_STORE_KEY),DEFAULT_NOTIFICATION_STATE);
+    return{
+      items:Array.isArray(parsed?.items)?parsed.items.map(normalizeNotification).slice(0,NOTIFICATION_LIMIT):[]
+    };
+  }
+  function saveNotificationState(){
+    localStorage.setItem(NOTIFICATION_STORE_KEY,JSON.stringify({
+      items:notificationState.items.slice(0,NOTIFICATION_LIMIT)
+    }));
+  }
+  function formatNotificationTime(value){
+    const target=new Date(value);
+    if(Number.isNaN(target.getTime()))return 'Just now';
+    const diff=Math.max(0,Date.now()-target.getTime());
+    const minute=60*1000;
+    const hour=60*minute;
+    const day=24*hour;
+    if(diff<minute)return 'Just now';
+    if(diff<hour)return `${Math.round(diff/minute)}m ago`;
+    if(diff<day)return `${Math.round(diff/hour)}h ago`;
+    if(diff<7*day)return `${Math.round(diff/day)}d ago`;
+    return target.toLocaleDateString(undefined,{month:'short',day:'numeric'});
+  }
+  function unreadNotificationCount(){
+    return notificationState.items.filter(item=>item.unread).length;
+  }
+  function notificationSummaryText(unreadCount){
+    if(!notificationState.items.length)return 'No activity yet';
+    if(!unreadCount)return 'All caught up';
+    return `${unreadCount} new alert${unreadCount===1?'':'s'}`;
+  }
+  function markNotificationRead(id){
+    let changed=false;
+    notificationState.items=notificationState.items.map(item=>{
+      if(item.id!==id||!item.unread)return item;
+      changed=true;
+      return{...item,unread:false};
+    });
+    if(changed){
+      saveNotificationState();
+      renderNotificationCenter();
+    }
+  }
+  function markAllNotificationsRead(){
+    let changed=false;
+    notificationState.items=notificationState.items.map(item=>{
+      if(!item.unread)return item;
+      changed=true;
+      return{...item,unread:false};
+    });
+    if(changed){
+      saveNotificationState();
+      renderNotificationCenter();
+    }
+  }
+  function clearNotifications(){
+    notificationState.items=[];
+    saveNotificationState();
+    renderNotificationCenter();
+  }
+  function renderNotificationCenter(){
+    const badge=$('notificationBadge');
+    const summary=$('notificationSummary');
+    const feed=$('notificationFeed');
+    const markReadButton=$('markNotificationsReadBtn');
+    const clearButton=$('clearNotificationsBtn');
+    const unreadCount=unreadNotificationCount();
+    if(summary)summary.textContent=notificationSummaryText(unreadCount);
+    if(badge){
+      if(unreadCount){
+        badge.hidden=false;
+        badge.textContent=unreadCount>9?'9+':String(unreadCount);
+      }else{
+        badge.hidden=true;
+        badge.textContent='0';
+      }
+    }
+    if(markReadButton)markReadButton.disabled=!unreadCount;
+    if(clearButton)clearButton.disabled=!notificationState.items.length;
+    if(!feed)return;
+    if(!notificationState.items.length){
+      feed.innerHTML=`<div class="notification-empty"><strong>No notifications yet.</strong><p>Theme changes, study milestones, and ORGANOBOT updates will appear here.</p></div>`;
+      return;
+    }
+    feed.innerHTML=notificationState.items.map(item=>`<article class="notification-item notification-${escapeHtml(item.kind)} ${item.unread?'is-unread':''}" data-notification-id="${escapeHtml(item.id)}"><div class="notification-item-top"><span class="notification-kind">${escapeHtml(item.kind)}</span><time datetime="${escapeHtml(item.createdAt)}">${escapeHtml(formatNotificationTime(item.createdAt))}</time></div><h3>${escapeHtml(item.title)}</h3>${item.body?`<p>${escapeHtml(item.body)}</p>`:''}${item.actionHref&&item.actionLabel?`<a class="notification-link" href="${escapeHtml(item.actionHref)}" data-notification-link="${escapeHtml(item.id)}">${escapeHtml(item.actionLabel)}</a>`:''}</article>`).join('');
+  }
+  function closeNotificationCenter(){
+    const panel=$('notificationPanel');
+    const toggle=$('notificationToggle');
+    if(panel)panel.hidden=true;
+    if(toggle)toggle.setAttribute('aria-expanded','false');
+    notificationPanelOpen=false;
+  }
+  function openNotificationCenter(){
+    const panel=$('notificationPanel');
+    const toggle=$('notificationToggle');
+    if(panel)panel.hidden=false;
+    if(toggle)toggle.setAttribute('aria-expanded','true');
+    notificationPanelOpen=true;
+    markAllNotificationsRead();
+  }
+  function toggleNotificationCenter(force){
+    const shouldOpen=typeof force==='boolean'?force:!notificationPanelOpen;
+    if(shouldOpen)openNotificationCenter();
+    else closeNotificationCenter();
+  }
+  function notify(options={}){
+    const title=String(options.title||'').trim();
+    if(!title)return null;
+    const nextItem=normalizeNotification({
+      ...options,
+      unread:notificationPanelOpen?false:options.unread!==false
+    });
+    if(nextItem.dedupeKey){
+      notificationState.items=notificationState.items.filter(item=>item.dedupeKey!==nextItem.dedupeKey);
+    }
+    notificationState.items=[nextItem,...notificationState.items].slice(0,NOTIFICATION_LIMIT);
+    saveNotificationState();
+    renderNotificationCenter();
+    return nextItem;
+  }
+  function seedNotificationCenter(){
+    if(notificationState.items.length)return;
+    notify({
+      title:'Notification center ready',
+      body:'Theme changes, quiz results, planner milestones, and ORGANOBOT activity now collect here.',
+      kind:'system',
+      actionHref:IS_AUTH_PAGE?'index.html#dashboard':'#dashboard',
+      actionLabel:'Open workspace',
+      dedupeKey:'notification-center-welcome'
+    });
+  }
+  function mountNotificationCenter(){
+    notificationState.items=readNotificationState().items;
+    seedNotificationCenter();
+    const utilities=document.querySelector('.header-utilities');
+    if(!utilities||$('notificationCenter')){
+      renderNotificationCenter();
+      return;
+    }
+    const shell=document.createElement('div');
+    shell.className='notification-center';
+    shell.id='notificationCenter';
+    shell.innerHTML=`<button class="notification-toggle" type="button" id="notificationToggle" aria-label="Open notification center" aria-expanded="false" aria-controls="notificationPanel"><span class="notification-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M12 3a4 4 0 0 0-4 4v1.34a6.97 6.97 0 0 1-1.49 4.27L5.3 14.2A1 1 0 0 0 6.1 16h11.8a1 1 0 0 0 .8-1.6l-1.21-1.59A6.97 6.97 0 0 1 16 8.34V7a4 4 0 0 0-4-4Zm0 18a2.73 2.73 0 0 0 2.45-1.5h-4.9A2.73 2.73 0 0 0 12 21Z" fill="currentColor"></path></svg></span><span class="notification-copy"><strong>Alerts</strong><small id="notificationSummary">No activity yet</small></span><span class="notification-badge" id="notificationBadge" hidden>0</span></button><section class="notification-panel" id="notificationPanel" hidden><div class="notification-panel-head"><div><span class="notification-panel-label">Notification Center</span><h3>Recent activity</h3></div><div class="notification-panel-actions"><button class="notification-action" type="button" id="markNotificationsReadBtn">Mark all read</button><button class="notification-action" type="button" id="clearNotificationsBtn">Clear</button></div></div><div class="notification-feed" id="notificationFeed" aria-live="polite"></div></section>`;
+    const sessionChip=utilities.querySelector('.session-chip');
+    utilities.insertBefore(shell,sessionChip||null);
+    $('notificationToggle')?.addEventListener('click',event=>{
+      event.stopPropagation();
+      toggleNotificationCenter();
+    });
+    $('markNotificationsReadBtn')?.addEventListener('click',()=>markAllNotificationsRead());
+    $('clearNotificationsBtn')?.addEventListener('click',()=>clearNotifications());
+    $('notificationFeed')?.addEventListener('click',event=>{
+      const link=event.target.closest('[data-notification-link]');
+      if(!link)return;
+      markNotificationRead(link.dataset.notificationLink);
+      closeNotificationCenter();
+    });
+    document.addEventListener('click',event=>{
+      if(!notificationPanelOpen)return;
+      if(event.target.closest('#notificationCenter'))return;
+      closeNotificationCenter();
+    });
+    document.addEventListener('keydown',event=>{
+      if(event.key==='Escape'&&notificationPanelOpen)closeNotificationCenter();
+    });
+    renderNotificationCenter();
+  }
+  function handleAuthNotification(user){
+    const nextKey=user?.id||'guest';
+    if(authState.status!=='ready'){
+      authNotificationBaseline=nextKey;
+      return;
+    }
+    if(authNotificationBaseline===null){
+      authNotificationBaseline=nextKey;
+      return;
+    }
+    if(nextKey===authNotificationBaseline)return;
+    authNotificationBaseline=nextKey;
+    if(user){
+      notify({
+        title:'Account connected',
+        body:`Signed in as ${user.displayName||user.email}. Your workspace can now sync across sessions.`,
+        kind:'success',
+        actionHref:IS_AUTH_PAGE?'index.html#dashboard':'#dashboard',
+        actionLabel:'Open dashboard',
+        dedupeKey:'auth-status'
+      });
+      return;
+    }
+    notify({
+      title:'Signed out',
+      body:'Preview mode is active again. Sign in anytime to restore synced progress and chat history.',
+      kind:'info',
+      actionHref:'auth.html',
+      actionLabel:'Sign in',
+      dedupeKey:'auth-status'
+    });
   }
   function snapshotLocalState(){
     return{
@@ -349,6 +573,7 @@
     }
     updateLockedUI();
     window.dispatchEvent(new CustomEvent('organo:auth-changed',{detail:{user}}));
+    handleAuthNotification(user);
   }
 
   function focusWebsiteAccount(mode=currentAuthMode){
@@ -390,6 +615,14 @@
       });
     }catch(error){
       showMessage('authStatusMessage',`Account sync failed: ${error.message}`,'error');
+      notify({
+        title:'Account sync issue',
+        body:error.message,
+        kind:'warning',
+        actionHref:'auth.html',
+        actionLabel:'Open account',
+        dedupeKey:'sync-failed'
+      });
     }finally{
       authState.syncing=false;
     }
@@ -407,6 +640,14 @@
         })
       });
       showMessage('authStatusMessage','Imported your existing browser progress into this account.');
+      notify({
+        title:'Browser progress imported',
+        body:'Your local topics, plans, quiz history, and chat state were linked to this account.',
+        kind:'success',
+        actionHref:IS_AUTH_PAGE?'index.html#dashboard':'#dashboard',
+        actionLabel:'Review progress',
+        dedupeKey:'account-import'
+      });
       return loadRemoteState({allowImport:false});
     }
     authState.profile=normalizeProfile(data.payload?.profile);
@@ -478,6 +719,14 @@
       if(data.user)authState.user=data.user;
       updateAuthUI();
       showMessage('profileStatusMessage','Profile saved. Your account setup is complete.');
+      notify({
+        title:'Profile completed',
+        body:'Your learner details are saved and your account setup is now complete.',
+        kind:'success',
+        actionHref:IS_AUTH_PAGE?'index.html#dashboard':'#dashboard',
+        actionLabel:'Return to workspace',
+        dedupeKey:'profile-complete'
+      });
       if(IS_AUTH_PAGE){
         redirectAfterAuth();
         return;
@@ -610,7 +859,17 @@
     document.querySelectorAll('[data-auth-mode]').forEach(button=>button.addEventListener('click',()=>setAuthMode(button.dataset.authMode)));
     document.querySelectorAll('[data-provider]').forEach(button=>button.addEventListener('click',handleProviderChoice));
     window.addEventListener('organo:state-changed',event=>queueSync(event.detail?.key||'state'));
-    window.addEventListener('organo:theme-changed',()=>queueSync('theme'));
+    window.addEventListener('organo:theme-changed',event=>{
+      queueSync('theme');
+      if(event.detail?.userInitiated===false)return;
+      const themeName=THEME_LABELS[event.detail?.theme]||event.detail?.theme||'Custom theme';
+      notify({
+        title:'Theme updated',
+        body:`Workspace appearance switched to ${themeName}.`,
+        kind:'info',
+        dedupeKey:'theme-change'
+      });
+    });
     window.addEventListener('beforeunload',()=>{ if(syncTimer){ syncRemoteState('beforeunload'); } });
     interceptLockedInteractions();
   }
@@ -628,12 +887,14 @@
     requireAuth,
     assertFeatureAccess(message){return isAuthenticated()?true:requireAuth(message);},
     notifyStateChanged(key){queueSync(key||'state');},
+    notify,
     refreshRemoteState(){return loadRemoteState({allowImport:false});},
     getUser(){return authState.user;},
     setActivePanel
   };
 
   applyStoredThemePreference();
+  mountNotificationCenter();
   bindUI();
   updateAuthUI();
   setAuthMode('login');

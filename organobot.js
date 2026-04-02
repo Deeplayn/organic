@@ -75,6 +75,11 @@ function prettyBotDate(value){
 function escapeBot(value){
   return AI?.escapeHtml?AI.escapeHtml(value):String(value);
 }
+function summarizeBotText(value,limit=120){
+  const text=String(value||'').replace(/\s+/g,' ').trim();
+  if(text.length<=limit)return text;
+  return `${text.slice(0,limit-1).trim()}...`;
+}
 
 function renderSessions(){
   const activeId=getActiveSession().id;
@@ -181,9 +186,25 @@ async function sendToOrganobot(prompt){
     });
     addMessage('assistant',result.content,{reasoningDetails:result.reasoningDetails});
     setBotStatus('ORGANOBOT answered. Ask a follow-up or start a new chemistry chat.');
+    window.OrganoApp?.notify?.({
+      title:'ORGANOBOT replied',
+      body:summarizeBotText(result.content),
+      kind:'info',
+      actionHref:'#bot',
+      actionLabel:'Read answer',
+      dedupeKey:`organobot-response-${activeSession.id}`
+    });
   }catch(error){
     addMessage('assistant',`I could not reach the AI service just now. ${AI.normalizeAIError(error)}`);
     setBotStatus('The AI request failed. Check the server connection or try again.');
+    window.OrganoApp?.notify?.({
+      title:'ORGANOBOT could not respond',
+      body:AI.normalizeAIError(error),
+      kind:'warning',
+      actionHref:'#bot',
+      actionLabel:'Try again',
+      dedupeKey:'organobot-error'
+    });
   }
 }
 
@@ -195,6 +216,14 @@ document.getElementById('newSessionBtn').addEventListener('click',()=>{
   saveBotStore();
   renderOrganobot();
   setBotStatus('Started a fresh chemistry chat.');
+  window.OrganoApp?.notify?.({
+    title:'New ORGANOBOT chat',
+    body:'A fresh chemistry conversation is ready for your next question.',
+    kind:'success',
+    actionHref:'#bot',
+    actionLabel:'Open chat',
+    dedupeKey:'organobot-new-session'
+  });
 });
 document.getElementById('clearHistoryBtn').addEventListener('click',()=>{
   if(!canUseBotFeature('Sign in to manage ORGANOBOT chat history.'))return;
@@ -204,6 +233,14 @@ document.getElementById('clearHistoryBtn').addEventListener('click',()=>{
   saveBotStore();
   renderOrganobot();
   setBotStatus('All ORGANOBOT history was cleared.');
+  window.OrganoApp?.notify?.({
+    title:'ORGANOBOT history cleared',
+    body:'All saved chat sessions were removed and a fresh conversation was created.',
+    kind:'warning',
+    actionHref:'#bot',
+    actionLabel:'Start again',
+    dedupeKey:'organobot-cleared'
+  });
 });
 document.getElementById('chatForm').addEventListener('submit',event=>{
   event.preventDefault();

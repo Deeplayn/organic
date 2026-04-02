@@ -17,18 +17,18 @@ const canUseAccountFeature=message=>window.OrganoApp?.assertFeatureAccess(messag
 function togglePanel(){document.getElementById('themePanel').classList.toggle('open');}
 function closePanel(){document.getElementById('themePanel').classList.remove('open');}
 document.addEventListener('click',e=>{if(!e.target.closest('.theme-switcher'))closePanel();});
-function setTheme(theme,btn){
+function setTheme(theme,btn,options={}){
   document.body.setAttribute('data-theme',theme);
   document.getElementById('themeLabel').textContent=LABELS[theme];
   document.querySelectorAll('.t-opt').forEach(b=>b.classList.remove('active'));
   if(btn)btn.classList.add('active');
   localStorage.setItem(THEME,theme);
   closePanel();
-  window.dispatchEvent(new CustomEvent('organo:theme-changed',{detail:{theme}}));
+  window.dispatchEvent(new CustomEvent('organo:theme-changed',{detail:{theme,userInitiated:options.userInitiated!==false}}));
   setTimeout(()=>drawMol(currentMol,null),50);
 }
 const savedTheme=localStorage.getItem(THEME);
-if(savedTheme&&LABELS[savedTheme])setTheme(savedTheme,document.querySelector(`.t-opt[onclick*="${savedTheme}"]`));
+if(savedTheme&&LABELS[savedTheme])setTheme(savedTheme,document.querySelector(`.t-opt[onclick*="${savedTheme}"]`),{userInitiated:false});
 
 let currentMol='ethanol',heroRotationTimer=null,heroRotationPausedUntil=0;
 const mols={
@@ -586,6 +586,13 @@ function buildOfflineStudyPlan(){
   renderStats();
   renderStudyPlan(plan);
   renderMission();
+  window.OrganoApp?.notify?.({
+    title:'Offline roadmap ready',
+    body:`A ${input.sessionMinutes}-minute ${input.focusArea==='all'?'balanced review':input.focusArea} session is ready in the planner.`,
+    kind:'success',
+    actionHref:'#dashboard',
+    actionLabel:'Review roadmap'
+  });
 }
 
 async function buildStudyPlan(){
@@ -610,6 +617,13 @@ async function buildStudyPlan(){
     renderStats();
     renderStudyPlan(plan);
     renderMission();
+    window.OrganoApp?.notify?.({
+      title:'AI roadmap generated',
+      body:`Your ${input.courseWeeks}-week ${input.focusArea==='all'?'balanced review':input.focusArea} roadmap is ready.`,
+      kind:'success',
+      actionHref:'#dashboard',
+      actionLabel:'Open planner'
+    });
   }catch(error){
     setPlannerStatus('The AI roadmap could not be generated.');
     setPlannerError(`${AI.normalizeAIError(error)} You can still use the offline quick plan below.`);
@@ -632,6 +646,14 @@ function resetPlannerData(){
   renderMission();
   renderQuizHistory();
   setupQuiz();
+  window.OrganoApp?.notify?.({
+    title:'Planner data cleared',
+    body:'Quiz history, saved roadmaps, and cached planner data were reset for a clean restart.',
+    kind:'warning',
+    actionHref:'#dashboard',
+    actionLabel:'Start fresh',
+    dedupeKey:'planner-reset'
+  });
 }
 
 function renderTopics(){
@@ -652,6 +674,18 @@ function setTopicState(id,val){
   if(val==='new')delete state.topicStatus[id];else state.topicStatus[id]=val;
   saveState();
   renderTopics();renderTopicDetail();renderStats();renderWeakAreas();renderMission();
+  const topic=topics.find(item=>item.id===id);
+  if(topic){
+    const body=val==='confident'?'Marked as confident so it stays in your strong-topic set.':val==='review'?'Marked for another pass so it surfaces in weak-area guidance.':'The saved status was cleared and the topic is back to unmarked.';
+    window.OrganoApp?.notify?.({
+      title:val==='new'?`${topic.title} reset`:`${topic.title} updated`,
+      body,
+      kind:val==='review'?'warning':'success',
+      actionHref:'#topics',
+      actionLabel:'Open topics',
+      dedupeKey:`topic-${id}`
+    });
+  }
 }
 
 function renderTopicDetail(){
@@ -680,9 +714,19 @@ function showRxn(id){
 
 function toggleSavedReaction(){
   if(!canUseAccountFeature('Sign in to save reaction review stacks.'))return;
-  if(state.savedReactions.includes(currentReaction))state.savedReactions=state.savedReactions.filter(id=>id!==currentReaction);else state.savedReactions=[currentReaction,...state.savedReactions.filter(id=>id!==currentReaction)].slice(0,6);
+  const wasSaved=state.savedReactions.includes(currentReaction);
+  if(wasSaved)state.savedReactions=state.savedReactions.filter(id=>id!==currentReaction);else state.savedReactions=[currentReaction,...state.savedReactions.filter(id=>id!==currentReaction)].slice(0,6);
   saveState();
   renderSavedReactions();renderStats();renderMission();showRxn(currentReaction);
+  const reactionName=reactions[currentReaction]?.name||'Reaction';
+  window.OrganoApp?.notify?.({
+    title:wasSaved?`${reactionName} removed`:`${reactionName} saved`,
+    body:wasSaved?'The reaction was removed from your quick review stack.':'The reaction was added to your quick review stack for later review.',
+    kind:wasSaved?'info':'success',
+    actionHref:'#reactions',
+    actionLabel:'Open reactions',
+    dedupeKey:`reaction-${currentReaction}`
+  });
 }
 
 function setupQuiz(){
@@ -738,6 +782,13 @@ function showScore(){
     renderStats();
     renderWeakAreas();
     renderMission();
+    window.OrganoApp?.notify?.({
+      title:`Quiz complete: ${pct}%`,
+      body:`Preview mode finished a ${quizMeta.category} quiz. Sign in to keep quiz history and progress.`,
+      kind:pct>=75?'success':'info',
+      actionHref:'auth.html',
+      actionLabel:'Sign in to save'
+    });
     return;
   }
   state.quizHistory.unshift({createdAt:new Date().toISOString(),score,total:quiz.length,percent:pct,category:quizMeta.category,difficulty:quizMeta.difficulty,breakdown:catResults});
@@ -746,6 +797,13 @@ function showScore(){
   const completedQuizzesInput=document.getElementById('completedQuizzes');
   if(completedQuizzesInput)completedQuizzesInput.value=String(state.quizHistory.length);
   renderQuizHistory();renderStats();renderWeakAreas();renderMission();
+  window.OrganoApp?.notify?.({
+    title:`Quiz saved: ${pct}%`,
+    body:`${quizMeta.category} at ${quizMeta.difficulty} is now part of your saved quiz history.`,
+    kind:pct>=75?'success':'info',
+    actionHref:'#quiz',
+    actionLabel:'Review quiz history'
+  });
 }
 
 function renderQuizHistory(){
