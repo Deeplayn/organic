@@ -898,7 +898,7 @@ label{display:block;color:var(--text-bright);font-weight:600;}
 .studio-form{display:grid;gap:14px;margin-top:18px;}
 .studio-form .button-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
 .studio-form .button-row > *:only-child{grid-column:1 / -1;}
-.studio-side > .studio-card:first-child{position:sticky;top:104px;}
+.studio-side > .studio-card:first-child{position:static;}
 .compact{font-size:.92rem;}
 .search-suggestion-strip{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px;}
 .search-suggestion{
