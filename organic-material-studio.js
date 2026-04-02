@@ -427,8 +427,12 @@ function resolveLocalMaterial(query){
 
 function renderSearchSuggestions(query){
   const suggestions=getSuggestedMaterials(query,5);
-  compoundSuggestionList.innerHTML=suggestions.map(({material})=>`<option value="${escapeHtml(material.name)}"></option>`).join('');
-  searchSuggestions.innerHTML=suggestions.map(({material})=>`<button type="button" class="search-suggestion" data-material-id="${material.id}"><span class="search-suggestion-name">${escapeHtml(material.name)}</span><span class="search-suggestion-meta">${escapeHtml(`${material.family} · ${material.formula}`)}</span></button>`).join('');
+  if(compoundSuggestionList){
+    compoundSuggestionList.innerHTML=suggestions.map(({material})=>`<option value="${escapeHtml(material.name)}"></option>`).join('');
+  }
+  if(searchSuggestions){
+    searchSuggestions.innerHTML=suggestions.map(({material})=>`<button type="button" class="search-suggestion" data-material-id="${material.id}"><span class="search-suggestion-name">${escapeHtml(material.name)}</span><span class="search-suggestion-meta">${escapeHtml(`${material.family} · ${material.formula}`)}</span></button>`).join('');
+  }
 }
 
 function filteredMaterials(){
@@ -1101,7 +1105,7 @@ materialSelect.addEventListener('change',()=>{
 
 loadMaterialBtn?.addEventListener('click',()=>loadSelectedMaterial({syncSearch:true}));
 searchCompoundBtn.addEventListener('click',searchTypedCompound);
-searchSuggestions.addEventListener('click',event=>{
+searchSuggestions?.addEventListener('click',event=>{
   const button=event.target.closest('[data-material-id]');
   if(!button)return;
   const material=materials.find(entry=>entry.id===button.dataset.materialId);

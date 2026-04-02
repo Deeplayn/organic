@@ -479,7 +479,7 @@
             <h3>Build a material profile</h3>
             <p class="panel-copy">Choose a carbon framework and functional group, then pick a representative material with its physical properties, chemical behavior, and synthesis route.</p>
 
-            <form class="studio-form" aria-describedby="builderHelp">
+            <form class="studio-form">
               <label for="frameworkSelect">Carbon framework</label>
               <select id="frameworkSelect" name="framework">
                 <option value="all">All frameworks</option>
@@ -503,10 +503,7 @@
               <select id="materialSelect" name="material"></select>
 
               <label for="compoundSearch">Search any compound name</label>
-              <input id="compoundSearch" name="compoundSearch" type="search" list="compoundSuggestionList" autocomplete="off" placeholder="Try ethanol, acetylsalicylic acid, vinylbenzene...">
-              <datalist id="compoundSuggestionList"></datalist>
-              <p id="builderHelp" class="panel-copy compact">Choose a framework and functional group first, or search directly to pull live PubChem data.</p>
-              <div id="searchSuggestions" class="search-suggestion-strip" aria-live="polite"></div>
+              <input id="compoundSearch" name="compoundSearch" type="search" autocomplete="off" placeholder="Try ethanol, acetylsalicylic acid, vinylbenzene...">
 
               <div class="button-row">
                 <button type="button" class="button secondary" id="searchCompoundBtn">Search PubChem</button>
