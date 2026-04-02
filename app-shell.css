@@ -114,10 +114,93 @@ body{
   font-family:var(--font-body);
   transition:background .35s ease,color .25s ease;
 }
+body.app-loading,
+body.has-global-loader{
+  overflow:hidden;
+}
 a{color:inherit;text-decoration:none;}
 button,input,select,textarea{font:inherit;}
 button{border:none;background:none;}
 label{display:block;color:var(--text-bright);font-weight:600;}
+
+.global-loader{
+  position:fixed;
+  inset:0;
+  z-index:200;
+  display:grid;
+  place-items:center;
+  padding:24px;
+  background:
+    radial-gradient(circle at top,color-mix(in srgb,var(--accent) 22%,transparent),transparent 42%),
+    linear-gradient(180deg,color-mix(in srgb,var(--bg) 86%,black 14%),color-mix(in srgb,var(--surface) 94%,black 6%));
+  opacity:0;
+  visibility:hidden;
+  pointer-events:none;
+  transition:opacity .28s ease,visibility .28s ease;
+}
+body.app-loading .global-loader,
+body.has-global-loader .global-loader{
+  opacity:1;
+  visibility:visible;
+  pointer-events:auto;
+}
+.global-loader-card{
+  width:min(420px,100%);
+  padding:28px 24px;
+  border-radius:28px;
+  border:1px solid color-mix(in srgb,var(--accent) 26%,var(--border));
+  background:linear-gradient(180deg,color-mix(in srgb,var(--card) 96%,transparent),color-mix(in srgb,var(--surface-2) 92%,transparent));
+  box-shadow:0 24px 80px rgba(0,0,0,.34);
+  display:grid;
+  justify-items:center;
+  gap:18px;
+  text-align:center;
+}
+.global-loader-orbit{
+  position:relative;
+  width:92px;
+  height:92px;
+  display:grid;
+  place-items:center;
+}
+.global-loader-ring{
+  position:absolute;
+  inset:0;
+  border-radius:50%;
+  border:2px solid transparent;
+  border-top-color:var(--accent);
+  border-right-color:color-mix(in srgb,var(--accent3) 72%,var(--accent));
+  animation:loader-spin 1s linear infinite;
+}
+.global-loader-ring-delay{
+  inset:10px;
+  border-top-color:var(--accent2);
+  border-right-color:color-mix(in srgb,var(--accent) 62%,var(--accent2));
+  animation-duration:1.4s;
+  animation-direction:reverse;
+}
+.global-loader-core{
+  width:18px;
+  height:18px;
+  border-radius:50%;
+  background:linear-gradient(180deg,var(--accent),color-mix(in srgb,var(--accent2) 68%,var(--accent)));
+  box-shadow:0 0 22px color-mix(in srgb,var(--accent) 32%,transparent);
+  animation:loader-pulse 1.2s ease-in-out infinite;
+}
+.global-loader-copy{
+  display:grid;
+  gap:8px;
+}
+.global-loader-copy strong{
+  color:var(--text-bright);
+  font-family:var(--font-display);
+  font-size:clamp(1.35rem,2vw,1.7rem);
+}
+.global-loader-copy p{
+  margin:0;
+  color:var(--text-dim);
+  line-height:1.7;
+}
 
 .app-backdrop{
   position:fixed;
@@ -729,6 +812,14 @@ label{display:block;color:var(--text-bright);font-weight:600;}
 @keyframes orbital-spin-reverse{
   from{transform:rotate(360deg);}
   to{transform:rotate(0deg);}
+}
+@keyframes loader-spin{
+  from{transform:rotate(0deg);}
+  to{transform:rotate(360deg);}
+}
+@keyframes loader-pulse{
+  0%,100%{transform:scale(.9);opacity:.7;}
+  50%{transform:scale(1.14);opacity:1;}
 }
 @keyframes hero-breathe{
   0%,100%{transform:scale(1);}

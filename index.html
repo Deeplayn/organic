@@ -7,7 +7,20 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&family=IM+Fell+English:ital@0;1&family=Instrument+Sans:wght@400;500;600;700&family=Rajdhani:wght@400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="app-shell.css">
 </head>
-<body data-theme="lab-noir">
+<body data-theme="lab-noir" class="app-loading">
+<div class="global-loader" id="globalLoader" role="status" aria-live="polite" aria-label="Loading OrganoChem">
+  <div class="global-loader-card">
+    <div class="global-loader-orbit" aria-hidden="true">
+      <span class="global-loader-ring"></span>
+      <span class="global-loader-ring global-loader-ring-delay"></span>
+      <span class="global-loader-core"></span>
+    </div>
+    <div class="global-loader-copy">
+      <strong>Loading OrganoChem</strong>
+      <p id="globalLoaderMessage">Preparing your chemistry workspace.</p>
+    </div>
+  </div>
+</div>
 <div class="app-backdrop" aria-hidden="true">
   <span class="backdrop-orb orb-a"></span>
   <span class="backdrop-orb orb-b"></span>

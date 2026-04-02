@@ -697,6 +697,7 @@ async function buildStudyPlan(){
   }
   setPlannerError('');
   setPlannerStatus('Generating your AI roadmap...');
+  window.OrganoApp?.showLoader?.('Generating your AI roadmap...');
   try{
     const rawPlan=await AI.requestPlannerRoadmap({
       input,
@@ -719,6 +720,8 @@ async function buildStudyPlan(){
   }catch(error){
     setPlannerStatus('The AI roadmap could not be generated.');
     setPlannerError(`${AI.normalizeAIError(error)} You can still use the offline quick plan below.`);
+  }finally{
+    window.OrganoApp?.hideLoader?.();
   }
 }
 

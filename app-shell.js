@@ -40,6 +40,7 @@
   const IS_AUTH_PAGE=/\/auth\.html$/i.test(window.location.pathname)||/auth\.html$/i.test(window.location.pathname.split('/').pop()||'');
   const authState={status:'loading',user:null,profile:null,syncing:false};
   const notificationState=DEFAULT_NOTIFICATION_STATE;
+  const loaderState={count:0,defaultMessage:'Preparing your chemistry workspace.'};
 
   let currentAuthMode='login';
   let syncTimer=0;
@@ -431,6 +432,29 @@
     const node=$(id);
     if(node)node.innerHTML=value;
   }
+  function setLoaderMessage(message=''){
+    const node=$('globalLoaderMessage');
+    if(node)node.textContent=message||loaderState.defaultMessage;
+  }
+  function showLoader(message=''){
+    loaderState.count+=1;
+    if(message)setLoaderMessage(message);
+    document.body.classList.add('has-global-loader');
+  }
+  function hideLoader({force=false,message=''}={}){
+    loaderState.count=force?0:Math.max(0,loaderState.count-1);
+    if(message)setLoaderMessage(message);
+    if(loaderState.count===0){
+      document.body.classList.remove('has-global-loader');
+      if(!document.body.classList.contains('app-loading')){
+        setLoaderMessage(loaderState.defaultMessage);
+      }
+    }
+  }
+  function releaseInitialLoader(){
+    document.body.classList.remove('app-loading');
+    hideLoader({force:true});
+  }
   function applyStoredThemePreference(){
     const savedTheme=localStorage.getItem(THEME_KEY);
     if(!savedTheme)return;
@@ -679,46 +703,53 @@
 
   async function loadRemoteState({allowImport=true}={}){
     if(!isAuthenticated())return;
-    const data=await apiJson('/api/user-state');
-    if(!data.hasData&&allowImport&&hasLocalData()){
-      await apiJson('/api/user-state',{
-        method:'PUT',
-        body:JSON.stringify({
-          ...snapshotLocalState(),
-          importedFromLocal:true
-        })
-      });
-      showMessage('authStatusMessage','Imported your existing browser progress into this account.');
-      notify({
-        title:'Browser progress imported',
-        body:'Your local topics, plans, quiz history, and chat state were linked to this account.',
-        kind:'success',
-        actionHref:IS_AUTH_PAGE?'index.html#dashboard':'#dashboard',
-        actionLabel:'Review progress',
-        dedupeKey:'account-import'
-      });
-      return loadRemoteState({allowImport:false});
+    showLoader('Syncing your account workspace...');
+    try{
+      const data=await apiJson('/api/user-state');
+      if(!data.hasData&&allowImport&&hasLocalData()){
+        await apiJson('/api/user-state',{
+          method:'PUT',
+          body:JSON.stringify({
+            ...snapshotLocalState(),
+            importedFromLocal:true
+          })
+        });
+        showMessage('authStatusMessage','Imported your existing browser progress into this account.');
+        notify({
+          title:'Browser progress imported',
+          body:'Your local topics, plans, quiz history, and chat state were linked to this account.',
+          kind:'success',
+          actionHref:IS_AUTH_PAGE?'index.html#dashboard':'#dashboard',
+          actionLabel:'Review progress',
+          dedupeKey:'account-import'
+        });
+        hideLoader();
+        return loadRemoteState({allowImport:false});
+      }
+      authState.profile=normalizeProfile(data.payload?.profile);
+      if(data.payload){
+        hydrateFromRemote(data.payload);
+      }
+      if(data.user){
+        authState.user=data.user;
+      }
+      if(shouldForceProfileCompletion()&&!IS_AUTH_PAGE){
+        openAuthPage({
+          mode:'login',
+          message:'Complete your profile to finish setting up your account.',
+          returnTo:currentRelativeUrl()
+        });
+        return;
+      }
+      updateAuthUI();
+    }finally{
+      hideLoader();
     }
-    authState.profile=normalizeProfile(data.payload?.profile);
-    if(data.payload){
-      hydrateFromRemote(data.payload);
-    }
-    if(data.user){
-      authState.user=data.user;
-    }
-    if(shouldForceProfileCompletion()&&!IS_AUTH_PAGE){
-      openAuthPage({
-        mode:'login',
-        message:'Complete your profile to finish setting up your account.',
-        returnTo:currentRelativeUrl()
-      });
-      return;
-    }
-    updateAuthUI();
   }
 
   async function loadSession(){
     authState.status='loading';
+    setLoaderMessage(IS_AUTH_PAGE?'Checking your account session.':'Preparing your chemistry workspace.');
     try{
       const data=await apiJson('/api/auth/session');
       authState.user=data.user||null;
@@ -735,6 +766,7 @@
       updateAuthUI();
     }finally{
       authState.status='ready';
+      releaseInitialLoader();
     }
   }
 
@@ -745,6 +777,7 @@
   async function handleProfileOnboarding(event){
     event.preventDefault();
     showMessage('profileStatusMessage','');
+    showLoader('Saving your profile and curriculum setup...');
     try{
       const profile=normalizeProfile({
         age:$('profileAge')?.value,
@@ -784,6 +817,8 @@
       setActivePanel('dashboard');
     }catch(error){
       showMessage('profileStatusMessage',error.message,'error');
+    }finally{
+      hideLoader();
     }
   }
 
@@ -791,6 +826,7 @@
     event.preventDefault();
     showMessage('authStatusMessage','');
     showMessage('authGateMessage','');
+    showLoader('Signing you in...');
     try{
       const data=await apiJson('/api/auth/login',{
         method:'POST',
@@ -811,6 +847,8 @@
       setActivePanel('dashboard');
     }catch(error){
       showMessage('authStatusMessage',error.message,'error');
+    }finally{
+      hideLoader();
     }
   }
 
@@ -818,6 +856,7 @@
     event.preventDefault();
     showMessage('authStatusMessage','');
     showMessage('authGateMessage','');
+    showLoader('Creating your OrganoChem account...');
     try{
       const data=await apiJson('/api/auth/signup',{
         method:'POST',
@@ -839,11 +878,14 @@
       setActivePanel('dashboard');
     }catch(error){
       showMessage('authStatusMessage',error.message,'error');
+    }finally{
+      hideLoader();
     }
   }
 
   async function handleLogout(){
     showMessage('authStatusMessage','');
+    showLoader('Signing you out...');
     try{
       await apiJson('/api/auth/logout',{method:'POST'});
       authState.user=null;
@@ -859,6 +901,8 @@
       }
     }catch(error){
       showMessage('authStatusMessage',error.message,'error');
+    }finally{
+      hideLoader();
     }
   }
 
@@ -953,6 +997,8 @@
     refreshRemoteState(){return loadRemoteState({allowImport:false});},
     getUser(){return authState.user;},
     getProfile(){return normalizeProfile(authState.profile);},
+    showLoader,
+    hideLoader,
     setActivePanel
   };
 
