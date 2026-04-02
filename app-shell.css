@@ -911,6 +911,32 @@ body.has-global-loader .global-loader{
   overflow:hidden;
   text-align:center;
 }
+.molecule-canvas #molSvg,
+.molecule-canvas .mol-name,
+.molecule-canvas .mol-formula,
+.molecule-canvas .mol-copy,
+.molecule-canvas .molecule-notes,
+.molecule-canvas .pill-row{
+  transition:transform .5s cubic-bezier(.22,1,.36,1),opacity .5s ease,filter .5s ease;
+  will-change:transform,opacity,filter;
+}
+.molecule-canvas.is-switching #molSvg{
+  transform:translateY(14px) scale(.92) rotateX(12deg);
+  opacity:.18;
+  filter:blur(8px) saturate(1.25);
+}
+.molecule-canvas.is-switching .mol-name,
+.molecule-canvas.is-switching .mol-formula,
+.molecule-canvas.is-switching .mol-copy,
+.molecule-canvas.is-switching .molecule-notes{
+  transform:translateY(10px);
+  opacity:.28;
+  filter:blur(6px);
+}
+.molecule-canvas.is-switching .pill-row{
+  transform:translateY(6px);
+  opacity:.55;
+}
 .mol-label,.molecule-note-label,.field span{
   font-family:var(--font-mono);
   font-size:.68rem;
