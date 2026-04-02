@@ -7,7 +7,7 @@ const materials=[
     id:'ethanol',
     pubchemQuery:'ethanol',
     name:'Ethanol',
-    aliases:['ethyl alcohol','grain alcohol'],
+    aliases:['ethyl alcohol','grain alcohol','etoh'],
     framework:'chain',
     group:'alcohol',
     family:'Primary alcohol',
@@ -47,7 +47,7 @@ const materials=[
     id:'acetone',
     pubchemQuery:'acetone',
     name:'Acetone',
-    aliases:['propanone','dimethyl ketone'],
+    aliases:['propanone','dimethyl ketone','me2co'],
     framework:'chain',
     group:'ketone',
     family:'Simple ketone',
@@ -86,7 +86,7 @@ const materials=[
     id:'acetic-acid',
     pubchemQuery:'acetic acid',
     name:'Acetic Acid',
-    aliases:['ethanoic acid','vinegar acid'],
+    aliases:['ethanoic acid','vinegar acid','acoh'],
     framework:'chain',
     group:'carboxylic-acid',
     family:'Carboxylic acid',
@@ -125,7 +125,7 @@ const materials=[
     id:'aniline',
     pubchemQuery:'aniline',
     name:'Aniline',
-    aliases:['aminobenzene','phenylamine'],
+    aliases:['aminobenzene','phenylamine','phnh2'],
     framework:'aromatic',
     group:'amine',
     family:'Aromatic amine',
@@ -164,7 +164,7 @@ const materials=[
     id:'aspirin',
     pubchemQuery:'aspirin',
     name:'Aspirin',
-    aliases:['acetylsalicylic acid','asa'],
+    aliases:['acetylsalicylic acid','acetyl salicylic acid','asa'],
     framework:'mixed',
     group:'ester',
     family:'Aromatic ester with acid group',
@@ -203,7 +203,7 @@ const materials=[
     id:'styrene',
     pubchemQuery:'styrene',
     name:'Styrene',
-    aliases:['vinylbenzene','phenylethene'],
+    aliases:['vinylbenzene','phenylethene','ethenylbenzene'],
     framework:'aromatic',
     group:'alkene',
     family:'Aromatic alkene',
@@ -267,6 +267,7 @@ let currentSdf2d='';
 let currentSdf3d='';
 let currentCompoundName='';
 let preferredStructureMode='3d';
+let activeLoadRequestId=0;
 
 function escapeHtml(value){
   return String(value)
@@ -321,22 +322,39 @@ function levenshteinDistance(a,b){
   if(a===b)return 0;
   if(!a.length)return b.length;
   if(!b.length)return a.length;
-  const rows=Array.from({length:b.length+1},(_,index)=>index);
+  const matrix=Array.from({length:a.length+1},()=>Array(b.length+1).fill(0));
+  for(let i=0;i<=a.length;i++)matrix[i][0]=i;
+  for(let j=0;j<=b.length;j++)matrix[0][j]=j;
   for(let i=1;i<=a.length;i++){
-    let previous=i-1;
-    rows[0]=i;
     for(let j=1;j<=b.length;j++){
-      const current=rows[j];
       const cost=a[i-1]===b[j-1]?0:1;
-      rows[j]=Math.min(
-        rows[j]+1,
-        rows[j-1]+1,
-        previous+cost
+      matrix[i][j]=Math.min(
+        matrix[i-1][j]+1,
+        matrix[i][j-1]+1,
+        matrix[i-1][j-1]+cost
       );
-      previous=current;
+      if(
+        i>1&&
+        j>1&&
+        a[i-1]===b[j-2]&&
+        a[i-2]===b[j-1]
+      ){
+        matrix[i][j]=Math.min(matrix[i][j],matrix[i-2][j-2]+1);
+      }
     }
   }
-  return rows[b.length];
+  return matrix[a.length][b.length];
+}
+
+function tokenFuzzyMatch(queryTokens,termTokens){
+  if(!queryTokens.length||!termTokens.length)return false;
+  return queryTokens.every(token=>termTokens.some(candidate=>{
+    if(candidate===token)return true;
+    if(candidate.startsWith(token)||candidate.includes(token)||token.includes(candidate))return true;
+    const maxLen=Math.max(token.length,candidate.length);
+    if(maxLen<4)return false;
+    return levenshteinDistance(token,candidate)<=(maxLen>=8?2:1);
+  }));
 }
 
 function materialSearchTerms(material){
@@ -353,23 +371,29 @@ function scoreMaterialMatch(query,material){
   const normalized=normalizeQuery(query);
   const compact=compactQuery(query);
   if(!normalized)return 0;
+  const queryTokens=normalized.split(' ').filter(Boolean);
   let best=0;
   materialSearchTerms(material).forEach(term=>{
     const termNormalized=normalizeQuery(term);
     const termCompact=compactQuery(term);
+    const termTokens=termNormalized.split(' ').filter(Boolean);
+    const termInitials=termTokens.map(token=>token[0]).join('');
     if(!termNormalized)return;
     if(normalized===termNormalized||compact===termCompact){
       best=Math.max(best,120);
       return;
     }
+    if(termInitials&&compact===termInitials)best=Math.max(best,108);
     if(termNormalized.startsWith(normalized)||termCompact.startsWith(compact))best=Math.max(best,95);
     if(termNormalized.includes(normalized)||termCompact.includes(compact))best=Math.max(best,85);
-    const queryTokens=normalized.split(' ').filter(Boolean);
-    const termTokens=termNormalized.split(' ').filter(Boolean);
-    if(queryTokens.length&&queryTokens.every(token=>termTokens.some(candidate=>candidate.startsWith(token)||candidate.includes(token))))best=Math.max(best,74);
+    if(compact.length>=2&&termInitials&&termInitials.startsWith(compact))best=Math.max(best,82);
+    if(tokenFuzzyMatch(queryTokens,termTokens))best=Math.max(best,78);
     if(compact.length>=4&&termCompact.length>=4){
       const distance=levenshteinDistance(compact,termCompact);
-      if(distance<=2)best=Math.max(best,68-distance*4);
+      const maxLen=Math.max(compact.length,termCompact.length);
+      const allowedDistance=maxLen>=12?3:maxLen>=8?2:1;
+      const similarity=1-(distance/maxLen);
+      if(distance<=allowedDistance&&similarity>=0.7)best=Math.max(best,92-distance*4);
     }
   });
   return best;
@@ -389,13 +413,15 @@ function getSuggestedMaterials(query,limit=5){
 }
 
 function resolveLocalMaterial(query){
-  const best=getSuggestedMaterials(query,1)[0];
+  const [best,runnerUp]=getSuggestedMaterials(query,2);
   if(!best)return null;
   const queryCompact=compactQuery(query);
   if(!queryCompact)return null;
   const exactAlias=materialSearchTerms(best.material).some(term=>compactQuery(term)===queryCompact);
-  if(exactAlias||best.score>=95)return best.material;
-  if(queryCompact.length>=6&&best.score>=85)return best.material;
+  const scoreGap=best.score-(runnerUp?.score||0);
+  if(exactAlias)return best.material;
+  if(queryCompact.length>=4&&best.score>=96)return best.material;
+  if(queryCompact.length>=5&&best.score>=84&&scoreGap>=8)return best.material;
   return null;
 }
 
@@ -419,11 +445,11 @@ function fillMaterialSelect(preferredId){
   if(!options.length){
     materialSelect.innerHTML='<option value="">No matching material</option>';
     materialSelect.disabled=true;
-    loadMaterialBtn.disabled=true;
+    if(loadMaterialBtn)loadMaterialBtn.disabled=true;
     return null;
   }
   materialSelect.disabled=false;
-  loadMaterialBtn.disabled=false;
+  if(loadMaterialBtn)loadMaterialBtn.disabled=false;
   options.forEach(material=>{
     const option=document.createElement('option');
     option.value=material.id;
@@ -869,6 +895,7 @@ async function loadCompound(query,localMaterial){
     setBuilderStatus('Enter a compound name or choose a material from the list first.');
     return;
   }
+  const requestId=++activeLoadRequestId;
 
   setAvailableStructures({name:resolvedQuery});
   setBuilderStatus(`Looking up ${resolvedQuery} in PubChem...`);
@@ -878,6 +905,7 @@ async function loadCompound(query,localMaterial){
 
   try{
     const data=await fetchPubChemData(resolvedQuery);
+    if(requestId!==activeLoadRequestId)return;
     const displayName=selectCompoundDisplayName({
       localMaterial,
       query:resolvedQuery,
@@ -944,6 +972,7 @@ async function loadCompound(query,localMaterial){
     setBuilderStatus(`Loaded live PubChem data for ${displayName}.`);
     compoundSearch.value=resolvedQuery;
   }catch(error){
+    if(requestId!==activeLoadRequestId)return;
     setBuilderStatus(`PubChem lookup failed for ${resolvedQuery}. Showing the local teaching profile instead.`);
     resetViewerShell('3D structure could not be loaded from PubChem.');
     apiDataList.innerHTML='<div class="stack-card">PubChem data could not be loaded right now. The page is using the local fallback profile.</div>';
@@ -977,13 +1006,15 @@ async function loadCompound(query,localMaterial){
   }
 }
 
-function loadSelectedMaterial(){
+function loadSelectedMaterial({syncSearch=true}={}){
   const material=getSelectedLocalMaterial();
   renderLocalMaterial(material);
   if(!material){
     setBuilderStatus('No matching material is selected.');
     return;
   }
+  if(syncSearch)compoundSearch.value=material.pubchemQuery||material.name;
+  renderSearchSuggestions(compoundSearch.value);
   loadCompound(material.pubchemQuery||material.name,material);
 }
 
@@ -1046,28 +1077,29 @@ window.addEventListener('organo:panel-changed',event=>{
 
 frameworkSelect.addEventListener('change',()=>{
   const material=fillMaterialSelect(materialSelect.value);
-  renderLocalMaterial(material);
-  if(material)setBuilderStatus(`${material.name} is ready to load.`);
-  else setBuilderStatus('No materials match the current filters. Change one of the filters to continue.');
-  renderSearchSuggestions(compoundSearch.value);
+  if(material)loadSelectedMaterial({syncSearch:true});
+  else{
+    renderLocalMaterial(material);
+    setBuilderStatus('No materials match the current filters. Change one of the filters to continue.');
+    renderSearchSuggestions(compoundSearch.value);
+  }
 });
 
 groupSelect.addEventListener('change',()=>{
   const material=fillMaterialSelect(materialSelect.value);
-  renderLocalMaterial(material);
-  if(material)setBuilderStatus(`${material.name} is ready to load.`);
-  else setBuilderStatus('No materials match the current filters. Change one of the filters to continue.');
-  renderSearchSuggestions(compoundSearch.value);
+  if(material)loadSelectedMaterial({syncSearch:true});
+  else{
+    renderLocalMaterial(material);
+    setBuilderStatus('No materials match the current filters. Change one of the filters to continue.');
+    renderSearchSuggestions(compoundSearch.value);
+  }
 });
 
 materialSelect.addEventListener('change',()=>{
-  const material=getSelectedLocalMaterial();
-  renderLocalMaterial(material);
-  if(material)compoundSearch.value=material.pubchemQuery||material.name;
-  renderSearchSuggestions(compoundSearch.value);
+  loadSelectedMaterial({syncSearch:true});
 });
 
-loadMaterialBtn.addEventListener('click',loadSelectedMaterial);
+loadMaterialBtn?.addEventListener('click',()=>loadSelectedMaterial({syncSearch:true}));
 searchCompoundBtn.addEventListener('click',searchTypedCompound);
 searchSuggestions.addEventListener('click',event=>{
   const button=event.target.closest('[data-material-id]');
