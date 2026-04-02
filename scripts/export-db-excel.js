@@ -6,9 +6,9 @@ const { Client } = require('pg');
 const { ensureSchema, getPool } = require('../api/_db');
 
 async function main() {
-  const connectionString = String(process.env.DATABASE_URL || '').trim();
+  const connectionString = String(process.env.EXPORT_DATABASE_URL || process.env.DATABASE_URL || '').trim();
   if (!connectionString) {
-    throw new Error('DATABASE_URL is not configured. Add it to .env before running the export.');
+    throw new Error('DATABASE_URL is not configured. Add DATABASE_URL or EXPORT_DATABASE_URL to .env before running the export.');
   }
 
   const client = new Client({
@@ -26,6 +26,7 @@ async function main() {
     }
 
     const workbookXml = await buildWorkbookXml(client, tables, connectionString);
+    const rowCounts = await getTableCounts(client, ['web_accounts', ...tables]);
     const exportDir = path.resolve(__dirname, '..', 'exports');
     fs.mkdirSync(exportDir, { recursive: true });
 
@@ -34,6 +35,12 @@ async function main() {
 
     console.log(`Export complete: ${filePath}`);
     console.log(`Tables exported: ${tables.join(', ')}`);
+    for (const [tableName, count] of Object.entries(rowCounts)) {
+      console.log(`${tableName}: ${count} row${count === 1 ? '' : 's'}`);
+    }
+    if (!rowCounts.users) {
+      console.warn('Warning: the configured export database has 0 users, so no account info could be exported.');
+    }
   } finally {
     await client.end().catch(() => {});
     await getPool().end().catch(() => {});
@@ -133,6 +140,19 @@ async function fetchWebAccountRows(client) {
   `);
 
   return result.rows;
+}
+
+async function getTableCounts(client, tableNames) {
+  const counts = {};
+  for (const tableName of tableNames) {
+    if (tableName === 'web_accounts') {
+      counts[tableName] = (await fetchWebAccountRows(client)).length;
+      continue;
+    }
+    const result = await client.query(`SELECT COUNT(*)::int AS count FROM ${quoteIdentifier(tableName)}`);
+    counts[tableName] = result.rows[0]?.count || 0;
+  }
+  return counts;
 }
 
 function buildMetaWorksheet(exportedAt, connectionString, tables) {
