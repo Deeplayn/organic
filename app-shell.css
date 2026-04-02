@@ -1079,7 +1079,8 @@ body.has-global-loader .global-loader{
 .curriculum-topic-plain{color:var(--text-dim);background:color-mix(in srgb,var(--surface-2) 82%,transparent);}
 .curriculum-source-list{display:grid;gap:10px;}
 .curriculum-source{
-  display:block;
+  display:grid;
+  gap:4px;
   padding:12px 14px;
   border-radius:18px;
   border:1px solid var(--border);
@@ -1087,8 +1088,14 @@ body.has-global-loader .global-loader{
   color:var(--text);
   text-decoration:none;
 }
-.curriculum-source:hover{border-color:var(--accent);color:var(--accent);}
 .curriculum-source strong{display:block;margin-bottom:4px;}
+.curriculum-source-meta{
+  font-family:var(--font-mono);
+  font-size:.68rem;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--accent);
+}
 .plan-columns{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;}
 .plan-panel,.plan-summary,.roadmap-card,.session-block{
   padding:14px 16px;

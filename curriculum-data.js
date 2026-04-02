@@ -7,7 +7,7 @@
    * @typedef {'high-school'|'university'} CurriculumLevel
    * @typedef {'syllabus'|'framework'|'catalog'|'guide'} CurriculumSourceType
    * @typedef {'functional-groups'|'reaction-mechanisms'|'iupac-naming'|'stereochemistry'|'aromatic-chemistry'|'spectroscopy'} LessonSlug
-   * @typedef {{label:string,url:string,type:CurriculumSourceType}} CurriculumSource
+   * @typedef {{label:string,type:CurriculumSourceType,note?:string}} CurriculumSource
    * @typedef {{title:string,lessonSlug?:LessonSlug}} CurriculumTopic
    * @typedef {{
    *   title:string,
@@ -20,12 +20,12 @@
 
   /**
    * @param {string} label
-   * @param {string} url
    * @param {CurriculumSourceType} type
+   * @param {string} [note]
    * @returns {CurriculumSource}
    */
-  function source(label,url,type){
-    return Object.freeze({label,url,type});
+  function source(label,type,note){
+    return Object.freeze({label,type,note});
   }
 
   /**
@@ -44,8 +44,8 @@
       level:'high-school',
       country:'Egypt',
       sources:Object.freeze([
-        source('Egypt high school organic chemistry outline','https://example.org/curricula/egypt-high-school-organic-chemistry','syllabus'),
-        source('Egypt secondary chemistry reference','https://example.org/curricula/egypt-secondary-chemistry-reference','guide')
+        source('Egypt high school organic chemistry outline','syllabus','Local syllabus outline for secondary organic chemistry coverage.'),
+        source('Egypt secondary chemistry reference','guide','Local study guide for high school examples, terminology, and review prompts.')
       ]),
       topics:Object.freeze([
         'Difference between organic and inorganic compounds',
@@ -66,8 +66,8 @@
       level:'university',
       country:'Egypt',
       sources:Object.freeze([
-        source('Egypt university organic chemistry course map','https://example.org/curricula/egypt-university-organic-chemistry','catalog'),
-        source('Egypt university chemistry department guide','https://example.org/curricula/egypt-university-chemistry-guide','guide')
+        source('Egypt university organic chemistry course map','catalog','Local course map covering the main university sequence and unit flow.'),
+        source('Egypt university chemistry department guide','guide','Local department guide for lecture expectations and supporting references.')
       ]),
       topics:Object.freeze([
         'Structure and bonding',
@@ -88,8 +88,8 @@
       level:'high-school',
       country:'England',
       sources:Object.freeze([
-        source('England high school organic chemistry outline','https://example.org/curricula/england-high-school-organic-chemistry','syllabus'),
-        source('England post-16 chemistry framework','https://example.org/curricula/england-post16-chemistry-framework','framework')
+        source('England high school organic chemistry outline','syllabus','Local outline for post-16 organic chemistry topics and sequencing.'),
+        source('England post-16 chemistry framework','framework','Local framework showing how classroom outcomes map across the track.')
       ]),
       topics:Object.freeze([
         'Introduction to organic chemistry',
@@ -108,8 +108,8 @@
       level:'university',
       country:'England',
       sources:Object.freeze([
-        source('England university organic chemistry track','https://example.org/curricula/england-university-organic-chemistry','catalog'),
-        source('England university chemistry handbook','https://example.org/curricula/england-university-chemistry-handbook','guide')
+        source('England university organic chemistry track','catalog','Local catalog summary for the standard university organic chemistry path.'),
+        source('England university chemistry handbook','guide','Local handbook notes for labs, recommended texts, and topic pacing.')
       ]),
       topics:Object.freeze([
         'Structure and bonding',
@@ -128,8 +128,8 @@
       level:'high-school',
       country:'United States',
       sources:Object.freeze([
-        source('United States high school carbon chemistry outline','https://example.org/curricula/united-states-high-school-organic-chemistry','syllabus'),
-        source('United States general chemistry bridge guide','https://example.org/curricula/united-states-general-chemistry-bridge','guide')
+        source('United States high school carbon chemistry outline','syllabus','Local outline for carbon chemistry topics commonly covered before college.'),
+        source('United States general chemistry bridge guide','guide','Local bridge guide connecting general chemistry ideas to organic foundations.')
       ]),
       topics:Object.freeze([
         'Carbon compounds overview',
@@ -144,8 +144,8 @@
       level:'university',
       country:'United States',
       sources:Object.freeze([
-        source('United States university organic chemistry sequence','https://example.org/curricula/united-states-university-organic-chemistry','catalog'),
-        source('United States organic chemistry lecture guide','https://example.org/curricula/united-states-organic-chemistry-guide','guide')
+        source('United States university organic chemistry sequence','catalog','Local sequence map for the two-part university organic chemistry track.'),
+        source('United States organic chemistry lecture guide','guide','Local lecture guide with core reactions, synthesis blocks, and review notes.')
       ]),
       topics:Object.freeze([
         'Structure and bonding',
@@ -169,8 +169,8 @@
       level:'high-school',
       country:'France',
       sources:Object.freeze([
-        source('France high school organic chemistry overview','https://example.org/curricula/france-high-school-organic-chemistry','syllabus'),
-        source('France lycée chemistry skills guide','https://example.org/curricula/france-lycee-chemistry-guide','guide')
+        source('France high school organic chemistry overview','syllabus','Local overview of lycee-level organic chemistry concepts and progression.'),
+        source('France lycée chemistry skills guide','guide','Local skills guide for exercises, notation, and topic checkpoints.')
       ]),
       topics:Object.freeze([
         'Structure of organic entities',
@@ -186,8 +186,8 @@
       level:'university',
       country:'France',
       sources:Object.freeze([
-        source('France university organic chemistry sequence','https://example.org/curricula/france-university-organic-chemistry','catalog'),
-        source('France licence chemistry curriculum guide','https://example.org/curricula/france-licence-chemistry-guide','guide')
+        source('France university organic chemistry sequence','catalog','Local sequence for licence-level organic chemistry modules and progression.'),
+        source('France licence chemistry curriculum guide','guide','Local curriculum guide with supporting expectations and revision references.')
       ]),
       topics:Object.freeze([
         'Chimie organique 1',
