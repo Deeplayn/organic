@@ -4,7 +4,7 @@
   const ORGANOBOT_HISTORY_KEY='oc-organobot-history-v1';
   const AI_PROXY_URL='/api/chat';
   const AI_SHARED_SCRIPT_URL='https://js.puter.com/v2/';
-  const DEFAULT_AI_MODEL='x-ai/grok-4.20-beta';
+  const DEFAULT_AI_MODEL='x-ai/grok-4.20';
   const AI_PROVIDER_PRESETS={
     builtIn:{
       id:'builtIn',
@@ -142,10 +142,27 @@
 
   function normalizeAIError(error){
     if(!error)return'Unknown AI error.';
-    if(typeof error==='string')return error;
-    if(typeof error?.error?.message==='string')return error.error.message;
-    if(typeof error?.message==='string')return error.message;
-    return'Unknown AI error.';
+    const rawMessage=typeof error==='string'
+      ?error
+      :typeof error?.error?.message==='string'
+        ?error.error.message
+        :typeof error?.message==='string'
+          ?error.message
+          :'Unknown AI error.';
+    const message=String(rawMessage).trim()||'Unknown AI error.';
+    if(message.includes('XAI_API_KEY is not configured on the server')){
+      return 'The AI server is not configured yet. Add your xAI key to XAI_API_KEY in .env or .env.local, then restart the server.';
+    }
+    if(message.includes('The xAI proxy could not reach the upstream service')){
+      return 'The AI server reached its proxy route, but the upstream xAI service did not respond. Try again in a moment.';
+    }
+    if(message.includes('The shared Grok AI service could not be reached')){
+      return 'The AI server could not be reached. Make sure your local dev server is running and try again.';
+    }
+    if(message.includes('The Puter SDK could not be loaded')){
+      return 'The browser could not load the Puter AI fallback. The app will need the server route to be configured instead.';
+    }
+    return message;
   }
 
   function extractProxyMessageContent(response){

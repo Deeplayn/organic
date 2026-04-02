@@ -761,11 +761,6 @@ function renderSearchPlaceholder(query){
 function mergePhysicalProfile(localMaterial,props){
   const rows={...(localMaterial?.physical||{})};
   if(props.MolecularWeight)rows['Molecular weight']=`${props.MolecularWeight} g/mol`;
-  if(props.XLogP!==undefined)rows['XLogP']=String(props.XLogP);
-  if(props.TPSA!==undefined)rows['Topological polar surface area']=`${props.TPSA} A2`;
-  if(props.HBondDonorCount!==undefined)rows['H-bond donor count']=String(props.HBondDonorCount);
-  if(props.HBondAcceptorCount!==undefined)rows['H-bond acceptor count']=String(props.HBondAcceptorCount);
-  if(props.Complexity!==undefined)rows['Complexity']=String(props.Complexity);
   document.getElementById('physicalList').innerHTML=Object.entries(rows)
     .map(([key,value])=>`<div><dt>${key}</dt><dd>${value}</dd></div>`)
     .join('');
@@ -815,6 +810,21 @@ function normalizeMarkupText(value){
   return '';
 }
 
+function summarizeManufacturingText(text){
+  const normalized=String(text||'')
+    .replace(/\s+/g,' ')
+    .replace(/\[[^\]]+\]/g,'')
+    .trim();
+  if(!normalized)return '';
+  const sentences=normalized.match(/[^.!?]+[.!?]?/g)?.map(sentence=>sentence.trim()).filter(Boolean)||[normalized];
+  const firstSentence=sentences[0]||'';
+  if(firstSentence.length>=36&&firstSentence.length<=180)return firstSentence;
+  const shortSummary=sentences.slice(0,2).join(' ').trim();
+  if(shortSummary.length<=220)return shortSummary;
+  const clipped=shortSummary.slice(0,217).replace(/[,:;\s-]+$/,'').trim();
+  return `${clipped}...`;
+}
+
 function collectSectionText(section,bucket=[]){
   if(section?.Information){
     section.Information.forEach(info=>{
@@ -858,7 +868,8 @@ async function fetchPubChemData(query){
   const properties=propertiesResult.status==='fulfilled'?propertiesResult.value?.PropertyTable?.Properties?.[0]||{}:{};
   const manufacturingText=manufacturingResults
     .filter(result=>result.status==='fulfilled')
-    .flatMap(result=>collectSectionText(result.value?.Record).map(entry=>entry.text));
+    .flatMap(result=>collectSectionText(result.value?.Record).map(entry=>summarizeManufacturingText(entry.text)))
+    .filter(Boolean);
 
   return{
     cid,

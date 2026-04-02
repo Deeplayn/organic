@@ -195,11 +195,12 @@ async function sendToOrganobot(prompt){
       dedupeKey:`organobot-response-${activeSession.id}`
     });
   }catch(error){
-    addMessage('assistant',`I could not reach the AI service just now. ${AI.normalizeAIError(error)}`);
-    setBotStatus('The AI request failed. Check the server connection or try again.');
+    const normalizedError=AI.normalizeAIError(error);
+    addMessage('assistant',`I could not reach the AI service just now. ${normalizedError}`);
+    setBotStatus(normalizedError);
     window.OrganoApp?.notify?.({
       title:'ORGANOBOT could not respond',
-      body:AI.normalizeAIError(error),
+      body:normalizedError,
       kind:'warning',
       actionHref:'#bot',
       actionLabel:'Try again',
