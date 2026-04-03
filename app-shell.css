@@ -963,6 +963,8 @@ body.has-global-loader .global-loader{
 .section-copy{margin-bottom:16px;}
 .section-copy h3{font-size:clamp(1.8rem,3vw,2.5rem);}
 .dashboard-grid{display:grid;grid-template-columns:1fr 1.2fr .9fr;gap:22px;}
+.planner-only-grid{grid-template-columns:minmax(0,1fr);}
+.planner-panel-full{width:100%;}
 .panel-header{
   display:flex;
   justify-content:space-between;

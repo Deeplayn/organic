@@ -195,20 +195,8 @@
           <h3 id="dashboardTitle">Build a smarter study session</h3>
           <p>This workspace remembers what you review, what you save, and where your weak spots are so the next session starts with direction.</p>
         </div>
-        <div class="dashboard-grid">
-          <article class="dashboard-panel">
-            <div class="panel-header">
-              <div>
-                <div class="panel-eyebrow">Today&apos;s Mission</div>
-                <h3>Recommended next move</h3>
-              </div>
-              <span class="status-pill" id="missionBadge">Fresh start</span>
-            </div>
-            <p class="panel-copy" id="missionText">Answer a short quiz, then mark at least one topic as confident to start building your study map.</p>
-            <div class="mission-checklist" id="missionChecklist"></div>
-          </article>
-
-          <article class="dashboard-panel">
+        <div class="dashboard-grid planner-only-grid">
+          <article class="dashboard-panel planner-panel-full">
             <div class="panel-header">
               <div>
                 <div class="panel-eyebrow">Study Planner</div>
@@ -322,16 +310,6 @@
             <div class="planner-status" id="plannerStatus" role="status" aria-live="polite">Checking shared Grok AI availability. You can still browse the planner in preview mode.</div>
             <div class="planner-error" id="plannerError" role="alert" style="display:none;"></div>
             <div class="study-plan" id="studyPlan"></div>
-          </article>
-
-          <article class="dashboard-panel">
-            <div class="panel-header">
-              <div>
-                <div class="panel-eyebrow">Weak Areas</div>
-                <h3>What needs another pass</h3>
-              </div>
-            </div>
-            <div class="weak-areas" id="weakAreas"></div>
           </article>
         </div>
       </section>
