@@ -31,7 +31,7 @@
     chatShell:'bot',
     auth:'auth'
   };
-  const DEFAULT_MAIN_STATE={topicStatus:{},savedReactions:[],quizHistory:[],studyPlans:[]};
+  const DEFAULT_MAIN_STATE={topicStatus:{},savedReactions:[],quizHistory:[],studyPlans:[],quizAssessment:null};
   const DEFAULT_BOT_STATE={activeId:'',sessions:[]};
   const DEFAULT_NOTIFICATION_STATE={items:[]};
   const PROFILE_GENDERS=['Male','Female','Non-binary','Prefer not to say'];
@@ -543,7 +543,7 @@
   function hasLocalData(snapshot=snapshotLocalState()){
     const main=snapshot.mainState||DEFAULT_MAIN_STATE;
     const bot=snapshot.botState||DEFAULT_BOT_STATE;
-    const hasMain=Object.keys(main.topicStatus||{}).length>0||(main.savedReactions||[]).length>0||(main.quizHistory||[]).length>0||(main.studyPlans||[]).length>0;
+    const hasMain=Object.keys(main.topicStatus||{}).length>0||(main.savedReactions||[]).length>0||(main.quizHistory||[]).length>0||(main.studyPlans||[]).length>0||Boolean(main.quizAssessment?.level||main.quizAssessment?.skippedAt);
     const hasBot=(bot.sessions||[]).some(session=>(session.messages||[]).some(message=>message.role==='user'));
     const hasTheme=Boolean(snapshot.theme&&snapshot.theme!=='lab-noir');
     return hasMain||hasBot||hasTheme;

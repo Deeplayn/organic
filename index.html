@@ -420,13 +420,41 @@
       <section class="content-section" id="quiz" aria-labelledby="quizTitle">
         <div class="section-tag">05</div>
         <div class="section-copy">
-          <h3 id="quizTitle">Adaptive quiz mode</h3>
-          <p>Build a custom quiz by topic and difficulty, then review your score immediately. Sign in to save quiz history to your account.</p>
+          <h3 id="quizTitle">Quiz partition</h3>
+          <p>Choose between a skippable first-time evaluation, course-linked progressive quizzes, monthly exams, and the final end-of-course challenge. Sign in to sync quiz history and learner placement to your account.</p>
         </div>
         <div class="quiz-section">
+          <div class="quiz-mode-grid" id="quizModeGrid" role="group" aria-label="Quiz types">
+            <button class="quiz-mode-card is-active" type="button" data-quiz-type="evaluation">
+              <span class="quiz-mode-kicker">Placement</span>
+              <strong>Evaluating Quiz</strong>
+              <span>First-ever skippable assessment that scales from beginner to scholar.</span>
+              <span class="quiz-mode-meta">20 questions</span>
+            </button>
+            <button class="quiz-mode-card" type="button" data-quiz-type="progressive">
+              <span class="quiz-mode-kicker">Course Check</span>
+              <strong>Progressive Quiz</strong>
+              <span>Course-linked quiz that checks understanding at the learner course level.</span>
+              <span class="quiz-mode-meta">7 to 10 questions</span>
+            </button>
+            <button class="quiz-mode-card" type="button" data-quiz-type="monthly">
+              <span class="quiz-mode-kicker">Monthly</span>
+              <strong>Per Month Exam</strong>
+              <span>20-question exam checkpoint built around the current course difficulty.</span>
+              <span class="quiz-mode-meta">20 questions</span>
+            </button>
+            <button class="quiz-mode-card" type="button" data-quiz-type="final">
+              <span class="quiz-mode-kicker">Capstone</span>
+              <strong>End of Course Exam</strong>
+              <span>30-question final with 20 course-level items and 10 higher-level stretch items.</span>
+              <span class="quiz-mode-meta">30 questions</span>
+            </button>
+          </div>
+          <div class="quiz-type-summary" id="quizTypeSummary">The evaluating quiz is the recommended first step because it can place the learner from beginner to scholar and can be skipped if needed.</div>
+          <div class="quiz-assessment-panel" id="quizAssessmentPanel" role="status" aria-live="polite"></div>
           <div class="toolbar quiz-setup">
             <label class="field">
-              <span>Category</span>
+              <span>Course Area</span>
               <select id="quizCategory">
                 <option value="all">All categories</option>
                 <option value="Functional Groups">Functional Groups</option>
@@ -444,17 +472,23 @@
                 <option value="Beginner">Beginner</option>
                 <option value="Intermediate">Intermediate</option>
                 <option value="Advanced">Advanced</option>
+                <option value="Scholar">Scholar</option>
               </select>
             </label>
             <label class="field">
-              <span>Length</span>
+              <span>Question Count</span>
               <select id="quizLength">
                 <option value="5">5 questions</option>
+                <option value="7">7 questions</option>
                 <option value="8" selected>8 questions</option>
+                <option value="9">9 questions</option>
                 <option value="10">10 questions</option>
+                <option value="20">20 questions</option>
+                <option value="30">30 questions</option>
               </select>
             </label>
             <button class="btn btn-primary" type="button" onclick="setupQuiz()">Build Quiz</button>
+            <button class="btn btn-secondary" id="skipEvaluationBtn" type="button" onclick="skipEvaluationQuiz()" style="display:none;">Skip First Evaluation</button>
           </div>
           <div class="quiz-header">
             <div class="quiz-question" id="qText">Build a quiz to begin.</div>

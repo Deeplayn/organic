@@ -1,7 +1,7 @@
 const LABELS={'lab-noir':'Lab Noir','cyberpunk':'Cyberpunk','academic-ink':'Academic Ink','deep-space':'Deep Space','copper-reactor':'Copper Reactor','forest-glass':'Forest Glass','lab-white':'Lab White','neon-day':'Neon Day','ivory':'Ivory Academic','clean-slate':'Clean Slate','paper-spectrum':'Paper Spectrum','solar-lab':'Solar Lab'};
 const STORE='oc-state-v2',THEME='oc-theme';
-const baseState={topicStatus:{},savedReactions:[],quizHistory:[],studyPlans:[]};
-const readState=()=>{try{const s=JSON.parse(localStorage.getItem(STORE)||'{}');return{...baseState,...s,topicStatus:s.topicStatus||{},savedReactions:s.savedReactions||[],quizHistory:s.quizHistory||[],studyPlans:s.studyPlans||[]};}catch{return{...baseState};}};
+const baseState={topicStatus:{},savedReactions:[],quizHistory:[],studyPlans:[],quizAssessment:null};
+const readState=()=>{try{const s=JSON.parse(localStorage.getItem(STORE)||'{}');return{...baseState,...s,topicStatus:s.topicStatus||{},savedReactions:s.savedReactions||[],quizHistory:s.quizHistory||[],studyPlans:s.studyPlans||[],quizAssessment:s.quizAssessment&&typeof s.quizAssessment==='object'&&!Array.isArray(s.quizAssessment)?s.quizAssessment:null};}catch{return{...baseState};}};
 let state=readState();
 const saveState=()=>{
   localStorage.setItem(STORE,JSON.stringify(state));
@@ -213,10 +213,47 @@ const bank=[
   {q:'A ring is aromatic when it is cyclic, planar, conjugated, and has:',opts:['4n pi electrons','2n pi electrons','4n + 2 pi electrons','Any even number of pi electrons'],ans:2,exp:'Huckel aromatic systems follow the 4n + 2 pi-electron rule.',cat:'Aromatic Chemistry',diff:'Beginner'},
   {q:'A broad IR absorption around 3200-3600 cm^-1 is often associated with:',opts:['C=O stretch','O-H stretch','C=C stretch','C-H bend'],ans:1,exp:'Alcohol and carboxylic acid O-H stretches often appear broad in this region.',cat:'Spectroscopy',diff:'Beginner'},
   {q:'In 1H NMR, a triplet usually suggests how many neighboring hydrogens?',opts:['0','1','2','3'],ans:2,exp:'The n+1 rule gives a triplet when a signal has two neighboring hydrogens.',cat:'Spectroscopy',diff:'Intermediate'},
-  {q:'The molecular ion peak in mass spectrometry is especially useful for estimating:',opts:['Boiling point','Molecular mass','Solubility','Acidity'],ans:1,exp:'The molecular ion gives a direct clue about the compound molecular mass.',cat:'Spectroscopy',diff:'Advanced'}
+  {q:'The molecular ion peak in mass spectrometry is especially useful for estimating:',opts:['Boiling point','Molecular mass','Solubility','Acidity'],ans:1,exp:'The molecular ion gives a direct clue about the compound molecular mass.',cat:'Spectroscopy',diff:'Advanced'},
+  {q:'Which conformer places a substituted cyclohexane group in the more stable position?',opts:['Axial','Equatorial','Planar','Boat'],ans:1,exp:'Bulky substituents prefer the equatorial position to reduce 1,3-diaxial strain.',cat:'Stereochemistry',diff:'Advanced'},
+  {q:'Which reagent set most directly converts an alkene into an anti diol?',opts:['Br2, H2O then NaOH','OsO4 then NaHSO3','O3 then Zn','H2, Pd/C'],ans:0,exp:'Halohydrin formation followed by ring closure and opening gives anti-dihydroxylation logic.',cat:'Reaction Mechanisms',diff:'Advanced'},
+  {q:'Which acyl derivative is least reactive toward nucleophilic acyl substitution?',opts:['Acid chloride','Anhydride','Ester','Amide'],ans:3,exp:'Amides are least reactive because resonance donation from nitrogen is strongest.',cat:'Functional Groups',diff:'Advanced'},
+  {q:'A para-disubstituted benzene usually gives how many aromatic proton signals in 1H NMR when the ring keeps symmetry?',opts:['1','2','4','6'],ans:1,exp:'A symmetric para pattern usually collapses into two aromatic proton environments.',cat:'Spectroscopy',diff:'Advanced'},
+  {q:'Which base is best for generating the kinetic enolate of an unsymmetrical ketone?',opts:['NaOH in water','LDA at low temperature','EtOH with heat','HCl in methanol'],ans:1,exp:'LDA at low temperature favors fast deprotonation and the kinetic enolate.',cat:'Reaction Mechanisms',diff:'Advanced'},
+  {q:'When assigning E/Z, the higher-priority groups on each alkene carbon are compared using which rule set?',opts:['Cahn-Ingold-Prelog priorities','Octet rule','Huckel rule','Markovnikov rule'],ans:0,exp:'E/Z assignments use the Cahn-Ingold-Prelog priority rules.',cat:'Stereochemistry',diff:'Advanced'},
+  {q:'Which sequence best converts a carboxylic acid into an amide?',opts:['SOCl2 then NH3','NaBH4 then NH3','PCC then H2O','H2/Pd then NH3'],ans:0,exp:'The acid is commonly activated to an acid chloride first, then treated with ammonia.',cat:'Reaction Mechanisms',diff:'Advanced'},
+  {q:'A nitrile hydrolyzes under strongly acidic conditions to give which final functional group?',opts:['Amine','Aldehyde','Carboxylic acid','Alcohol'],ans:2,exp:'Complete acidic hydrolysis of a nitrile gives a carboxylic acid.',cat:'Functional Groups',diff:'Advanced'},
+  {q:'Which aromatic substituent is strongly deactivating yet still ortho/para-directing because of lone-pair donation?',opts:['-NO2','-SO3H','-Cl','-CF3'],ans:2,exp:'Halogens deactivate inductively but direct ortho/para through resonance donation.',cat:'Aromatic Chemistry',diff:'Advanced'},
+  {q:'Which carbonyl compound usually shows the aldehydic proton near 9 to 10 ppm in 1H NMR?',opts:['Ketone','Aldehyde','Ester','Amide'],ans:1,exp:'Aldehydic protons commonly appear far downfield near 9 to 10 ppm.',cat:'Spectroscopy',diff:'Advanced'},
+  {q:'Which reagent adds across an alkyne to stop at the cis alkene stage?',opts:['Na, NH3(l)','H2, Lindlar catalyst','H2, Pd/C','Br2, CCl4'],ans:1,exp:'Lindlar catalyst gives partial hydrogenation to the cis alkene.',cat:'Reaction Mechanisms',diff:'Advanced'},
+  {q:'Which structure can be meso?',opts:['A molecule with one stereocenter','A molecule with two stereocenters and an internal mirror plane','A conformational isomer only','A planar carbocation'],ans:1,exp:'A meso compound contains stereocenters but remains achiral because of internal symmetry.',cat:'Stereochemistry',diff:'Advanced'},
+  {q:'Which signal pattern most strongly suggests an ethyl group in 1H NMR?',opts:['Singlet plus singlet','Doublet plus quartet','Triplet plus quartet','Broad singlet only'],ans:2,exp:'An ethyl group often shows a triplet for CH3 and a quartet for CH2.',cat:'Spectroscopy',diff:'Advanced'},
+  {q:'Which electrophilic aromatic substitution typically requires generation of the nitronium ion?',opts:['Sulfonation','Nitration','Friedel-Crafts alkylation','Bromination only'],ans:1,exp:'Nitration proceeds through the nitronium ion, NO2+.',cat:'Aromatic Chemistry',diff:'Advanced'},
+  {q:'Which product is favored when a tertiary alcohol is dehydrated with strong acid and heat?',opts:['Substitution only','The more substituted alkene','A primary alkene only','No reaction'],ans:1,exp:'Acid-catalyzed dehydration of tertiary alcohols usually follows Zaitsev alkene formation.',cat:'Reaction Mechanisms',diff:'Advanced'},
+  {q:'Which statement best explains why pyridine is aromatic but its lone pair is basic?',opts:['Its lone pair is part of the aromatic sextet','Its lone pair sits in an sp2 orbital outside the pi sextet','Its nitrogen is tetrahedral','It has 4n pi electrons'],ans:1,exp:'The lone pair in pyridine sits outside the aromatic pi sextet, so aromaticity is preserved and the pair remains available for basicity.',cat:'Aromatic Chemistry',diff:'Scholar'},
+  {q:'Which enolate is favored under thermodynamic control?',opts:['The less substituted enolate formed fastest','The more substituted, more stable enolate','The enolate with fewer alkyl groups','The one formed only at -78 C'],ans:1,exp:'Thermodynamic control favors the more substituted and more stable enolate.',cat:'Reaction Mechanisms',diff:'Scholar'},
+  {q:'A compound shows an IR carbonyl near 1715 cm^-1 and a 1H NMR singlet integrating to 9 H near 1.2 ppm. Which fragment is most consistent?',opts:['tert-Butyl ketone','Primary alcohol','Terminal alkyne','Aldehyde'],ans:0,exp:'A tert-butyl group often gives a 9-proton singlet, and the carbonyl signal supports a ketone-containing fragment.',cat:'Spectroscopy',diff:'Scholar'},
+  {q:'Which step is rate-determining in a classic electrophilic aromatic substitution?',opts:['Deprotonation to restore aromaticity','Formation of the sigma complex','Diffusion of solvent','Product isolation'],ans:1,exp:'The slow step is usually formation of the non-aromatic sigma complex.',cat:'Aromatic Chemistry',diff:'Scholar'},
+  {q:'Which epoxide-opening condition gives attack at the more substituted carbon?',opts:['Strong base only','Neutral water at room temperature','Acidic conditions','No catalyst'],ans:2,exp:'Under acidic conditions, the nucleophile attacks the more substituted carbon of the protonated epoxide.',cat:'Reaction Mechanisms',diff:'Scholar'},
+  {q:'Which stereochemical relationship describes (R,S)-2,3-dibromobutane and (S,R)-2,3-dibromobutane?',opts:['Enantiomers','Diastereomers','Identical meso representations','Constitutional isomers'],ans:2,exp:'Those two descriptions can represent the same meso compound when the molecule has an internal plane of symmetry.',cat:'Stereochemistry',diff:'Scholar'},
+  {q:'Which sequence best distinguishes an aldehyde from a ketone using mild oxidation logic?',opts:['Treat both with PCC','Use Tollens reagent','Hydrogenate both with H2','Heat both with NaCl'],ans:1,exp:'Tollens reagent oxidizes aldehydes readily while ketones usually do not respond.',cat:'Functional Groups',diff:'Scholar'},
+  {q:'Aromatic substitution on anisole is faster than on benzene mainly because methoxy is:',opts:['Strongly electron-withdrawing by resonance','Electron-donating by resonance','Sterically tiny only','Unable to stabilize intermediates'],ans:1,exp:'Methoxy donates by resonance, activating the ring toward electrophilic substitution.',cat:'Aromatic Chemistry',diff:'Scholar'},
+  {q:'Which retrosynthetic disconnection is most strategic for building a beta-hydroxy carbonyl product?',opts:['Break the C-C bond formed in the aldol step','Break the O-H bond first','Remove the carbonyl oxygen entirely','Convert it directly into an alkane'],ans:0,exp:'Aldol products are often analyzed by disconnecting the new carbon-carbon bond formed during enolate addition.',cat:'Reaction Mechanisms',diff:'Scholar'},
+  {q:'Why is an amide carbonyl less reactive toward nucleophilic addition than an aldehyde carbonyl?',opts:['Amides are always protonated','Nitrogen donates electron density by resonance','Amides lack a pi bond','Aldehydes are aromatic'],ans:1,exp:'Resonance donation from nitrogen reduces electrophilicity at the amide carbonyl carbon.',cat:'Functional Groups',diff:'Scholar'},
+  {q:'Which NMR pattern most strongly suggests a para-disubstituted aromatic ring with two equivalent proton sets?',opts:['A complex multiplet spread over six peaks','Two doublets integrating to two protons each','A single 5H multiplet','One broad singlet integrating to four protons'],ans:1,exp:'A symmetric para-disubstituted ring often gives two aromatic doublets, each integrating to two protons.',cat:'Spectroscopy',diff:'Scholar'},
+  {q:'Which intermediate best explains allylic bromination with NBS under radical conditions?',opts:['A carbocation','A benzyne','An allylic radical','An enolate'],ans:2,exp:'NBS allylic bromination proceeds through a resonance-stabilized allylic radical.',cat:'Reaction Mechanisms',diff:'Scholar'}
 ];
 
-let activeTopic=topics[0].id,currentReaction='sn2',quiz=[],qi=0,score=0,answered=false,quizMeta={category:'All categories',difficulty:'Mixed difficulty'},catResults={};
+const QUIZ_LEVELS=['Beginner','Intermediate','Advanced','Scholar'];
+const COURSE_LEVELS=['Beginner','Intermediate','Advanced'];
+const QUIZ_MODE_CONFIG={
+  evaluation:{label:'Evaluating Quiz',historyLabel:'Evaluating quiz',defaultLength:20},
+  progressive:{label:'Progressive Quiz',historyLabel:'Progressive quiz'},
+  monthly:{label:'Per Month Exam',historyLabel:'Per month exam',defaultLength:20},
+  final:{label:'End of Course Exam',historyLabel:'End of course exam',defaultLength:30},
+  practice:{label:'Practice Quiz',historyLabel:'Practice quiz'}
+};
+
+let activeTopic=topics[0].id,currentReaction='sn2',quiz=[],qi=0,score=0,answered=false,quizMode='evaluation',quizMeta={type:'Evaluating Quiz',category:'All categories',difficulty:'Placement ladder'},catResults={},difficultyResults={},questionResults=[];
 const topicStatus=id=>state.topicStatus[id]||'new';
 const statusLabel=s=>s==='confident'?'Confident':s==='review'?'Needs review':'Unmarked';
 const curriculumData=window.OrganoCurriculumData||{countries:[],entries:[]};
@@ -258,6 +295,34 @@ function getCurriculumPriorityTopics(entry=getAssignedCurriculumEntry()){
   if(!entry)return[];
   return[...new Set((entry.topics||[]).map(curriculumTopicToCategory).filter(Boolean))];
 }
+
+function courseDifficultyFromLearnerLevel(level){
+  if(level==='Scholar')return'Advanced';
+  return COURSE_LEVELS.includes(level)?level:'Beginner';
+}
+
+function normalizeQuizAssessment(value){
+  const source=value&&typeof value==='object'&&!Array.isArray(value)?value:{};
+  const level=QUIZ_LEVELS.includes(source.level)?source.level:'';
+  const recommendedCourseDifficulty=COURSE_LEVELS.includes(source.recommendedCourseDifficulty)?source.recommendedCourseDifficulty:(level?courseDifficultyFromLearnerLevel(level):'');
+  const percent=Math.max(0,Math.min(100,Math.round(Number(source.percent)||0)));
+  const score=Math.max(0,Math.round(Number(source.score)||0));
+  const total=Math.max(0,Math.round(Number(source.total)||0));
+  const createdAt=source.createdAt?String(source.createdAt):'';
+  const skippedAt=source.skippedAt?String(source.skippedAt):'';
+  if(!level&&!skippedAt)return null;
+  return{
+    level,
+    recommendedCourseDifficulty,
+    percent,
+    score,
+    total,
+    createdAt,
+    skippedAt
+  };
+}
+
+state.quizAssessment=normalizeQuizAssessment(state.quizAssessment);
 
 function getCurriculumTopicLabels(entry=getAssignedCurriculumEntry()){
   return entry?(entry.topics||[]).map(curriculumTopicTitle).filter(Boolean):[];
@@ -351,7 +416,7 @@ function quizCategoryExists(category){
 function buildPlanQuizPreset(category,length=5,difficulty='all'){
   return{
     category:quizCategoryExists(category)?category:'all',
-    difficulty:['all','Beginner','Intermediate','Advanced'].includes(difficulty)?difficulty:'all',
+    difficulty:['all','Beginner','Intermediate','Advanced','Scholar'].includes(difficulty)?difficulty:'all',
     length:[5,8,10].includes(length)?length:5
   };
 }
@@ -550,6 +615,7 @@ function hydratePlannerInputs(){
   else document.getElementById('completedQuizzes').value=String(state.quizHistory.length);
   if(cachedInputs?.completedMajorExams!==undefined)document.getElementById('completedMajorExams').value=String(cachedInputs.completedMajorExams);
   if(cachedInputs?.startingLevel)document.getElementById('startingLevel').value=cachedInputs.startingLevel;
+  else if(COURSE_LEVELS.includes(state.quizAssessment?.recommendedCourseDifficulty))document.getElementById('startingLevel').value=state.quizAssessment.recommendedCourseDifficulty;
   else if(curriculumEntry)document.getElementById('startingLevel').value=curriculumLevelStartingLevel(curriculumEntry.level);
   syncPlannerSetupUI();
   renderPlannerCurriculumSummary();
@@ -580,9 +646,11 @@ function categoryFromText(text,fallback='all'){
 
 function startPlanQuiz(category='all',length=5,difficulty='all'){
   const preset=buildPlanQuizPreset(category,length,difficulty);
+  setQuizMode('practice',{silent:true});
   document.getElementById('quizCategory').value=preset.category;
   document.getElementById('quizDifficulty').value=preset.difficulty;
   document.getElementById('quizLength').value=String(preset.length);
+  syncQuizBuilderUI();
   setupQuiz();
   document.getElementById('quiz').scrollIntoView({behavior:'smooth',block:'start'});
   setTimeout(()=>document.querySelector('#qOptions .quiz-opt')?.focus(),120);
@@ -1041,6 +1109,177 @@ function showRxn(id){
   document.getElementById('saveReactionBtn').textContent=state.savedReactions.includes(id)?'Remove from saved reactions':'Save reaction for review';
 }
 
+function learnerLevelRank(level){
+  return Math.max(0,QUIZ_LEVELS.indexOf(level));
+}
+
+function getCourseDifficultyContext(){
+  const plannerLevel=document.getElementById('startingLevel')?.value;
+  if(COURSE_LEVELS.includes(plannerLevel))return{level:plannerLevel,source:'planner setup'};
+  if(COURSE_LEVELS.includes(state.quizAssessment?.recommendedCourseDifficulty))return{level:state.quizAssessment.recommendedCourseDifficulty,source:'evaluation result'};
+  const curriculumEntry=getAssignedCurriculumEntry();
+  if(curriculumEntry)return{level:curriculumLevelStartingLevel(curriculumEntry.level),source:'curriculum track'};
+  return{level:'Beginner',source:'default course setup'};
+}
+
+function getLearnerLevelContext(){
+  if(QUIZ_LEVELS.includes(state.quizAssessment?.level))return{level:state.quizAssessment.level,source:'evaluation result'};
+  const course=getCourseDifficultyContext();
+  return{level:course.level,source:course.source};
+}
+
+function resolveProgressiveQuizLength(level){
+  return Math.max(7,Math.min(10,7+learnerLevelRank(level)));
+}
+
+function difficultyFallbackOrder(level){
+  if(level==='Advanced')return['Advanced','Scholar','Intermediate','Beginner'];
+  if(level==='Intermediate')return['Intermediate','Advanced','Beginner','Scholar'];
+  return['Beginner','Intermediate','Advanced','Scholar'];
+}
+
+function higherDifficultyOrder(level){
+  if(level==='Advanced')return['Scholar'];
+  if(level==='Intermediate')return['Advanced','Scholar'];
+  return['Intermediate','Advanced','Scholar'];
+}
+
+function getEffectiveQuizCategory(mode){
+  const selected=document.getElementById('quizCategory')?.value||'all';
+  if(selected!=='all')return selected;
+  if(['progressive','monthly','final'].includes(mode)){
+    const focus=document.getElementById('studyFocus')?.value||'all';
+    if(quizCategoryExists(focus))return focus;
+  }
+  return'all';
+}
+
+function sampleQuestions({count,category='all',difficulties=[],exclude=[]}){
+  const excludeSet=new Set((exclude||[]).map(item=>item.q));
+  const result=[];
+  const seen=new Set();
+  const passes=[
+    {category,difficulties},
+    ...(category!=='all'?[{category:'all',difficulties}]:[]),
+    {category,difficulties:[]},
+    ...(category!=='all'?[{category:'all',difficulties:[]}]:[])
+  ];
+  passes.forEach(pass=>{
+    if(result.length>=count)return;
+    const pool=shuffleList(bank.filter(item=>{
+      if(excludeSet.has(item.q)||seen.has(item.q))return false;
+      if(pass.category!=='all'&&item.cat!==pass.category)return false;
+      if(Array.isArray(pass.difficulties)&&pass.difficulties.length&&!pass.difficulties.includes(item.diff))return false;
+      return true;
+    }));
+    pool.forEach(item=>{
+      if(result.length>=count||seen.has(item.q))return;
+      seen.add(item.q);
+      result.push(item);
+    });
+  });
+  return result.slice(0,count);
+}
+
+function evaluateLearnerLevel(percent,results){
+  const scholar=results.Scholar;
+  const advanced=results.Advanced;
+  const scholarRate=scholar?.total?Math.round(scholar.correct/scholar.total*100):0;
+  const advancedRate=advanced?.total?Math.round(advanced.correct/advanced.total*100):0;
+  if(percent>=82&&scholarRate>=40)return'Scholar';
+  if(percent>=62&&advancedRate>=40)return'Advanced';
+  if(percent>=42)return'Intermediate';
+  return'Beginner';
+}
+
+function renderQuizAssessmentPanel(){
+  const panel=document.getElementById('quizAssessmentPanel');
+  if(!panel)return;
+  const assessment=normalizeQuizAssessment(state.quizAssessment);
+  if(assessment?.level){
+    panel.innerHTML=`<strong>Current learner level: ${esc(assessment.level)}</strong><div>The evaluation quiz placed this learner at ${esc(assessment.level)} and recommends the ${esc(assessment.recommendedCourseDifficulty||courseDifficultyFromLearnerLevel(assessment.level))} course baseline for progressive quizzes and exams.</div><div class="quiz-assessment-meta"><span class="quiz-assessment-chip">${esc(assessment.percent)}% placement score</span><span class="quiz-assessment-chip">${esc(assessment.score)}/${esc(assessment.total)} correct</span><span class="quiz-assessment-chip">${esc(prettyDate(assessment.createdAt||new Date().toISOString()))}</span></div>`;
+    return;
+  }
+  if(assessment?.skippedAt){
+    panel.innerHTML=`<strong>Evaluation quiz skipped</strong><div>The first-time assessment was skipped, so course quizzes currently follow the planner or curriculum course level until the evaluation quiz is completed.</div><div class="quiz-assessment-meta"><span class="quiz-assessment-chip">Skipped ${esc(prettyDate(assessment.skippedAt))}</span></div>`;
+    return;
+  }
+  panel.innerHTML='<strong>No learner placement yet</strong><div>Take the skippable evaluating quiz to place the learner from beginner to scholar, or skip it and begin with course-based quizzes immediately.</div>';
+}
+
+function buildQuizModeSummary(mode){
+  const course=getCourseDifficultyContext();
+  const learner=getLearnerLevelContext();
+  const category=getEffectiveQuizCategory(mode);
+  if(mode==='evaluation')return'The evaluating quiz scales in four 5-question stages from beginner to scholar and can be skipped the first time if you want to begin directly with the course flow.';
+  if(mode==='progressive')return`The progressive quiz is linked to ${category==='all'?'the current course mix':category}, uses the ${course.level} course level from your ${course.source}, and expands to ${resolveProgressiveQuizLength(learner.level)} questions based on the learner level.`;
+  if(mode==='monthly')return`The monthly exam gives a 20-question checkpoint at the ${course.level} course level from your ${course.source}${category==='all'?' across the full course mix':` with ${category} emphasized`}.`;
+  if(mode==='final')return`The end-of-course exam runs 30 questions: 20 at the ${course.level} course level plus 10 higher-level stretch questions that push past the current course difficulty.`;
+  return'Build a short practice quiz from the planner preset or current filters.';
+}
+
+function syncQuizBuilderUI(){
+  const difficulty=document.getElementById('quizDifficulty');
+  const length=document.getElementById('quizLength');
+  const skip=document.getElementById('skipEvaluationBtn');
+  const course=getCourseDifficultyContext();
+  const learner=getLearnerLevelContext();
+  const lockedMode=quizMode!=='practice';
+  if(quizMode==='evaluation'){
+    difficulty.value='all';
+    length.value='20';
+  }else if(quizMode==='progressive'){
+    difficulty.value=course.level;
+    length.value=String(resolveProgressiveQuizLength(learner.level));
+  }else if(quizMode==='monthly'){
+    difficulty.value=course.level;
+    length.value='20';
+  }else if(quizMode==='final'){
+    difficulty.value=course.level;
+    length.value='30';
+  }
+  difficulty.disabled=lockedMode;
+  length.disabled=lockedMode;
+  difficulty.closest('.field')?.classList.toggle('is-disabled',lockedMode);
+  length.closest('.field')?.classList.toggle('is-disabled',lockedMode);
+  document.querySelectorAll('[data-quiz-type]').forEach(button=>button.classList.toggle('is-active',button.dataset.quizType===quizMode));
+  document.getElementById('quizTypeSummary').textContent=buildQuizModeSummary(quizMode);
+  skip.style.display=quizMode==='evaluation'&&!state.quizAssessment?.level?'inline-flex':'none';
+  renderQuizAssessmentPanel();
+}
+
+function setQuizMode(mode='progressive',options={}){
+  quizMode=QUIZ_MODE_CONFIG[mode]?mode:'progressive';
+  syncQuizBuilderUI();
+  if(options.silent)return;
+  document.getElementById('quizMeta').textContent=QUIZ_MODE_CONFIG[quizMode].label;
+}
+
+function initializeQuizModes(){
+  document.querySelectorAll('[data-quiz-type]').forEach(button=>{
+    button.addEventListener('click',()=>setQuizMode(button.dataset.quizType||'progressive'));
+  });
+  document.getElementById('quizCategory').addEventListener('change',syncQuizBuilderUI);
+  document.getElementById('startingLevel')?.addEventListener('change',syncQuizBuilderUI);
+  document.getElementById('studyFocus')?.addEventListener('change',syncQuizBuilderUI);
+  setQuizMode(state.quizAssessment?.level||state.quizAssessment?.skippedAt?'progressive':'evaluation',{silent:true});
+}
+
+function skipEvaluationQuiz(){
+  state.quizAssessment=normalizeQuizAssessment({...state.quizAssessment,skippedAt:new Date().toISOString()});
+  saveState();
+  renderQuizAssessmentPanel();
+  setQuizMode('progressive');
+  window.OrganoApp?.notify?.({
+    title:'Evaluation skipped',
+    body:'The learner placement quiz was skipped for now. Progressive quizzes will use the current course setup instead.',
+    kind:'info',
+    actionHref:'#quiz',
+    actionLabel:'Open quiz partition',
+    dedupeKey:'quiz-evaluation-skipped'
+  });
+}
+
 function toggleSavedReaction(){
   if(!canUseAccountFeature('Sign in to save reaction review stacks.'))return;
   const wasSaved=state.savedReactions.includes(currentReaction);
@@ -1059,12 +1298,62 @@ function toggleSavedReaction(){
 }
 
 function setupQuiz(){
-  const cat=document.getElementById('quizCategory').value,diff=document.getElementById('quizDifficulty').value,len=Number(document.getElementById('quizLength').value);
-  const pool=bank.filter(q=>(cat==='all'||q.cat===cat)&&(diff==='all'||q.diff===diff));
-  quiz=[...(pool.length?pool:bank)].sort(()=>Math.random()-.5).slice(0,Math.min(len,(pool.length?pool:bank).length));
-  qi=0;score=0;answered=false;catResults={};
-  quizMeta={category:cat==='all'?'All categories':cat,difficulty:diff==='all'?'Mixed difficulty':diff};
-  document.getElementById('quizMeta').textContent=`${quizMeta.category} - ${quizMeta.difficulty}`;
+  const selectedCategory=document.getElementById('quizCategory').value;
+  const selectedDifficulty=document.getElementById('quizDifficulty').value;
+  const selectedLength=Number(document.getElementById('quizLength').value);
+  const effectiveCategory=getEffectiveQuizCategory(quizMode);
+  const course=getCourseDifficultyContext();
+  const learner=getLearnerLevelContext();
+  const categoryLabel=selectedCategory==='all'?(effectiveCategory==='all'?'All categories':`${effectiveCategory} focus`):selectedCategory;
+  if(quizMode==='evaluation'){
+    quiz=[
+      ...sampleQuestions({count:5,category:'all',difficulties:['Beginner']}),
+      ...sampleQuestions({count:5,category:'all',difficulties:['Intermediate']}),
+      ...sampleQuestions({count:5,category:'all',difficulties:['Advanced']}),
+      ...sampleQuestions({count:5,category:'all',difficulties:['Scholar']})
+    ];
+    quizMeta={
+      mode:quizMode,
+      type:QUIZ_MODE_CONFIG[quizMode].label,
+      category:'All categories',
+      difficulty:'Beginner to Scholar',
+      blockLabels:[
+        {start:1,end:5,label:'Beginner ladder'},
+        {start:6,end:10,label:'Intermediate ladder'},
+        {start:11,end:15,label:'Advanced ladder'},
+        {start:16,end:20,label:'Scholar ladder'}
+      ]
+    };
+  }else if(quizMode==='progressive'){
+    const length=resolveProgressiveQuizLength(learner.level);
+    quiz=shuffleList(sampleQuestions({count:length,category:effectiveCategory,difficulties:difficultyFallbackOrder(course.level)}));
+    quizMeta={mode:quizMode,type:QUIZ_MODE_CONFIG[quizMode].label,category:categoryLabel,difficulty:course.level,length};
+  }else if(quizMode==='monthly'){
+    quiz=shuffleList(sampleQuestions({count:20,category:effectiveCategory,difficulties:difficultyFallbackOrder(course.level)}));
+    quizMeta={mode:quizMode,type:QUIZ_MODE_CONFIG[quizMode].label,category:categoryLabel,difficulty:course.level,length:20};
+  }else if(quizMode==='final'){
+    const courseBlock=shuffleList(sampleQuestions({count:20,category:effectiveCategory,difficulties:difficultyFallbackOrder(course.level)}));
+    const challengeBlock=shuffleList(sampleQuestions({count:10,category:effectiveCategory,difficulties:higherDifficultyOrder(course.level),exclude:courseBlock}));
+    quiz=[...courseBlock,...challengeBlock];
+    quizMeta={
+      mode:quizMode,
+      type:QUIZ_MODE_CONFIG[quizMode].label,
+      category:categoryLabel,
+      difficulty:course.level,
+      length:30,
+      challengeStartsAt:21,
+      blockLabels:[
+        {start:1,end:20,label:'Course-level block'},
+        {start:21,end:30,label:'Higher-level stretch'}
+      ]
+    };
+  }else{
+    const pool=bank.filter(q=>(selectedCategory==='all'||q.cat===selectedCategory)&&(selectedDifficulty==='all'||q.diff===selectedDifficulty));
+    quiz=[...(pool.length?pool:bank)].sort(()=>Math.random()-.5).slice(0,Math.min(selectedLength,(pool.length?pool:bank).length));
+    quizMeta={mode:quizMode,type:QUIZ_MODE_CONFIG[quizMode].label,category:selectedCategory==='all'?'All categories':selectedCategory,difficulty:selectedDifficulty==='all'?'Mixed difficulty':selectedDifficulty,length:selectedLength};
+  }
+  qi=0;score=0;answered=false;catResults={};difficultyResults={};questionResults=[];
+  document.getElementById('quizMeta').textContent=`${quizMeta.type} - ${quizMeta.category} - ${quizMeta.difficulty}`;
   loadQ();
 }
 
@@ -1073,6 +1362,8 @@ function loadQ(){
   if(!q){document.getElementById('qText').textContent='Build a quiz to begin.';document.getElementById('qNum').textContent='0/0';opts.innerHTML='';fb.className='quiz-feedback';document.getElementById('nextBtn').style.display='none';document.getElementById('restartBtn').style.display='none';document.getElementById('scoreDisplay').style.display='none';return;}
   document.getElementById('qText').textContent=q.q;
   document.getElementById('qNum').textContent=`${qi+1}/${quiz.length}`;
+  const activeBlock=Array.isArray(quizMeta.blockLabels)?quizMeta.blockLabels.find(block=>qi+1>=block.start&&qi+1<=block.end):null;
+  document.getElementById('quizMeta').textContent=activeBlock?`${quizMeta.type} - ${activeBlock.label}`:`${quizMeta.type} - ${quizMeta.category} - ${quizMeta.difficulty}`;
   opts.innerHTML='';
   q.opts.forEach((opt,i)=>{const b=document.createElement('button');b.className='quiz-opt';b.textContent=opt;b.onclick=()=>checkA(i);opts.appendChild(b);});
   fb.className='quiz-feedback';fb.textContent='';document.getElementById('nextBtn').style.display='none';document.getElementById('restartBtn').style.display='none';document.getElementById('scoreDisplay').style.display='none';answered=false;
@@ -1083,8 +1374,12 @@ function checkA(choice){
   const q=quiz[qi],opts=document.querySelectorAll('.quiz-opt'),fb=document.getElementById('qFeedback');
   opts.forEach(b=>b.classList.add('disabled'));
   if(!catResults[q.cat])catResults[q.cat]={correct:0,total:0};
+  if(!difficultyResults[q.diff])difficultyResults[q.diff]={correct:0,total:0};
   catResults[q.cat].total+=1;
-  if(choice===q.ans){score+=1;catResults[q.cat].correct+=1;opts[choice].classList.add('correct');fb.className='quiz-feedback correct-fb show';fb.textContent=`Correct. ${q.exp}`;}
+  difficultyResults[q.diff].total+=1;
+  const correct=choice===q.ans;
+  questionResults.push({index:qi,correct,difficulty:q.diff,category:q.cat});
+  if(correct){score+=1;catResults[q.cat].correct+=1;difficultyResults[q.diff].correct+=1;opts[choice].classList.add('correct');fb.className='quiz-feedback correct-fb show';fb.textContent=`Correct. ${q.exp}`;}
   else{opts[choice].classList.add('wrong');opts[q.ans].classList.add('correct');fb.className='quiz-feedback wrong-fb show';fb.textContent=`Not quite. ${q.exp}`;}
   if(qi<quiz.length-1)document.getElementById('nextBtn').style.display='inline-block';else showScore();
 }
@@ -1092,35 +1387,77 @@ function checkA(choice){
 function nextQ(){qi+=1;loadQ();}
 
 function restartQuiz(){
-  if(!quiz.length){setupQuiz();return;}
-  quiz=[...quiz].sort(()=>Math.random()-.5);qi=0;score=0;answered=false;catResults={};loadQ();
+  setupQuiz();
 }
 
 function showScore(){
   const pct=Math.round(score/quiz.length*100);
-  const msg=[[0,50,'Build back up from the topic explorer and try again.'],[50,75,'Good base. Tighten the weaker categories next.'],[75,90,'Strong understanding. One more focused pass could push this higher.'],[90,101,'Excellent work. The patterns are sticking.']].find(([a,b])=>pct>=a&&pct<b)?.[2]||'';
+  const genericMsg=[[0,50,'Build back up from the topic explorer and try again.'],[50,75,'Good base. Tighten the weaker categories next.'],[75,90,'Strong understanding. One more focused pass could push this higher.'],[90,101,'Excellent work. The patterns are sticking.']].find(([a,b])=>pct>=a&&pct<b)?.[2]||'';
+  let msg=genericMsg;
+  let evaluatedLevel='';
+  if(quizMeta.mode==='evaluation'){
+    evaluatedLevel=evaluateLearnerLevel(pct,difficultyResults);
+    msg=`Placement complete. This learner currently sits at the ${evaluatedLevel} level.`;
+  }else if(quizMeta.mode==='progressive'){
+    msg=`Course checkpoint complete. ${genericMsg}`;
+  }else if(quizMeta.mode==='monthly'){
+    msg=`Monthly exam complete. ${genericMsg}`;
+  }else if(quizMeta.mode==='final'){
+    const challengeStart=(quizMeta.challengeStartsAt||quiz.length+1)-1;
+    const challengeCorrect=questionResults.slice(challengeStart).filter(item=>item.correct).length;
+    msg=`End-of-course exam complete. You solved ${challengeCorrect}/${Math.max(0,quiz.length-challengeStart)} of the higher-level stretch questions.`;
+  }
   document.getElementById('scoreDisplay').style.display='grid';
   document.getElementById('scoreText').textContent=`${score}/${quiz.length} - ${pct}%`;
   document.getElementById('scoreMsg').textContent=msg;
-  document.getElementById('scoreBreakdown').innerHTML=Object.entries(catResults).map(([k,v])=>`<div class="score-chip"><strong>${esc(k)}</strong>${v.correct}/${v.total} correct - ${Math.round(v.correct/v.total*100)}%</div>`).join('');
+  const scoreChips=[];
+  if(quizMeta.mode==='final'&&quizMeta.challengeStartsAt){
+    const challengeStart=quizMeta.challengeStartsAt-1;
+    const courseCorrect=questionResults.slice(0,challengeStart).filter(item=>item.correct).length;
+    const challengeCorrect=questionResults.slice(challengeStart).filter(item=>item.correct).length;
+    scoreChips.push(`<div class="score-chip"><strong>Course-level block</strong>${courseCorrect}/${challengeStart} correct</div>`);
+    scoreChips.push(`<div class="score-chip"><strong>Higher-level stretch</strong>${challengeCorrect}/${quiz.length-challengeStart} correct</div>`);
+  }
+  if(quizMeta.mode==='evaluation'){
+    scoreChips.push(...Object.entries(difficultyResults).map(([k,v])=>`<div class="score-chip"><strong>${esc(k)}</strong>${v.correct}/${v.total} correct - ${Math.round(v.correct/v.total*100)}%</div>`));
+  }
+  scoreChips.push(...Object.entries(catResults).map(([k,v])=>`<div class="score-chip"><strong>${esc(k)}</strong>${v.correct}/${v.total} correct - ${Math.round(v.correct/v.total*100)}%</div>`));
+  document.getElementById('scoreBreakdown').innerHTML=scoreChips.join('');
   document.getElementById('restartBtn').style.display='inline-block';
   document.getElementById('nextBtn').style.display='none';
+  if(quizMeta.mode==='evaluation'){
+    state.quizAssessment=normalizeQuizAssessment({
+      level:evaluatedLevel,
+      recommendedCourseDifficulty:courseDifficultyFromLearnerLevel(evaluatedLevel),
+      percent:pct,
+      score,
+      total:quiz.length,
+      createdAt:new Date().toISOString()
+    });
+    const startingLevel=document.getElementById('startingLevel');
+    if(startingLevel&&COURSE_LEVELS.includes(state.quizAssessment.recommendedCourseDifficulty)){
+      startingLevel.value=state.quizAssessment.recommendedCourseDifficulty;
+      syncPlannerSetupUI();
+    }
+    saveState();
+    renderQuizAssessmentPanel();
+  }
   if(!window.OrganoApp?.isAuthenticated?.()){
-    document.getElementById('scoreMsg').textContent=`${msg} Sign in to save quiz history to your account.`;
+    document.getElementById('scoreMsg').textContent=`${msg} Sign in to save quiz history to your account${quizMeta.mode==='evaluation'?' and sync this learner placement':''}.`;
     renderQuizHistory();
     renderStats();
     renderWeakAreas();
     renderMission();
     window.OrganoApp?.notify?.({
       title:`Quiz complete: ${pct}%`,
-      body:`Preview mode finished a ${quizMeta.category} quiz. Sign in to keep quiz history and progress.`,
+      body:`Preview mode finished a ${quizMeta.type.toLowerCase()}. Sign in to keep quiz history and progress synced.`,
       kind:pct>=75?'success':'info',
       actionHref:'auth.html',
       actionLabel:'Sign in to save'
     });
     return;
   }
-  state.quizHistory.unshift({createdAt:new Date().toISOString(),score,total:quiz.length,percent:pct,category:quizMeta.category,difficulty:quizMeta.difficulty,breakdown:catResults});
+  state.quizHistory.unshift({createdAt:new Date().toISOString(),score,total:quiz.length,percent:pct,category:quizMeta.category,difficulty:quizMeta.difficulty,type:quizMeta.type,mode:quizMeta.mode,breakdown:catResults,evaluatedLevel});
   state.quizHistory=state.quizHistory.slice(0,8);
   saveState();
   const completedQuizzesInput=document.getElementById('completedQuizzes');
@@ -1128,7 +1465,7 @@ function showScore(){
   renderQuizHistory();renderStats();renderWeakAreas();renderMission();
   window.OrganoApp?.notify?.({
     title:`Quiz saved: ${pct}%`,
-    body:`${quizMeta.category} at ${quizMeta.difficulty} is now part of your saved quiz history.`,
+    body:`${quizMeta.type} is now part of your saved quiz history.`,
     kind:pct>=75?'success':'info',
     actionHref:'#quiz',
     actionLabel:'Review quiz history'
@@ -1137,7 +1474,7 @@ function showScore(){
 
 function renderQuizHistory(){
   const locked=!window.OrganoApp?.isAuthenticated?.();
-  document.getElementById('quizHistory').innerHTML=state.quizHistory.map(s=>`<div class="history-item"><strong>${s.percent}% - ${esc(s.category)}</strong>${esc(s.difficulty)} - ${s.score}/${s.total} correct - ${prettyDate(s.createdAt)}</div>`).join('')||(locked?'<div class="history-item"><strong>Sign in to save quiz sessions</strong>Your completed quizzes still work in preview mode, but history is only stored for signed-in users.</div>':'<div class="history-item"><strong>No saved sessions yet</strong>Your completed quizzes will appear here.</div>');
+  document.getElementById('quizHistory').innerHTML=state.quizHistory.map(s=>`<div class="history-item"><strong>${s.percent}% - ${esc(s.type||'Quiz')}</strong>${esc(s.category)} - ${esc(s.difficulty)} - ${s.score}/${s.total} correct${s.evaluatedLevel?` - placed at ${esc(s.evaluatedLevel)}`:''} - ${prettyDate(s.createdAt)}</div>`).join('')||(locked?'<div class="history-item"><strong>Sign in to save quiz sessions</strong>Your completed quizzes still work in preview mode, but history is only stored for signed-in users.</div>':'<div class="history-item"><strong>No saved sessions yet</strong>Your completed quizzes will appear here.</div>');
 }
 
 function renderReference(){
@@ -1155,6 +1492,7 @@ document.getElementById('referenceFamily').addEventListener('change',renderRefer
 document.getElementById('referenceDifficulty').addEventListener('change',renderReference);
 window.addEventListener('organo:hydrate-main-state',()=>{
   state=readState();
+  state.quizAssessment=normalizeQuizAssessment(state.quizAssessment);
   hydratePlannerInputs();
   renderStats();
   renderStudyPlan();
@@ -1166,10 +1504,13 @@ window.addEventListener('organo:hydrate-main-state',()=>{
   showRxn(currentReaction);
   renderMission();
   renderQuizHistory();
+  renderQuizAssessmentPanel();
+  syncQuizBuilderUI();
   renderReference();
 });
 window.addEventListener('organo:auth-changed',()=>{
   state=readState();
+  state.quizAssessment=normalizeQuizAssessment(state.quizAssessment);
   hydratePlannerInputs();
   renderStats();
   renderStudyPlan();
@@ -1178,11 +1519,14 @@ window.addEventListener('organo:auth-changed',()=>{
   renderSavedReactions();
   showRxn(currentReaction);
   renderQuizHistory();
+  renderQuizAssessmentPanel();
+  syncQuizBuilderUI();
   renderTopicDetail();
   renderCurriculum();
 });
 bindPlannerSetupUI();
 hydratePlannerInputs();
+initializeQuizModes();
 syncPlannerAISettingsUI();
 setPlannerError('');
 refreshPlannerActivationState();
@@ -1196,6 +1540,7 @@ renderSavedReactions();
 showRxn(currentReaction);
 renderMission();
 renderQuizHistory();
+renderQuizAssessmentPanel();
 renderReference();
 heroMoleculeLineup=pickHeroMoleculeLineup();
 currentMol=heroMoleculeLineup[0]||Object.keys(mols)[0];
