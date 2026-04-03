@@ -216,48 +216,99 @@
               </div>
             </div>
             <p class="panel-copy">Set your pace, current course progress, and level, then let the planner generate a multi-week roadmap plus your next session.</p>
-            <div class="control-grid three-up">
-              <label class="field">
-                <span>Focus Area</span>
-                <select id="studyFocus">
-                  <option value="all">Balanced review</option>
-                  <option value="Functional Groups">Functional Groups</option>
-                  <option value="Reaction Mechanisms">Reaction Mechanisms</option>
-                  <option value="IUPAC Naming">IUPAC Naming</option>
-                  <option value="Stereochemistry">Stereochemistry</option>
-                  <option value="Aromatic Chemistry">Aromatic Chemistry</option>
-                  <option value="Spectroscopy">Spectroscopy</option>
-                </select>
-              </label>
-              <label class="field">
-                <span>Session Time</span>
-                <select id="sessionMinutes">
-                  <option value="20">20 minutes</option>
-                  <option value="35" selected>35 minutes</option>
-                  <option value="50">50 minutes</option>
-                  <option value="75">75 minutes</option>
-                </select>
-              </label>
-              <label class="field">
-                <span>Course Length</span>
-                <input id="courseWeeks" type="number" min="2" max="52" value="12">
-              </label>
-              <label class="field">
-                <span>Completed Quizzes</span>
-                <input id="completedQuizzes" type="number" min="0" max="500" value="0">
-              </label>
-              <label class="field">
-                <span>Major Exams Taken</span>
-                <input id="completedMajorExams" type="number" min="0" max="50" value="0">
-              </label>
-              <label class="field">
-                <span>Starting Level</span>
-                <select id="startingLevel">
-                  <option value="Beginner" selected>Beginner</option>
-                  <option value="Intermediate">Intermediate</option>
-                  <option value="Advanced">Advanced</option>
-                </select>
-              </label>
+            <div class="planner-setup-shell">
+              <div class="planner-setup-frame">
+                <div class="planner-setup-card">
+                  <div class="planner-setup-head">
+                    <div>
+                      <h4>Set up your plan</h4>
+                      <p>Shape the session intensity and the chemistry track you want the roadmap to bias first.</p>
+                    </div>
+                    <div class="planner-mode-pill">
+                      <span>Mode</span>
+                      <strong id="plannerModeValue">Stay on track</strong>
+                    </div>
+                  </div>
+
+                  <div class="planner-setup-block">
+                    <div class="planner-block-copy">
+                      <span class="planner-block-label">Learning intensity</span>
+                      <div class="planner-intensity-readout">
+                        <strong id="plannerIntensityLabel">Balanced</strong>
+                        <span id="plannerIntensityMinutes">35 min sessions</span>
+                      </div>
+                    </div>
+                    <input class="planner-intensity-slider" id="plannerIntensity" type="range" min="0" max="3" step="1" value="1" aria-label="Learning intensity">
+                    <div class="planner-intensity-scale" aria-hidden="true">
+                      <span>Light</span>
+                      <span>Balanced</span>
+                      <span>Sprint</span>
+                    </div>
+                    <label class="planner-native-field" aria-hidden="true" tabindex="-1">
+                      <span>Session Time</span>
+                      <select id="sessionMinutes" tabindex="-1">
+                        <option value="20">20 minutes</option>
+                        <option value="35" selected>35 minutes</option>
+                        <option value="50">50 minutes</option>
+                        <option value="75">75 minutes</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  <div class="planner-setup-divider"></div>
+
+                  <div class="planner-setup-block">
+                    <div class="planner-block-copy">
+                      <span class="planner-block-label">Learning themes</span>
+                      <p>Pick the chemistry lane that deserves the strongest emphasis in today&apos;s roadmap.</p>
+                    </div>
+                    <div class="planner-theme-grid" role="group" aria-label="Learning themes">
+                      <button class="planner-theme-chip is-active" type="button" data-focus="all" aria-pressed="true">Balanced review</button>
+                      <button class="planner-theme-chip" type="button" data-focus="Functional Groups" aria-pressed="false">Functional Groups</button>
+                      <button class="planner-theme-chip" type="button" data-focus="Reaction Mechanisms" aria-pressed="false">Reaction Mechanisms</button>
+                      <button class="planner-theme-chip" type="button" data-focus="IUPAC Naming" aria-pressed="false">IUPAC Naming</button>
+                      <button class="planner-theme-chip" type="button" data-focus="Stereochemistry" aria-pressed="false">Stereochemistry</button>
+                      <button class="planner-theme-chip" type="button" data-focus="Aromatic Chemistry" aria-pressed="false">Aromatic Chemistry</button>
+                      <button class="planner-theme-chip" type="button" data-focus="Spectroscopy" aria-pressed="false">Spectroscopy</button>
+                    </div>
+                    <label class="planner-native-field" aria-hidden="true" tabindex="-1">
+                      <span>Focus Area</span>
+                      <select id="studyFocus" tabindex="-1">
+                        <option value="all">Balanced review</option>
+                        <option value="Functional Groups">Functional Groups</option>
+                        <option value="Reaction Mechanisms">Reaction Mechanisms</option>
+                        <option value="IUPAC Naming">IUPAC Naming</option>
+                        <option value="Stereochemistry">Stereochemistry</option>
+                        <option value="Aromatic Chemistry">Aromatic Chemistry</option>
+                        <option value="Spectroscopy">Spectroscopy</option>
+                      </select>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div class="planner-detail-grid">
+                <label class="field">
+                  <span>Course Length</span>
+                  <input id="courseWeeks" type="number" min="2" max="52" value="12">
+                </label>
+                <label class="field">
+                  <span>Completed Quizzes</span>
+                  <input id="completedQuizzes" type="number" min="0" max="500" value="0">
+                </label>
+                <label class="field">
+                  <span>Major Exams Taken</span>
+                  <input id="completedMajorExams" type="number" min="0" max="50" value="0">
+                </label>
+                <label class="field">
+                  <span>Starting Level</span>
+                  <select id="startingLevel">
+                    <option value="Beginner" selected>Beginner</option>
+                    <option value="Intermediate">Intermediate</option>
+                    <option value="Advanced">Advanced</option>
+                  </select>
+                </label>
+              </div>
             </div>
             <div class="reference-summary" id="plannerCurriculumSummary">Sign in and complete your profile to attach a curriculum track to the planner and ORGANOBOT.</div>
             <div class="ai-settings-card">

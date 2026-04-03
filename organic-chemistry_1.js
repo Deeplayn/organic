@@ -13,6 +13,12 @@ const prettyDate=v=>new Date(v).toLocaleDateString(undefined,{month:'short',day:
 const today=()=>new Date().toLocaleDateString(undefined,{month:'short',day:'numeric'});
 const AI=window.OrganoAI;
 const canUseAccountFeature=message=>window.OrganoApp?.assertFeatureAccess(message)??true;
+const PLANNER_INTENSITY_PRESETS=[
+  {minutes:20,label:'Light',mode:'Quick reset'},
+  {minutes:35,label:'Balanced',mode:'Stay on track'},
+  {minutes:50,label:'Focused',mode:'Deep work'},
+  {minutes:75,label:'Sprint',mode:'Big push'}
+];
 
 function togglePanel(){document.getElementById('themePanel').classList.toggle('open');}
 function closePanel(){document.getElementById('themePanel').classList.remove('open');}
@@ -375,6 +381,71 @@ function setPlannerError(message=''){
   box.textContent=message;
 }
 
+function plannerIntensityIndex(minutes){
+  const exactIndex=PLANNER_INTENSITY_PRESETS.findIndex(item=>item.minutes===minutes);
+  if(exactIndex>=0)return exactIndex;
+  return PLANNER_INTENSITY_PRESETS.reduce((bestIndex,item,index)=>Math.abs(item.minutes-minutes)<Math.abs(PLANNER_INTENSITY_PRESETS[bestIndex].minutes-minutes)?index:bestIndex,0);
+}
+
+function syncPlannerIntensityUI(){
+  const slider=document.getElementById('plannerIntensity');
+  const select=document.getElementById('sessionMinutes');
+  if(!slider||!select)return;
+  const index=plannerIntensityIndex(Number(select.value)||35);
+  const preset=PLANNER_INTENSITY_PRESETS[index]||PLANNER_INTENSITY_PRESETS[1];
+  slider.value=String(index);
+  slider.style.setProperty('--planner-progress',`${index/Math.max(1,PLANNER_INTENSITY_PRESETS.length-1)*100}%`);
+  const label=document.getElementById('plannerIntensityLabel');
+  const minutes=document.getElementById('plannerIntensityMinutes');
+  const mode=document.getElementById('plannerModeValue');
+  if(label)label.textContent=preset.label;
+  if(minutes)minutes.textContent=`${preset.minutes} min sessions`;
+  if(mode)mode.textContent=preset.mode;
+}
+
+function syncPlannerFocusUI(){
+  const select=document.getElementById('studyFocus');
+  if(!select)return;
+  document.querySelectorAll('.planner-theme-chip').forEach(button=>{
+    const active=button.dataset.focus===select.value;
+    button.classList.toggle('is-active',active);
+    button.setAttribute('aria-pressed',active?'true':'false');
+  });
+}
+
+function syncPlannerSetupUI(){
+  syncPlannerIntensityUI();
+  syncPlannerFocusUI();
+}
+
+function bindPlannerSetupUI(){
+  const slider=document.getElementById('plannerIntensity');
+  const minutesSelect=document.getElementById('sessionMinutes');
+  if(slider&&minutesSelect&&!slider.dataset.bound){
+    const syncFromSlider=()=>{
+      const preset=PLANNER_INTENSITY_PRESETS[Math.max(0,Math.min(PLANNER_INTENSITY_PRESETS.length-1,Number(slider.value)||0))]||PLANNER_INTENSITY_PRESETS[1];
+      minutesSelect.value=String(preset.minutes);
+      syncPlannerIntensityUI();
+    };
+    slider.addEventListener('input',syncFromSlider);
+    slider.addEventListener('change',syncFromSlider);
+    minutesSelect.addEventListener('change',syncPlannerIntensityUI);
+    slider.dataset.bound='true';
+  }
+  const focusSelect=document.getElementById('studyFocus');
+  if(focusSelect&&!focusSelect.dataset.bound){
+    document.querySelectorAll('.planner-theme-chip').forEach(button=>{
+      button.addEventListener('click',()=>{
+        focusSelect.value=button.dataset.focus||'all';
+        syncPlannerFocusUI();
+      });
+    });
+    focusSelect.addEventListener('change',syncPlannerFocusUI);
+    focusSelect.dataset.bound='true';
+  }
+  syncPlannerSetupUI();
+}
+
 function syncPlannerAISettingsUI(){
   return;
 }
@@ -426,6 +497,7 @@ function hydratePlannerInputs(){
   if(cachedInputs?.completedMajorExams!==undefined)document.getElementById('completedMajorExams').value=String(cachedInputs.completedMajorExams);
   if(cachedInputs?.startingLevel)document.getElementById('startingLevel').value=cachedInputs.startingLevel;
   else if(curriculumEntry)document.getElementById('startingLevel').value=curriculumLevelStartingLevel(curriculumEntry.level);
+  syncPlannerSetupUI();
   renderPlannerCurriculumSummary();
 }
 
@@ -1042,6 +1114,7 @@ window.addEventListener('organo:auth-changed',()=>{
   renderTopicDetail();
   renderCurriculum();
 });
+bindPlannerSetupUI();
 hydratePlannerInputs();
 syncPlannerAISettingsUI();
 setPlannerError('');
