@@ -21,11 +21,12 @@
   };
 
   const CHEMISTRY_CHAT_SYSTEM_PROMPT=[
-    'You are ORGANOBOT, a chemistry-focused assistant with strong expertise in organic chemistry.',
+    'You are OrganoQuizo Bot, a chemistry-focused assistant with strong expertise in organic chemistry.',
     'Answer only chemistry-related questions and politely redirect unrelated questions back to chemistry.',
     'Treat shorthand, fragments, formulas, reaction arrows, spectra values, and messy spelling or grammar as valid chemistry input when context suggests chemistry.',
     'Use the current message plus recent conversation history to infer likely chemistry intent before asking for clarification.',
     'When learner curriculum and academic year are provided, use them as the primary study reference for scope, sequencing, terminology, and difficulty.',
+    'When a saved study plan is provided, use it to align quiz help, revision guidance, and generated question ideas.',
     'Format answers for an in-browser chat so they are easy to scan: use short sections, bullets, and clean spacing.',
     'Avoid dense wall-of-text formatting, and when comparing topics prefer bullets or a compact markdown table with one row per point.',
     'Be accurate, explain step-by-step when helpful, and admit uncertainty when appropriate.',
@@ -42,6 +43,19 @@
     'Keep the roadmap realistic, motivating, and specific to organic chemistry.',
     'The nextSession.blocks minutes must sum exactly to nextSession.totalMinutes.',
     'Use only the requested keys and keep every field populated.'
+  ].join(' ');
+
+  const QUIZ_GENERATOR_SYSTEM_PROMPT=[
+    'You are OrganoQuizo Bot, the shared adaptive organic chemistry quiz generator inside this app.',
+    'Generate multiple-choice questions that follow the learner study plan, current quiz mode, learner level, weak areas, and recent quiz performance.',
+    'When a study plan is provided, prioritize its roadmap topics, next-session blocks, and priority areas instead of generating generic questions.',
+    'Return valid JSON only with no markdown fences and no extra commentary.',
+    'Every question must have exactly 4 answer choices, exactly 1 correct answer index from 0 to 3, and a short explanation.',
+    'The explanation must briefly say why the correct choice is right and why the other choices do not fit.',
+    'Keep distractors plausible, avoid duplicate options, avoid trick wording, and keep the chemistry accurate.',
+    'Respect the requested question count and quiz mode, and vary difficulty progressively when the mode suggests a progression.',
+    'Use only these categories when labeling questions: Functional Groups, Reaction Mechanisms, IUPAC Naming, Stereochemistry, Aromatic Chemistry, Spectroscopy.',
+    'Use only these difficulty labels: Beginner, Intermediate, Advanced, Scholar.'
   ].join(' ');
 
   function escapeHtml(value){
@@ -408,6 +422,50 @@
     }
   }
 
+  function buildAdaptiveQuizMessages({input,progress}){
+    return[
+      {role:'system',content:QUIZ_GENERATOR_SYSTEM_PROMPT},
+      {role:'user',content:[
+        'Build an adaptive organic chemistry quiz.',
+        'Return valid JSON only.',
+        '',
+        'Quiz contract:',
+        JSON.stringify({
+          title:'string',
+          strategy:'string',
+          questions:[{
+            q:'string',
+            opts:['string','string','string','string'],
+            ans:1,
+            exp:'string',
+            cat:'Functional Groups',
+            diff:'Intermediate'
+          }],
+          blockLabels:[{start:1,end:3,label:'string'}]
+        }),
+        '',
+        'Quiz request:',
+        JSON.stringify(input),
+        '',
+        'Learner progress and study context:',
+        JSON.stringify(progress)
+      ].join('\n')}
+    ];
+  }
+
+  async function requestAdaptiveQuiz({input,progress}){
+    const {content}=await createChatCompletion({
+      messages:buildAdaptiveQuizMessages({input,progress}),
+      jsonMode:true,
+      temperature:.55
+    });
+    try{
+      return JSON.parse(content);
+    }catch{
+      throw new Error('OrganoQuizo Bot returned invalid quiz JSON.');
+    }
+  }
+
   function formatInlineHtml(text){
     return escapeHtml(text)
       .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
@@ -483,6 +541,7 @@
     DEFAULT_AI_SETTINGS,
     CHEMISTRY_CHAT_SYSTEM_PROMPT,
     PLANNER_SYSTEM_PROMPT,
+    QUIZ_GENERATOR_SYSTEM_PROMPT,
     escapeHtml,
     readStorageJson,
     writeStorageJson,
@@ -497,6 +556,7 @@
     readHostedProxyStatus,
     createChatCompletion,
     requestPlannerRoadmap,
+    requestAdaptiveQuiz,
     formatAssistantHtml
   };
 })();

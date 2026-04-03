@@ -391,7 +391,7 @@
     if(clearButton)clearButton.disabled=!notificationState.items.length;
     if(!feed)return;
     if(!notificationState.items.length){
-      feed.innerHTML=`<div class="notification-empty"><strong>No notifications yet.</strong><p>Theme changes, study milestones, and ORGANOBOT updates will appear here.</p></div>`;
+      feed.innerHTML=`<div class="notification-empty"><strong>No notifications yet.</strong><p>Theme changes, study milestones, and OrganoQuizo Bot updates will appear here.</p></div>`;
       return;
     }
     feed.innerHTML=notificationState.items.map(item=>`<article class="notification-item notification-${escapeHtml(item.kind)} ${item.unread?'is-unread':''}" data-notification-id="${escapeHtml(item.id)}"><div class="notification-item-top"><span class="notification-kind">${escapeHtml(item.kind)}</span><time datetime="${escapeHtml(item.createdAt)}">${escapeHtml(formatNotificationTime(item.createdAt))}</time></div><h3>${escapeHtml(item.title)}</h3>${item.body?`<p>${escapeHtml(item.body)}</p>`:''}${item.actionHref&&item.actionLabel?`<a class="notification-link" href="${escapeHtml(item.actionHref)}" data-notification-link="${escapeHtml(item.id)}">${escapeHtml(item.actionLabel)}</a>`:''}</article>`).join('');
@@ -435,7 +435,7 @@
     if(notificationState.items.length)return;
     notify({
       title:'Notification center ready',
-      body:'Theme changes, quiz results, planner milestones, and ORGANOBOT activity now collect here.',
+      body:'Theme changes, quiz results, planner milestones, and OrganoQuizo Bot activity now collect here.',
       kind:'system',
       actionHref:IS_AUTH_PAGE?'index.html#dashboard':'#dashboard',
       actionLabel:'Open workspace',
@@ -516,7 +516,7 @@
     if(!isProfileComplete()){
       notify({
         title:'Complete your profile',
-        body:'Update your learner profile to get the most benefit from curriculum-aware guidance, study plans, and ORGANOBOT support.',
+        body:'Update your learner profile to get the most benefit from curriculum-aware guidance, study plans, and OrganoQuizo Bot support.',
         kind:'warning',
         actionHref:IS_AUTH_PAGE?'#auth':'auth.html?mode=login',
         actionLabel:'Update profile',
@@ -875,7 +875,7 @@
     setText('headerAuthButtonLabel',user?'Account':'Log In');
     $('headerAuthButton')?.setAttribute('aria-label',user?'Open account':'User Login Button');
     setText('heroSessionState',user?`Signed in as ${user.displayName||user.email}`:'Preview access');
-    setText('heroSessionCopy',user?(profileComplete?'Your progress, curriculum-aware roadmaps, theme, and chat history now sync through your account.':'Finish your first-time profile setup to complete your account and start syncing with your learner details attached.'):'Browse every panel freely, then sign in to unlock saved study state, planner history, and ORGANOBOT conversations.');
+    setText('heroSessionCopy',user?(profileComplete?'Your progress, curriculum-aware roadmaps, theme, and chat history now sync through your account.':'Finish your first-time profile setup to complete your account and start syncing with your learner details attached.'):'Browse every panel freely, then sign in to unlock saved study state, planner history, and OrganoQuizo Bot conversations.');
     setText('authSessionSummary',user?(profileComplete?`Signed in as ${user.displayName||'Learner'} (${user.email}). Theme: ${user.theme||localStorage.getItem(THEME_KEY)||'lab-noir'}. Curriculum: ${authState.profile?.curriculumTrack||'Pending'}. Academic year: ${authState.profile?.academicYear||'Pending'}.`:`Signed in as ${user.displayName||'Learner'} (${user.email}). Complete the first-time profile questions below to finish your account setup.`):'You are not signed in. Choose a provider or use your OrganoChem account to start a session.');
     const logoutButton=$('logoutButton');
     if(logoutButton)logoutButton.style.display=user?'inline-flex':'none';
@@ -1220,7 +1220,7 @@
       if(event.target.id==='chatForm'&&!isAuthenticated()){
         event.preventDefault();
         event.stopImmediatePropagation();
-        requireAuth('Sign in to send questions to ORGANOBOT.');
+        requireAuth('Sign in to send questions to OrganoQuizo Bot.');
       }
     },true);
     document.addEventListener('focusin',event=>{

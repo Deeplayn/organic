@@ -2,6 +2,7 @@
 const AI=window.OrganoAI;
 const BOT_STORE_KEY=AI?.ORGANOBOT_HISTORY_KEY||'oc-organobot-history-v1';
 const canUseBotFeature=message=>window.OrganoApp?.assertFeatureAccess(message)??true;
+const BOT_DISPLAY_NAME='OrganoQuizo Bot';
 
 function botNow(){
   return new Date().toISOString();
@@ -29,7 +30,7 @@ function saveBotStore(){
 function createGreetingMessage(){
   return{
     role:'assistant',
-    content:'ORGANOBOT is ready for chemistry. Ask about mechanisms, spectroscopy, aromaticity, synthesis logic, compound behavior, or study strategy.',
+    content:'OrganoQuizo Bot is ready for chemistry and adaptive quiz help. Ask about mechanisms, spectroscopy, aromaticity, synthesis logic, compound behavior, or ask for a study-plan-based quiz.',
     createdAt:botNow()
   };
 }
@@ -96,6 +97,19 @@ function buildBotProfileContext(){
   ].filter(Boolean).join(' ');
 }
 
+function buildBotStudyContext(){
+  const plan=AI?.readPlannerCache?.();
+  if(!plan||typeof plan!=='object'||(!plan.summary&&!plan.roadmap&&!plan.nextSession))return'';
+  const roadmapTopics=(Array.isArray(plan.roadmap)?plan.roadmap:[]).flatMap(entry=>Array.isArray(entry?.topics)?entry.topics:[]).filter(Boolean).slice(0,8);
+  const nextSessionBlocks=(Array.isArray(plan.nextSession?.blocks)?plan.nextSession.blocks:[]).slice(0,5).map(block=>`${block.label} (${block.minutes} min, ${block.activity})`);
+  return[
+    `The latest saved study plan summary is: ${plan.summary||'No summary available.'}`,
+    roadmapTopics.length?`Priority roadmap topics: ${roadmapTopics.join(', ')}.`:'',
+    nextSessionBlocks.length?`Next session blocks: ${nextSessionBlocks.join('; ')}.`:'',
+    'When the learner asks for a quiz, revision questions, or checkpoints, align them to this saved study plan first.'
+  ].filter(Boolean).join(' ');
+}
+
 function renderSessions(){
   const activeId=getActiveSession().id;
   const box=document.getElementById('sessionList');
@@ -119,7 +133,7 @@ function renderMessages(){
   const log=document.getElementById('chatLog');
   log.innerHTML=session.messages.map(message=>{
     const body=message.role==='assistant'?AI.formatAssistantHtml(message.content):`<p>${escapeBot(message.content)}</p>`;
-    return`<article class="chat-bubble ${message.role}"><div class="chat-bubble-head"><span>${escapeBot(message.role==='assistant'?'ORGANOBOT':message.role==='user'?'You':'System')}</span><span>${prettyBotDate(message.createdAt)}</span></div>${body}</article>`;
+    return`<article class="chat-bubble ${message.role}"><div class="chat-bubble-head"><span>${escapeBot(message.role==='assistant'?BOT_DISPLAY_NAME:message.role==='user'?'You':'System')}</span><span>${prettyBotDate(message.createdAt)}</span></div>${body}</article>`;
   }).join('');
   log.scrollTop=log.scrollHeight;
 }
@@ -136,7 +150,7 @@ async function refreshBotActivationState(){
   }
   const client=await AI.readHostedProxyStatus();
   if(client.available&&client.configured){
-    setBotStatus(`Shared Grok AI is ready through ${client.provider==='puter'?'Puter':'the server route'}. ORGANOBOT can answer chemistry questions.`);
+    setBotStatus(`Shared Grok AI is ready through ${client.provider==='puter'?'Puter':'the server route'}. ${BOT_DISPLAY_NAME} can answer chemistry questions and build adaptive quizzes.`);
     return;
   }
   if(client.available&&!client.configured){
@@ -172,13 +186,13 @@ function normalizeUserPrompt(prompt){
 }
 
 async function sendToOrganobot(prompt){
-  if(!canUseBotFeature('Sign in to send questions to ORGANOBOT.'))return;
+  if(!canUseBotFeature(`Sign in to send questions to ${BOT_DISPLAY_NAME}.`))return;
   const trimmed=normalizeUserPrompt(prompt);
   if(!trimmed)return;
   addMessage('user',trimmed);
   document.getElementById('chatInput').value='';
 
-  setBotStatus('ORGANOBOT is thinking through your prompt...');
+  setBotStatus(`${BOT_DISPLAY_NAME} is thinking through your prompt...`);
   const activeSession=getActiveSession();
   const recentMessages=activeSession.messages
     .filter(message=>message.role==='user'||message.role==='assistant')
@@ -191,10 +205,12 @@ async function sendToOrganobot(prompt){
 
   try{
     const profileContext=buildBotProfileContext();
+    const studyContext=buildBotStudyContext();
     const result=await AI.createChatCompletion({
       messages:[
         {role:'system',content:AI.CHEMISTRY_CHAT_SYSTEM_PROMPT},
         ...(profileContext?[{role:'system',content:profileContext}]:[]),
+        ...(studyContext?[{role:'system',content:studyContext}]:[]),
         ...recentMessages
       ],
       jsonMode:false,
@@ -202,9 +218,9 @@ async function sendToOrganobot(prompt){
       reasoningEnabled:true
     });
     addMessage('assistant',result.content,{reasoningDetails:result.reasoningDetails});
-    setBotStatus('ORGANOBOT answered. Ask a follow-up or start a new chemistry chat.');
+    setBotStatus(`${BOT_DISPLAY_NAME} answered. Ask a follow-up or start a new chemistry chat.`);
     window.OrganoApp?.notify?.({
-      title:'ORGANOBOT replied',
+      title:`${BOT_DISPLAY_NAME} replied`,
       body:summarizeBotText(result.content),
       kind:'info',
       actionHref:'#bot',
@@ -216,7 +232,7 @@ async function sendToOrganobot(prompt){
     addMessage('assistant',`I could not reach the AI service just now. ${normalizedError}`);
     setBotStatus(normalizedError);
     window.OrganoApp?.notify?.({
-      title:'ORGANOBOT could not respond',
+      title:`${BOT_DISPLAY_NAME} could not respond`,
       body:normalizedError,
       kind:'warning',
       actionHref:'#bot',
@@ -227,7 +243,7 @@ async function sendToOrganobot(prompt){
 }
 
 document.getElementById('newSessionBtn').addEventListener('click',()=>{
-  if(!canUseBotFeature('Sign in to create and save ORGANOBOT chat sessions.'))return;
+  if(!canUseBotFeature(`Sign in to create and save ${BOT_DISPLAY_NAME} chat sessions.`))return;
   const session=createSession();
   botState.sessions.unshift(session);
   botState.activeId=session.id;
@@ -235,7 +251,7 @@ document.getElementById('newSessionBtn').addEventListener('click',()=>{
   renderOrganobot();
   setBotStatus('Started a fresh chemistry chat.');
   window.OrganoApp?.notify?.({
-    title:'New ORGANOBOT chat',
+    title:`New ${BOT_DISPLAY_NAME} chat`,
     body:'A fresh chemistry conversation is ready for your next question.',
     kind:'success',
     actionHref:'#bot',
@@ -244,15 +260,15 @@ document.getElementById('newSessionBtn').addEventListener('click',()=>{
   });
 });
 document.getElementById('clearHistoryBtn').addEventListener('click',()=>{
-  if(!canUseBotFeature('Sign in to manage ORGANOBOT chat history.'))return;
-  if(!confirm('Clear all ORGANOBOT chat history? This will remove every saved chemistry session on this browser.'))return;
+  if(!canUseBotFeature(`Sign in to manage ${BOT_DISPLAY_NAME} chat history.`))return;
+  if(!confirm(`Clear all ${BOT_DISPLAY_NAME} chat history? This will remove every saved chemistry session on this browser.`))return;
   const session=createSession();
   botState={activeId:session.id,sessions:[session]};
   saveBotStore();
   renderOrganobot();
-  setBotStatus('All ORGANOBOT history was cleared.');
+  setBotStatus(`All ${BOT_DISPLAY_NAME} history was cleared.`);
   window.OrganoApp?.notify?.({
-    title:'ORGANOBOT history cleared',
+    title:`${BOT_DISPLAY_NAME} history cleared`,
     body:'All saved chat sessions were removed and a fresh conversation was created.',
     kind:'warning',
     actionHref:'#bot',

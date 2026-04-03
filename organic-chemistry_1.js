@@ -13,6 +13,7 @@ const prettyDate=v=>new Date(v).toLocaleDateString(undefined,{month:'short',day:
 const today=()=>new Date().toLocaleDateString(undefined,{month:'short',day:'numeric'});
 const AI=window.OrganoAI;
 const canUseAccountFeature=message=>window.OrganoApp?.assertFeatureAccess(message)??true;
+const ORGANOQUIZO_BOT_NAME='OrganoQuizo Bot';
 const PLANNER_TIMELINE_DEFAULTS={
   minDays:7,
   maxDays:28,
@@ -332,12 +333,12 @@ function renderPlannerCurriculumSummary(){
   const node=document.getElementById('plannerCurriculumSummary');
   if(!node)return;
   if(!window.OrganoApp?.isAuthenticated?.()){
-    node.textContent='Sign in and complete your profile to attach a curriculum track to the planner and ORGANOBOT.';
+    node.textContent='Sign in and complete your profile to attach a curriculum track to the planner and OrganoQuizo Bot.';
     return;
   }
   const profile=getSignedInProfile();
   if(!profile.curriculumTrack){
-    node.textContent='No curriculum is attached to this account yet. Complete your profile to let the planner and ORGANOBOT adapt to your assigned track.';
+    node.textContent='No curriculum is attached to this account yet. Complete your profile to let the planner and OrganoQuizo Bot adapt to your assigned track.';
     return;
   }
   const entry=getAssignedCurriculumEntry();
@@ -345,7 +346,7 @@ function renderPlannerCurriculumSummary(){
     node.textContent=`Curriculum "${profile.curriculumTrack}" is saved on your account, but it is not present in the loaded curriculum library.`;
     return;
   }
-  node.textContent=`Planner and ORGANOBOT are using ${entry.title}${profile.academicYear?` for ${profile.academicYear}`:''}. ${entry.topics.length} curriculum topics will be used to bias roadmap priorities, study guidance, and explanations.`;
+  node.textContent=`Planner and OrganoQuizo Bot are using ${entry.title}${profile.academicYear?` for ${profile.academicYear}`:''}. ${entry.topics.length} curriculum topics will be used to bias roadmap priorities, study guidance, and explanations.`;
 }
 
 function openLessonTopic(slug){
@@ -425,6 +426,32 @@ function getLatestStoredPlan(){
   const cached=AI?.readPlannerCache?.()||{};
   if(cached&&typeof cached==='object'&&(cached.roadmap||cached.tasks||cached.summary))return cached;
   return null;
+}
+
+function simplifyStudyPlanForQuiz(plan=getLatestStoredPlan()){
+  if(!plan||typeof plan!=='object')return null;
+  return{
+    summary:typeof plan.summary==='string'?plan.summary:'',
+    focusArea:typeof plan.focusArea==='string'?plan.focusArea:(typeof plan.inputs?.focusArea==='string'?plan.inputs.focusArea:'all'),
+    priorityTopics:Array.isArray(plan.priorityTopics)?plan.priorityTopics.slice(0,6):[],
+    roadmap:Array.isArray(plan.roadmap)?plan.roadmap.slice(0,4).map((entry,index)=>({
+      step:index+1,
+      goal:normalizeText(entry?.goal,''),
+      topics:normalizeStringArray(entry?.topics,[]).slice(0,4),
+      notes:normalizeText(entry?.notes,''),
+      quizzes:Math.max(0,Math.round(Number(entry?.quizzes)||0)),
+      majorExam:Boolean(entry?.majorExam)
+    })):[],
+    nextSession:plan.nextSession?{
+      title:normalizeText(plan.nextSession.title,''),
+      totalMinutes:Math.max(0,Math.round(Number(plan.nextSession.totalMinutes)||0)),
+      blocks:Array.isArray(plan.nextSession.blocks)?plan.nextSession.blocks.slice(0,6).map((block,index)=>({
+        label:normalizeText(block?.label,`Block ${index+1}`),
+        minutes:Math.max(1,Math.round(Number(block?.minutes)||0)),
+        activity:normalizeText(block?.activity,'review')
+      })):[]
+    }:null
+  };
 }
 
 function getAverageQuizScore(){
@@ -651,9 +678,10 @@ function startPlanQuiz(category='all',length=5,difficulty='all'){
   document.getElementById('quizDifficulty').value=preset.difficulty;
   document.getElementById('quizLength').value=String(preset.length);
   syncQuizBuilderUI();
-  setupQuiz();
-  document.getElementById('quiz').scrollIntoView({behavior:'smooth',block:'start'});
-  setTimeout(()=>document.querySelector('#qOptions .quiz-opt')?.focus(),120);
+  Promise.resolve(setupQuiz()).then(()=>{
+    document.getElementById('quiz').scrollIntoView({behavior:'smooth',block:'start'});
+    setTimeout(()=>document.querySelector('#qOptions .quiz-opt')?.focus(),120);
+  });
 }
 
 function buildProgressSnapshot(input){
@@ -962,7 +990,7 @@ function buildOfflineStudyPlan(){
   savePlanHistory(plan,input);
   document.getElementById('completedQuizzes').value=String(Math.max(input.completedQuizzes,state.quizHistory.length));
   setPlannerError('');
-  setPlannerStatus('Offline quick plan ready. Use the built-in AI whenever you want a richer roadmap or ORGANOBOT chat.');
+  setPlannerStatus('Offline quick plan ready. Use the built-in AI whenever you want a richer roadmap or OrganoQuizo Bot chat.');
   renderStats();
   renderStudyPlan(plan);
   renderMission();
@@ -1015,14 +1043,14 @@ async function buildStudyPlan(){
 
 function resetPlannerData(){
   if(!canUseAccountFeature('Sign in to manage planner history and stored progress.'))return;
-  if(!confirm('Reset planner data? This clears study plans, cached roadmap data, and quiz history, but keeps your theme, topic marks, saved reactions, material studio state, and ORGANOBOT chats.'))return;
+  if(!confirm('Reset planner data? This clears study plans, cached roadmap data, and quiz history, but keeps your theme, topic marks, saved reactions, material studio state, and OrganoQuizo Bot chats.'))return;
   state.quizHistory=[];
   state.studyPlans=[];
   saveState();
   AI?.clearPlannerCache?.();
   document.getElementById('completedQuizzes').value='0';
   setPlannerError('');
-  setPlannerStatus('Planner data cleared. Your theme, topic status, saved reactions, material studio state, and ORGANOBOT chats were preserved.');
+  setPlannerStatus('Planner data cleared. Your theme, topic status, saved reactions, material studio state, and OrganoQuizo Bot chats were preserved.');
   renderStats();
   renderStudyPlan();
   renderWeakAreas();
@@ -1192,6 +1220,201 @@ function sampleQuestions({count,category='all',difficulties=[],exclude=[]}){
   return result.slice(0,count);
 }
 
+function buildQuizMetaText(meta=quizMeta,questionIndex=qi){
+  const questionNumber=questionIndex+1;
+  const activeBlock=Array.isArray(meta.blockLabels)?meta.blockLabels.find(block=>questionNumber>=block.start&&questionNumber<=block.end):null;
+  const base=activeBlock?`${meta.type} - ${activeBlock.label}`:`${meta.type} - ${meta.category} - ${meta.difficulty}`;
+  return meta.generator?`${base} - ${meta.generator}`:base;
+}
+
+function buildQuizAnswerExplanation(question){
+  const correctChoice=question?.opts?.[question?.ans]||'The correct answer';
+  const reason=normalizeText(question?.exp,'It fits the key chemistry clue best, while the other choices do not match the structure, mechanism, naming rule, or data.');
+  return `Correct answer: ${correctChoice}. ${reason}`;
+}
+
+function beginQuizSession(nextQuiz,nextMeta){
+  quiz=nextQuiz;
+  quizMeta=nextMeta;
+  qi=0;score=0;answered=false;catResults={};difficultyResults={};questionResults=[];
+  document.getElementById('quizMeta').textContent=buildQuizMetaText(quizMeta,0);
+  loadQ();
+}
+
+function showQuizBuildState(message,detail){
+  const opts=document.getElementById('qOptions');
+  const feedback=document.getElementById('qFeedback');
+  document.getElementById('qText').textContent=message;
+  document.getElementById('qNum').textContent='...';
+  document.getElementById('quizMeta').textContent=`${ORGANOQUIZO_BOT_NAME} is preparing your quiz`;
+  opts.innerHTML='';
+  feedback.className='quiz-feedback show';
+  feedback.textContent=detail;
+  document.getElementById('nextBtn').style.display='none';
+  document.getElementById('restartBtn').style.display='none';
+  document.getElementById('scoreDisplay').style.display='none';
+}
+
+function normalizeAdaptiveBlockLabels(rawLabels,totalQuestions){
+  const safeTotal=Math.max(1,Math.round(Number(totalQuestions)||1));
+  return(Array.isArray(rawLabels)?rawLabels:[]).map((block,index)=>({
+    start:Math.max(1,Math.min(safeTotal,Math.round(Number(block?.start)||index+1))),
+    end:Math.max(1,Math.min(safeTotal,Math.round(Number(block?.end)||index+1))),
+    label:normalizeText(block?.label,'')
+  })).filter(block=>block.label).map(block=>({
+    ...block,
+    end:Math.max(block.start,block.end)
+  }));
+}
+
+function normalizeAdaptiveQuizQuestion(raw,request){
+  const questionText=normalizeText(raw?.q,'');
+  const options=(Array.isArray(raw?.opts)?raw.opts:[]).slice(0,4).map(option=>normalizeText(option,'')).filter(Boolean);
+  const uniqueOptionCount=new Set(options.map(option=>option.toLowerCase())).size;
+  if(!questionText||options.length!==4||uniqueOptionCount!==4)return null;
+  const answerIndex=Math.max(0,Math.min(3,Math.round(Number(raw?.ans)||0)));
+  const fallbackCategory=request.effectiveCategory==='all'
+    ?categoryFromText(`${questionText} ${options.join(' ')}`,request.selectedCategory==='all'?'Functional Groups':request.selectedCategory)
+    :request.effectiveCategory;
+  return{
+    q:questionText,
+    opts:options,
+    ans:answerIndex,
+    exp:normalizeText(raw?.exp,'It fits the key clue best, while the other choices miss the required structural, naming, mechanistic, or spectroscopy detail.'),
+    cat:chemistryCategories().includes(raw?.cat)?raw.cat:fallbackCategory,
+    diff:QUIZ_LEVELS.includes(raw?.diff)?raw.diff:request.effectiveDifficulty
+  };
+}
+
+function buildAdaptiveQuizRequest({selectedCategory,selectedDifficulty,selectedLength,effectiveCategory,course,learner,categoryLabel}){
+  const plannerInput=readPlannerInputs();
+  const studyPlan=simplifyStudyPlanForQuiz();
+  const effectiveDifficulty=selectedDifficulty==='all'
+    ?(quizMode==='practice'?learner.level:course.level)
+    :selectedDifficulty;
+  const requestedLength=quizMode==='progressive'
+    ?resolveProgressiveQuizLength(learner.level)
+    :quizMode==='monthly'
+      ?20
+      :quizMode==='final'
+        ?30
+        :selectedLength;
+  return{
+    input:{
+      mode:quizMode,
+      requestedLength,
+      selectedCategory,
+      effectiveCategory,
+      categoryLabel,
+      selectedDifficulty,
+      effectiveDifficulty,
+      courseLevel:course.level,
+      courseSource:course.source,
+      learnerLevel:learner.level,
+      learnerSource:learner.source,
+      focusArea:plannerInput.focusArea,
+      studyPlan,
+      availableCategories:chemistryCategories(),
+      availableDifficulties:QUIZ_LEVELS
+    },
+    progress:{
+      ...buildProgressSnapshot(plannerInput),
+      studyPlan,
+      latestQuizMode:quizMode
+    }
+  };
+}
+
+async function buildAdaptiveQuizSet(request){
+  if(!AI?.requestAdaptiveQuiz)throw new Error('OrganoQuizo Bot is unavailable.');
+  showQuizBuildState(
+    `${ORGANOQUIZO_BOT_NAME} is building your quiz...`,
+    'Generating adaptive questions from your study plan, learner level, and weak areas.'
+  );
+  const rawQuiz=await AI.requestAdaptiveQuiz(request);
+  const questions=(Array.isArray(rawQuiz?.questions)?rawQuiz.questions:[])
+    .map(question=>normalizeAdaptiveQuizQuestion(question,request.input))
+    .filter(Boolean)
+    .slice(0,request.input.requestedLength);
+  if(questions.length!==request.input.requestedLength){
+    throw new Error(`${ORGANOQUIZO_BOT_NAME} returned an incomplete quiz.`);
+  }
+  const difficultyLabel=request.input.selectedDifficulty==='all'
+    ?request.input.effectiveDifficulty
+    :request.input.selectedDifficulty;
+  beginQuizSession(questions,{
+    mode:quizMode,
+    type:normalizeText(rawQuiz?.title,QUIZ_MODE_CONFIG[quizMode]?.label||'Adaptive Quiz'),
+    category:request.input.categoryLabel,
+    difficulty:difficultyLabel==='all'?'Mixed difficulty':difficultyLabel,
+    length:questions.length,
+    generator:ORGANOQUIZO_BOT_NAME,
+    strategy:normalizeText(rawQuiz?.strategy,''),
+    blockLabels:normalizeAdaptiveBlockLabels(rawQuiz?.blockLabels,questions.length)
+  });
+}
+
+function buildLocalQuizSet({generator=''}={}){
+  const selectedCategory=document.getElementById('quizCategory').value;
+  const selectedDifficulty=document.getElementById('quizDifficulty').value;
+  const selectedLength=Number(document.getElementById('quizLength').value);
+  const effectiveCategory=getEffectiveQuizCategory(quizMode);
+  const course=getCourseDifficultyContext();
+  const learner=getLearnerLevelContext();
+  const categoryLabel=selectedCategory==='all'?(effectiveCategory==='all'?'All categories':`${effectiveCategory} focus`):selectedCategory;
+  let nextQuiz=[];
+  let nextMeta={mode:quizMode,type:QUIZ_MODE_CONFIG[quizMode].label,category:categoryLabel,difficulty:'Mixed difficulty',length:selectedLength,generator};
+  if(quizMode==='evaluation'){
+    nextQuiz=[
+      ...sampleQuestions({count:5,category:'all',difficulties:['Beginner']}),
+      ...sampleQuestions({count:5,category:'all',difficulties:['Intermediate']}),
+      ...sampleQuestions({count:5,category:'all',difficulties:['Advanced']}),
+      ...sampleQuestions({count:5,category:'all',difficulties:['Scholar']})
+    ];
+    nextMeta={
+      mode:quizMode,
+      type:QUIZ_MODE_CONFIG[quizMode].label,
+      category:'All categories',
+      difficulty:'Beginner to Scholar',
+      blockLabels:[
+        {start:1,end:5,label:'Beginner ladder'},
+        {start:6,end:10,label:'Intermediate ladder'},
+        {start:11,end:15,label:'Advanced ladder'},
+        {start:16,end:20,label:'Scholar ladder'}
+      ]
+    };
+  }else if(quizMode==='progressive'){
+    const length=resolveProgressiveQuizLength(learner.level);
+    nextQuiz=shuffleList(sampleQuestions({count:length,category:effectiveCategory,difficulties:difficultyFallbackOrder(course.level)}));
+    nextMeta={mode:quizMode,type:QUIZ_MODE_CONFIG[quizMode].label,category:categoryLabel,difficulty:course.level,length,generator};
+  }else if(quizMode==='monthly'){
+    nextQuiz=shuffleList(sampleQuestions({count:20,category:effectiveCategory,difficulties:difficultyFallbackOrder(course.level)}));
+    nextMeta={mode:quizMode,type:QUIZ_MODE_CONFIG[quizMode].label,category:categoryLabel,difficulty:course.level,length:20,generator};
+  }else if(quizMode==='final'){
+    const courseBlock=shuffleList(sampleQuestions({count:20,category:effectiveCategory,difficulties:difficultyFallbackOrder(course.level)}));
+    const challengeBlock=shuffleList(sampleQuestions({count:10,category:effectiveCategory,difficulties:higherDifficultyOrder(course.level),exclude:courseBlock}));
+    nextQuiz=[...courseBlock,...challengeBlock];
+    nextMeta={
+      mode:quizMode,
+      type:QUIZ_MODE_CONFIG[quizMode].label,
+      category:categoryLabel,
+      difficulty:course.level,
+      length:30,
+      challengeStartsAt:21,
+      blockLabels:[
+        {start:1,end:20,label:'Course-level block'},
+        {start:21,end:30,label:'Higher-level stretch'}
+      ],
+      generator
+    };
+  }else{
+    const pool=bank.filter(q=>(selectedCategory==='all'||q.cat===selectedCategory)&&(selectedDifficulty==='all'||q.diff===selectedDifficulty));
+    nextQuiz=[...(pool.length?pool:bank)].sort(()=>Math.random()-.5).slice(0,Math.min(selectedLength,(pool.length?pool:bank).length));
+    nextMeta={mode:quizMode,type:QUIZ_MODE_CONFIG[quizMode].label,category:selectedCategory==='all'?'All categories':selectedCategory,difficulty:selectedDifficulty==='all'?'Mixed difficulty':selectedDifficulty,length:selectedLength,generator};
+  }
+  beginQuizSession(nextQuiz,nextMeta);
+}
+
 function evaluateLearnerLevel(percent,results){
   const scholar=results.Scholar;
   const advanced=results.Advanced;
@@ -1223,10 +1446,10 @@ function buildQuizModeSummary(mode){
   const learner=getLearnerLevelContext();
   const category=getEffectiveQuizCategory(mode);
   if(mode==='evaluation')return'The evaluating quiz scales in four 5-question stages from beginner to scholar and can be skipped the first time if you want to begin directly with the course flow.';
-  if(mode==='progressive')return`The progressive quiz is linked to ${category==='all'?'the current course mix':category}, uses the ${course.level} course level from your ${course.source}, and expands to ${resolveProgressiveQuizLength(learner.level)} questions based on the learner level.`;
-  if(mode==='monthly')return`The monthly exam gives a 20-question checkpoint at the ${course.level} course level from your ${course.source}${category==='all'?' across the full course mix':` with ${category} emphasized`}.`;
-  if(mode==='final')return`The end-of-course exam runs 30 questions: 20 at the ${course.level} course level plus 10 higher-level stretch questions that push past the current course difficulty.`;
-  return'Build a short practice quiz from the planner preset or current filters.';
+  if(mode==='progressive')return`${ORGANOQUIZO_BOT_NAME} builds the progressive quiz from ${category==='all'?'the current course mix':category}, your study plan, and the ${course.level} course level from your ${course.source}.`;
+  if(mode==='monthly')return`${ORGANOQUIZO_BOT_NAME} builds a 20-question checkpoint at the ${course.level} course level from your ${course.source}${category==='all'?' across the full course mix':` with ${category} emphasized`}.`;
+  if(mode==='final')return`${ORGANOQUIZO_BOT_NAME} builds a 30-question end-of-course exam with a course-level block plus a higher-level stretch block based on your current plan.`;
+  return`${ORGANOQUIZO_BOT_NAME} builds a short adaptive practice quiz from the planner focus or your current quiz filters.`;
 }
 
 function syncQuizBuilderUI(){
@@ -1308,7 +1531,7 @@ function toggleSavedReaction(){
   });
 }
 
-function setupQuiz(){
+async function setupQuiz(){
   const selectedCategory=document.getElementById('quizCategory').value;
   const selectedDifficulty=document.getElementById('quizDifficulty').value;
   const selectedLength=Number(document.getElementById('quizLength').value);
@@ -1317,55 +1540,22 @@ function setupQuiz(){
   const learner=getLearnerLevelContext();
   const categoryLabel=selectedCategory==='all'?(effectiveCategory==='all'?'All categories':`${effectiveCategory} focus`):selectedCategory;
   if(quizMode==='evaluation'){
-    quiz=[
-      ...sampleQuestions({count:5,category:'all',difficulties:['Beginner']}),
-      ...sampleQuestions({count:5,category:'all',difficulties:['Intermediate']}),
-      ...sampleQuestions({count:5,category:'all',difficulties:['Advanced']}),
-      ...sampleQuestions({count:5,category:'all',difficulties:['Scholar']})
-    ];
-    quizMeta={
-      mode:quizMode,
-      type:QUIZ_MODE_CONFIG[quizMode].label,
-      category:'All categories',
-      difficulty:'Beginner to Scholar',
-      blockLabels:[
-        {start:1,end:5,label:'Beginner ladder'},
-        {start:6,end:10,label:'Intermediate ladder'},
-        {start:11,end:15,label:'Advanced ladder'},
-        {start:16,end:20,label:'Scholar ladder'}
-      ]
-    };
-  }else if(quizMode==='progressive'){
-    const length=resolveProgressiveQuizLength(learner.level);
-    quiz=shuffleList(sampleQuestions({count:length,category:effectiveCategory,difficulties:difficultyFallbackOrder(course.level)}));
-    quizMeta={mode:quizMode,type:QUIZ_MODE_CONFIG[quizMode].label,category:categoryLabel,difficulty:course.level,length};
-  }else if(quizMode==='monthly'){
-    quiz=shuffleList(sampleQuestions({count:20,category:effectiveCategory,difficulties:difficultyFallbackOrder(course.level)}));
-    quizMeta={mode:quizMode,type:QUIZ_MODE_CONFIG[quizMode].label,category:categoryLabel,difficulty:course.level,length:20};
-  }else if(quizMode==='final'){
-    const courseBlock=shuffleList(sampleQuestions({count:20,category:effectiveCategory,difficulties:difficultyFallbackOrder(course.level)}));
-    const challengeBlock=shuffleList(sampleQuestions({count:10,category:effectiveCategory,difficulties:higherDifficultyOrder(course.level),exclude:courseBlock}));
-    quiz=[...courseBlock,...challengeBlock];
-    quizMeta={
-      mode:quizMode,
-      type:QUIZ_MODE_CONFIG[quizMode].label,
-      category:categoryLabel,
-      difficulty:course.level,
-      length:30,
-      challengeStartsAt:21,
-      blockLabels:[
-        {start:1,end:20,label:'Course-level block'},
-        {start:21,end:30,label:'Higher-level stretch'}
-      ]
-    };
-  }else{
-    const pool=bank.filter(q=>(selectedCategory==='all'||q.cat===selectedCategory)&&(selectedDifficulty==='all'||q.diff===selectedDifficulty));
-    quiz=[...(pool.length?pool:bank)].sort(()=>Math.random()-.5).slice(0,Math.min(selectedLength,(pool.length?pool:bank).length));
-    quizMeta={mode:quizMode,type:QUIZ_MODE_CONFIG[quizMode].label,category:selectedCategory==='all'?'All categories':selectedCategory,difficulty:selectedDifficulty==='all'?'Mixed difficulty':selectedDifficulty,length:selectedLength};
+    buildLocalQuizSet();
+    return;
   }
-  qi=0;score=0;answered=false;catResults={};difficultyResults={};questionResults=[];
-  document.getElementById('quizMeta').textContent=`${quizMeta.type} - ${quizMeta.category} - ${quizMeta.difficulty}`;
-  loadQ();
+  const adaptiveRequest=buildAdaptiveQuizRequest({selectedCategory,selectedDifficulty,selectedLength,effectiveCategory,course,learner,categoryLabel});
+  try{
+    await buildAdaptiveQuizSet(adaptiveRequest);
+  }catch(error){
+    buildLocalQuizSet({generator:'Local backup'});
+    window.OrganoApp?.notify?.({
+      title:`${ORGANOQUIZO_BOT_NAME} fallback`,
+      body:`Adaptive quiz generation was unavailable, so the local quiz bank was used instead. ${AI?.normalizeAIError?.(error)||String(error)}`,
+      kind:'info',
+      actionHref:'#quiz',
+      actionLabel:'Review quiz'
+    });
+  }
 }
 
 function loadQ(){
@@ -1373,8 +1563,7 @@ function loadQ(){
   if(!q){document.getElementById('qText').textContent='Build a quiz to begin.';document.getElementById('qNum').textContent='0/0';opts.innerHTML='';fb.className='quiz-feedback';document.getElementById('nextBtn').style.display='none';document.getElementById('restartBtn').style.display='none';document.getElementById('scoreDisplay').style.display='none';return;}
   document.getElementById('qText').textContent=q.q;
   document.getElementById('qNum').textContent=`${qi+1}/${quiz.length}`;
-  const activeBlock=Array.isArray(quizMeta.blockLabels)?quizMeta.blockLabels.find(block=>qi+1>=block.start&&qi+1<=block.end):null;
-  document.getElementById('quizMeta').textContent=activeBlock?`${quizMeta.type} - ${activeBlock.label}`:`${quizMeta.type} - ${quizMeta.category} - ${quizMeta.difficulty}`;
+  document.getElementById('quizMeta').textContent=buildQuizMetaText(quizMeta,qi);
   opts.innerHTML='';
   q.opts.forEach((opt,i)=>{const b=document.createElement('button');b.className='quiz-opt';b.textContent=opt;b.onclick=()=>checkA(i);opts.appendChild(b);});
   fb.className='quiz-feedback';fb.textContent='';document.getElementById('nextBtn').style.display='none';document.getElementById('restartBtn').style.display='none';document.getElementById('scoreDisplay').style.display='none';answered=false;
@@ -1383,6 +1572,7 @@ function loadQ(){
 function checkA(choice){
   if(answered)return;answered=true;
   const q=quiz[qi],opts=document.querySelectorAll('.quiz-opt'),fb=document.getElementById('qFeedback');
+  const explanation=buildQuizAnswerExplanation(q);
   opts.forEach(b=>b.classList.add('disabled'));
   if(!catResults[q.cat])catResults[q.cat]={correct:0,total:0};
   if(!difficultyResults[q.diff])difficultyResults[q.diff]={correct:0,total:0};
@@ -1390,15 +1580,15 @@ function checkA(choice){
   difficultyResults[q.diff].total+=1;
   const correct=choice===q.ans;
   questionResults.push({index:qi,correct,difficulty:q.diff,category:q.cat});
-  if(correct){score+=1;catResults[q.cat].correct+=1;difficultyResults[q.diff].correct+=1;opts[choice].classList.add('correct');fb.className='quiz-feedback correct-fb show';fb.textContent=`Correct. ${q.exp}`;}
-  else{opts[choice].classList.add('wrong');opts[q.ans].classList.add('correct');fb.className='quiz-feedback wrong-fb show';fb.textContent=`Not quite. ${q.exp}`;}
+  if(correct){score+=1;catResults[q.cat].correct+=1;difficultyResults[q.diff].correct+=1;opts[choice].classList.add('correct');fb.className='quiz-feedback correct-fb show';fb.textContent=`Correct. ${explanation}`;}
+  else{opts[choice].classList.add('wrong');opts[q.ans].classList.add('correct');fb.className='quiz-feedback wrong-fb show';fb.textContent=`Not quite. ${explanation}`;}
   if(qi<quiz.length-1)document.getElementById('nextBtn').style.display='inline-block';else showScore();
 }
 
 function nextQ(){qi+=1;loadQ();}
 
 function restartQuiz(){
-  setupQuiz();
+  Promise.resolve(setupQuiz());
 }
 
 function showScore(){
@@ -1468,7 +1658,7 @@ function showScore(){
     });
     return;
   }
-  state.quizHistory.unshift({createdAt:new Date().toISOString(),score,total:quiz.length,percent:pct,category:quizMeta.category,difficulty:quizMeta.difficulty,type:quizMeta.type,mode:quizMeta.mode,breakdown:catResults,evaluatedLevel});
+  state.quizHistory.unshift({createdAt:new Date().toISOString(),score,total:quiz.length,percent:pct,category:quizMeta.category,difficulty:quizMeta.difficulty,type:quizMeta.type,mode:quizMeta.mode,breakdown:catResults,evaluatedLevel,generator:quizMeta.generator||''});
   state.quizHistory=state.quizHistory.slice(0,8);
   saveState();
   const completedQuizzesInput=document.getElementById('completedQuizzes');
@@ -1485,7 +1675,7 @@ function showScore(){
 
 function renderQuizHistory(){
   const locked=!window.OrganoApp?.isAuthenticated?.();
-  document.getElementById('quizHistory').innerHTML=state.quizHistory.map(s=>`<div class="history-item"><strong>${s.percent}% - ${esc(s.type||'Quiz')}</strong>${esc(s.category)} - ${esc(s.difficulty)} - ${s.score}/${s.total} correct${s.evaluatedLevel?` - placed at ${esc(s.evaluatedLevel)}`:''} - ${prettyDate(s.createdAt)}</div>`).join('')||(locked?'<div class="history-item"><strong>Sign in to save quiz sessions</strong>Your completed quizzes still work in preview mode, but history is only stored for signed-in users.</div>':'<div class="history-item"><strong>No saved sessions yet</strong>Your completed quizzes will appear here.</div>');
+  document.getElementById('quizHistory').innerHTML=state.quizHistory.map(s=>`<div class="history-item"><strong>${s.percent}% - ${esc(s.type||'Quiz')}</strong>${esc(s.category)} - ${esc(s.difficulty)} - ${s.score}/${s.total} correct${s.evaluatedLevel?` - placed at ${esc(s.evaluatedLevel)}`:''}${s.generator?` - ${esc(s.generator)}`:''} - ${prettyDate(s.createdAt)}</div>`).join('')||(locked?'<div class="history-item"><strong>Sign in to save quiz sessions</strong>Your completed quizzes still work in preview mode, but history is only stored for signed-in users.</div>':'<div class="history-item"><strong>No saved sessions yet</strong>Your completed quizzes will appear here.</div>');
 }
 
 function renderReference(){

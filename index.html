@@ -38,7 +38,7 @@
   <nav class="app-nav" aria-label="Primary">
     <a class="app-nav-link" href="#dashboard" data-panel-link="dashboard">Dashboard</a>
     <a class="app-nav-link" href="#studio" data-panel-link="studio">Material Studio</a>
-    <a class="app-nav-link" href="#bot" data-panel-link="bot">ORGANOBOT</a>
+    <a class="app-nav-link" href="#bot" data-panel-link="bot">OrganoQuizo Bot</a>
   </nav>
 
   <div class="header-utilities">
@@ -96,7 +96,7 @@
       <div class="hero-actions">
         <a class="button primary" href="#dashboard">Open Dashboard</a>
         <a class="button secondary" href="#studio">Open Material Studio</a>
-        <a class="button secondary" href="#bot">Open ORGANOBOT</a>
+        <a class="button secondary" href="#bot">Open OrganoQuizo Bot</a>
       </div>
       <div class="hero-pills">
         <span class="hero-chip">Connected app shell</span>
@@ -109,7 +109,7 @@
       <div class="hero-aside-card">
         <span class="hero-card-label">Current Mode</span>
         <strong id="heroSessionState">Preview access</strong>
-        <p id="heroSessionCopy">Browse every panel freely, then sign in to unlock saved study state, planner history, and ORGANOBOT conversations.</p>
+        <p id="heroSessionCopy">Browse every panel freely, then sign in to unlock saved study state, planner history, and OrganoQuizo Bot conversations.</p>
       </div>
       <div class="hero-aside-card">
         <span class="hero-card-label">Deep Links</span>
@@ -317,7 +317,7 @@
                 </label>
               </div>
             </div>
-            <div class="reference-summary" id="plannerCurriculumSummary">Sign in and complete your profile to attach a curriculum track to the planner and ORGANOBOT.</div>
+            <div class="reference-summary" id="plannerCurriculumSummary">Sign in and complete your profile to attach a curriculum track to the planner and OrganoQuizo Bot.</div>
             <div class="ai-settings-card">
               <p class="settings-note"><strong>Shared Grok AI</strong><br>Roadmap generation uses Grok as the shared AI. The app tries Puter first, then falls back to the server route when available. Sign in to save roadmaps to your account.</p>
             </div>
@@ -422,7 +422,7 @@
         <div class="section-tag">05</div>
         <div class="section-copy">
           <h3 id="quizTitle">Quiz partition</h3>
-          <p>Choose between a skippable first-time evaluation, course-linked progressive quizzes, monthly exams, and the final end-of-course challenge. Sign in to sync quiz history and learner placement to your account.</p>
+          <p>Choose between a skippable first-time evaluation, course-linked progressive quizzes, monthly exams, and the final end-of-course challenge. OrganoQuizo Bot now builds adaptive questions from your study plan, quiz history, and learner level.</p>
         </div>
         <div class="quiz-section">
           <div class="quiz-mode-grid" id="quizModeGrid" role="group" aria-label="Quiz types">
@@ -488,7 +488,7 @@
                 <option value="30">30 questions</option>
               </select>
             </label>
-            <button class="btn btn-primary" type="button" onclick="setupQuiz()">Build Quiz</button>
+            <button class="btn btn-primary" type="button" onclick="setupQuiz()">Generate with OrganoQuizo Bot</button>
             <button class="btn btn-secondary" id="skipEvaluationBtn" type="button" onclick="skipEvaluationQuiz()" style="display:none;">Skip First Evaluation</button>
           </div>
           <div class="quiz-header">
@@ -698,7 +698,7 @@
     <section id="bot" class="app-panel" data-panel="bot">
       <div class="panel-header-block">
         <div>
-          <p class="eyebrow">ORGANOBOT</p>
+          <p class="eyebrow">OrganoQuizo Bot</p>
           <h2>Ask a chemistry-focused AI guide inside the same app shell</h2>
           <p class="section-lead">Preview the bot interface freely, then sign in to unlock session history and account-backed chat continuity.</p>
         </div>
@@ -706,20 +706,20 @@
 
       <div class="auth-notice" data-auth-banner="bot">
         <strong>Chat preview is visible.</strong>
-        <span>Sign in to send chemistry questions, create persistent chat sessions, and sync ORGANOBOT history to your account.</span>
+        <span>Sign in to send chemistry questions, create persistent chat sessions, and sync OrganoQuizo Bot history to your account.</span>
         <a class="button secondary small" href="auth.html">Sign In for Chat</a>
       </div>
 
       <section class="bot-hero">
         <div class="bot-copy">
           <p class="bot-kicker">Chemistry-Only AI Guide</p>
-          <h3>Ask ORGANOBOT anything about chemistry.</h3>
-          <p class="bot-lead">Mechanisms, aromaticity, spectra clues, compound comparisons, study guidance, and quick chemistry explanations live here in one focused assistant.</p>
+          <h3>Ask OrganoQuizo Bot anything about chemistry.</h3>
+          <p class="bot-lead">Mechanisms, aromaticity, spectra clues, plan-aware quiz generation, compound comparisons, study guidance, and quick chemistry explanations live here in one focused assistant.</p>
           <div class="bot-chip-row">
-            <button class="prompt-chip" type="button" data-prompt="Explain SN1 vs SN2 with one clear comparison table." data-auth-required data-auth-message="Sign in to chat with ORGANOBOT and save chemistry sessions.">Explain SN1 vs SN2</button>
-            <button class="prompt-chip" type="button" data-prompt="Help me with aromaticity and the Huckel rule." data-auth-required data-auth-message="Sign in to chat with ORGANOBOT and save chemistry sessions.">Help me with aromaticity</button>
-            <button class="prompt-chip" type="button" data-prompt="Interpret this IR clue: strong peak near 1700 cm^-1 and broad peak around 3300 cm^-1." data-auth-required data-auth-message="Sign in to chat with ORGANOBOT and save chemistry sessions.">Interpret this IR clue</button>
-            <button class="prompt-chip" type="button" data-prompt="Teach me carbonyl chemistry in a revision-friendly way." data-auth-required data-auth-message="Sign in to chat with ORGANOBOT and save chemistry sessions.">Teach me carbonyl chemistry</button>
+            <button class="prompt-chip" type="button" data-prompt="Explain SN1 vs SN2 with one clear comparison table." data-auth-required data-auth-message="Sign in to chat with OrganoQuizo Bot and save chemistry sessions.">Explain SN1 vs SN2</button>
+            <button class="prompt-chip" type="button" data-prompt="Help me with aromaticity and the Huckel rule." data-auth-required data-auth-message="Sign in to chat with OrganoQuizo Bot and save chemistry sessions.">Help me with aromaticity</button>
+            <button class="prompt-chip" type="button" data-prompt="Interpret this IR clue: strong peak near 1700 cm^-1 and broad peak around 3300 cm^-1." data-auth-required data-auth-message="Sign in to chat with OrganoQuizo Bot and save chemistry sessions.">Interpret this IR clue</button>
+            <button class="prompt-chip" type="button" data-prompt="Teach me carbonyl chemistry in a revision-friendly way." data-auth-required data-auth-message="Sign in to chat with OrganoQuizo Bot and save chemistry sessions.">Teach me carbonyl chemistry</button>
           </div>
         </div>
 
@@ -745,8 +745,8 @@
             <div class="card-eyebrow">Sessions</div>
             <h3>Conversation Stack</h3>
             <div class="sidebar-actions">
-              <button class="bot-btn bot-btn-primary" type="button" id="newSessionBtn" data-auth-required data-auth-message="Sign in to create and save ORGANOBOT chat sessions.">New Chat</button>
-              <button class="bot-btn bot-btn-secondary" type="button" id="clearHistoryBtn" data-auth-required data-auth-message="Sign in to manage ORGANOBOT chat history.">Clear History</button>
+              <button class="bot-btn bot-btn-primary" type="button" id="newSessionBtn" data-auth-required data-auth-message="Sign in to create and save OrganoQuizo Bot chat sessions.">New Chat</button>
+              <button class="bot-btn bot-btn-secondary" type="button" id="clearHistoryBtn" data-auth-required data-auth-message="Sign in to manage OrganoQuizo Bot chat history.">Clear History</button>
             </div>
             <div class="session-list" id="sessionList"></div>
           </div>
@@ -754,7 +754,7 @@
           <div class="sidebar-card">
             <div class="card-eyebrow">AI Status</div>
             <h3>Shared Grok AI</h3>
-            <p class="sidebar-note">ORGANOBOT uses the same shared Grok layer as the planner, with Puter as the first route and the server proxy as fallback. Auth gates saved history and message sending, not the panel itself.</p>
+            <p class="sidebar-note">OrganoQuizo Bot uses the same shared Grok layer as the planner, with Puter as the first route and the server proxy as fallback. It also powers the adaptive quiz partition.</p>
           </div>
         </aside>
 
@@ -764,7 +764,7 @@
               <div class="card-eyebrow">Live Chemistry Chat</div>
               <h3 id="sessionTitle">New chemistry chat</h3>
             </div>
-            <div class="chat-status" id="botStatus" role="status" aria-live="polite">Checking shared Grok AI availability for ORGANOBOT...</div>
+            <div class="chat-status" id="botStatus" role="status" aria-live="polite">Checking shared Grok AI availability for OrganoQuizo Bot...</div>
           </div>
 
           <div class="chat-log" id="chatLog" aria-live="polite"></div>
@@ -772,10 +772,10 @@
           <form class="chat-form" id="chatForm">
             <label class="bot-field grow">
               <span>Your question</span>
-              <textarea id="chatInput" rows="4" placeholder="Ask a chemistry question, paste rough notes, enter a formula, or type a short follow-up..." data-auth-required data-auth-message="Sign in to send questions to ORGANOBOT."></textarea>
+              <textarea id="chatInput" rows="4" placeholder="Ask a chemistry question, ask for a plan-aware quiz, paste rough notes, enter a formula, or type a short follow-up..." data-auth-required data-auth-message="Sign in to send questions to OrganoQuizo Bot."></textarea>
             </label>
             <div class="chat-form-actions">
-              <button class="bot-btn bot-btn-primary" type="submit" id="sendChatBtn" data-auth-required data-auth-message="Sign in to send questions to ORGANOBOT.">Send to ORGANOBOT</button>
+              <button class="bot-btn bot-btn-primary" type="submit" id="sendChatBtn" data-auth-required data-auth-message="Sign in to send questions to OrganoQuizo Bot.">Send to OrganoQuizo Bot</button>
             </div>
           </form>
         </section>
