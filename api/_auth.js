@@ -19,6 +19,7 @@ const USER_SELECT_COLUMNS = [
   'gender',
   'country',
   'learner_type',
+  'academic_year',
   'curriculum_track'
 ].join(', ');
 
@@ -215,6 +216,7 @@ function sanitizeUser(row) {
       gender: String(row.gender || '').trim(),
       country: String(row.country || '').trim(),
       learnerType: String(row.learner_type || '').trim(),
+      academicYear: String(row.academic_year || '').trim(),
       curriculumTrack: String(row.curriculum_track || '').trim()
     }
   };

@@ -104,7 +104,8 @@ module.exports = async (req, res) => {
            gender = $4,
            country = $5,
            learner_type = $6,
-           curriculum_track = $7,
+           academic_year = $7,
+           curriculum_track = $8,
            updated_at = NOW()
        WHERE id = $1`,
       [
@@ -114,6 +115,7 @@ module.exports = async (req, res) => {
         nullableText(payload.profile.gender),
         nullableText(payload.profile.country),
         nullableText(payload.profile.learnerType),
+        nullableText(payload.profile.academicYear),
         nullableText(payload.profile.curriculumTrack)
       ]
     );
@@ -172,6 +174,7 @@ function normalizeProfile(value) {
   const gender = normalizeAllowedValue(profile.gender, ['Male', 'Female', 'Non-binary', 'Prefer not to say']);
   const country = normalizeAllowedValue(profile.country, ['Egypt', 'UK', 'USA', 'France']);
   const learnerType = normalizeAllowedValue(profile.learnerType, ['Free learner', 'High school student', 'University student']);
+  const academicYear = normalizeAcademicYear(profile.academicYear, learnerType);
   const curriculumTrack = normalizeAllowedValue(profile.curriculumTrack, [
     'Egypt High School',
     'Egypt University',
@@ -188,8 +191,18 @@ function normalizeProfile(value) {
     gender,
     country,
     learnerType,
+    academicYear,
     curriculumTrack
   };
+}
+
+function normalizeAcademicYear(value, learnerType) {
+  const optionsByLearnerType = {
+    'Free learner': ['Foundation refresher', 'Independent bridge', 'Exam prep'],
+    'High school student': ['Year 1', 'Year 2', 'Year 3'],
+    'University student': ['Year 1', 'Year 2', 'Year 3', 'Year 4', 'Year 5+']
+  };
+  return normalizeAllowedValue(value, optionsByLearnerType[learnerType] || []);
 }
 
 function normalizeAllowedValue(value, allowed) {
@@ -205,6 +218,6 @@ function nullableText(value) {
 function hasProfileData(profile) {
   return Boolean(
     profile &&
-    (profile.age || profile.gender || profile.country || profile.learnerType || profile.curriculumTrack)
+    (profile.age || profile.gender || profile.country || profile.learnerType || profile.academicYear || profile.curriculumTrack)
   );
 }

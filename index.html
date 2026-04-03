@@ -220,18 +220,26 @@
 
                   <div class="planner-setup-block">
                     <div class="planner-block-copy">
-                      <span class="planner-block-label">Learning intensity</span>
+                      <span class="planner-block-label">Course timeline</span>
                       <div class="planner-intensity-readout">
-                        <strong id="plannerIntensityLabel">Balanced</strong>
-                        <span id="plannerIntensityMinutes">35 min sessions</span>
+                        <strong id="plannerCourseDaysValue">84 days</strong>
+                        <span id="plannerCourseDaysMeta">12 weeks / 35 min sessions</span>
                       </div>
                     </div>
-                    <input class="planner-intensity-slider" id="plannerIntensity" type="range" min="0" max="3" step="1" value="1" aria-label="Learning intensity">
+                    <input class="planner-intensity-slider" id="plannerCourseDays" type="range" min="14" max="112" step="7" value="84" aria-label="Course duration in days">
                     <div class="planner-intensity-scale" aria-hidden="true">
-                      <span>Light</span>
-                      <span>Balanced</span>
-                      <span>Sprint</span>
+                      <span>14 days</span>
+                      <span>56 days</span>
+                      <span>112 days</span>
                     </div>
+                    <label class="planner-native-field" aria-hidden="true" tabindex="-1">
+                      <span>Course Days</span>
+                      <input id="courseDays" type="number" min="14" max="112" step="7" value="84" tabindex="-1">
+                    </label>
+                    <label class="planner-native-field" aria-hidden="true" tabindex="-1">
+                      <span>Course Length</span>
+                      <input id="courseWeeks" type="number" min="2" max="16" value="12" tabindex="-1">
+                    </label>
                     <label class="planner-native-field" aria-hidden="true" tabindex="-1">
                       <span>Session Time</span>
                       <select id="sessionMinutes" tabindex="-1">
@@ -277,9 +285,24 @@
 
               <div class="planner-detail-grid">
                 <label class="field">
-                  <span>Course Length</span>
-                  <input id="courseWeeks" type="number" min="2" max="52" value="12">
+                  <span>Course Timeline</span>
+                  <input id="plannerDerivedTimeline" type="text" value="84 days / 12 weeks" readonly>
                 </label>
+                <label class="field">
+                  <span>Session Length</span>
+                  <input id="plannerDerivedSessionLength" type="text" value="35 minutes" readonly>
+                </label>
+                <label class="field">
+                  <span>Planned Quizzes</span>
+                  <input id="plannerDerivedQuizzes" type="text" value="24 total / 2 per week" readonly>
+                </label>
+                <label class="field">
+                  <span>Major Exams</span>
+                  <input id="plannerDerivedExams" type="text" value="3 total" readonly>
+                </label>
+              </div>
+
+              <div class="planner-detail-grid">
                 <label class="field">
                   <span>Completed Quizzes</span>
                   <input id="completedQuizzes" type="number" min="0" max="500" value="0">

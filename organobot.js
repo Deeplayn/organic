@@ -88,10 +88,11 @@ function buildBotProfileContext(){
   const topicList=entry?(entry.topics||[]).map(topic=>typeof topic==='string'?topic:topic?.title||'').filter(Boolean).slice(0,10):[];
   return[
     `The signed-in learner is assigned to the ${profile.curriculumTrack} curriculum.`,
+    profile.academicYear?`Academic year: ${profile.academicYear}.`:'',
     profile.learnerType?`Learner type: ${profile.learnerType}.`:'',
     profile.country?`Profile country: ${profile.country}.`:'',
-    topicList.length?`Bias study advice and examples toward these curriculum topics: ${topicList.join(', ')}.`:'',
-    'Keep answers chemistry-only, but when study guidance is requested, prioritize this curriculum track.'
+    topicList.length?`Use these curriculum topics as the reference scope unless the learner asks to go outside them: ${topicList.join(', ')}.`:'',
+    'Keep answers chemistry-only. When the learner asks for a study plan, revision help, examples, or exam prep, treat the curriculum track and academic year as the default reference for depth, sequence, and priorities.'
   ].filter(Boolean).join(' ');
 }
 

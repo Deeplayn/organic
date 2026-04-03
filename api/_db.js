@@ -41,6 +41,7 @@ async function ensureSchema() {
       gender TEXT,
       country TEXT,
       learner_type TEXT,
+      academic_year TEXT,
       curriculum_track TEXT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -94,6 +95,7 @@ async function ensureSchema() {
     ALTER TABLE users ADD COLUMN IF NOT EXISTS gender TEXT;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS country TEXT;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS learner_type TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS academic_year TEXT;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS curriculum_track TEXT;
     ALTER TABLE users ALTER COLUMN account_serial SET DEFAULT nextval('user_account_serial_seq');
     ALTER TABLE oauth_identities
@@ -112,6 +114,7 @@ async function ensureSchema() {
       gender = COALESCE(NULLIF(users.gender, ''), NULLIF(user_state.payload->'profile'->>'gender', '')),
       country = COALESCE(NULLIF(users.country, ''), NULLIF(user_state.payload->'profile'->>'country', '')),
       learner_type = COALESCE(NULLIF(users.learner_type, ''), NULLIF(user_state.payload->'profile'->>'learnerType', '')),
+      academic_year = COALESCE(NULLIF(users.academic_year, ''), NULLIF(user_state.payload->'profile'->>'academicYear', '')),
       curriculum_track = COALESCE(NULLIF(users.curriculum_track, ''), NULLIF(user_state.payload->'profile'->>'curriculumTrack', ''))
     FROM user_state
     WHERE user_state.user_id = users.id;

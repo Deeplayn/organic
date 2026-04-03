@@ -37,6 +37,11 @@
   const PROFILE_COUNTRIES=['Egypt','UK','USA','France'];
   const PROFILE_LEARNER_TYPES=['Free learner','High school student','University student'];
   const PROFILE_TO_CURRICULUM_COUNTRY={UK:'England',USA:'United States',Egypt:'Egypt',France:'France'};
+  const PROFILE_ACADEMIC_YEARS={
+    'Free learner':['Foundation refresher','Independent bridge','Exam prep'],
+    'High school student':['Year 1','Year 2','Year 3'],
+    'University student':['Year 1','Year 2','Year 3','Year 4','Year 5+']
+  };
   const IS_AUTH_PAGE=/\/auth\.html$/i.test(window.location.pathname)||/auth\.html$/i.test(window.location.pathname.split('/').pop()||'');
   const authState={status:'loading',user:null,profile:null,syncing:false};
   const notificationState=DEFAULT_NOTIFICATION_STATE;
@@ -364,6 +369,12 @@
     if(learnerType==='Free learner')return['high-school','university'];
     return[];
   }
+  function academicYearOptionsFromLearnerType(learnerType){
+    return PROFILE_ACADEMIC_YEARS[learnerType]||[];
+  }
+  function normalizeAcademicYear(value,learnerType){
+    return normalizeAllowedValue(value,academicYearOptionsFromLearnerType(learnerType));
+  }
   function getCurriculumMatches(profile){
     const country=curriculumCountryFromProfile(profile?.country);
     const levels=curriculumLevelsFromLearnerType(profile?.learnerType);
@@ -392,6 +403,19 @@
     select.disabled=!matches.length;
     select.value=selectedTrack&&matches.some(entry=>entry.title===selectedTrack)?selectedTrack:'';
   }
+  function renderAcademicYearOptions(profile=authState.profile){
+    const select=$('profileAcademicYear');
+    if(!select)return;
+    const normalized=profile&&typeof profile==='object'&&!Array.isArray(profile)?profile:{};
+    const options=academicYearOptionsFromLearnerType(normalized.learnerType);
+    const fallback=normalized.learnerType?'Choose your academic year':'Choose learner type first';
+    select.innerHTML=[
+      `<option value="">${escapeHtml(fallback)}</option>`,
+      ...options.map(option=>`<option value="${escapeHtml(option)}">${escapeHtml(option)}</option>`)
+    ].join('');
+    select.disabled=!options.length;
+    select.value=normalizeAcademicYear(normalized.academicYear,normalized.learnerType);
+  }
   function normalizeProfile(profile){
     const source=profile&&typeof profile==='object'&&!Array.isArray(profile)?profile:{};
     const ageValue=Number.parseInt(String(source.age??'').trim(),10);
@@ -399,17 +423,19 @@
     const country=normalizeAllowedValue(source.country,PROFILE_COUNTRIES);
     const learnerType=normalizeAllowedValue(source.learnerType,PROFILE_LEARNER_TYPES);
     const curriculumTrack=getCurriculumTrackTitle(source.curriculumTrack)||deriveCurriculumTrack({country,learnerType});
+    const academicYear=normalizeAcademicYear(source.academicYear,learnerType);
     return{
       age,
       gender:normalizeAllowedValue(source.gender,PROFILE_GENDERS),
       country,
       learnerType,
+      academicYear,
       curriculumTrack
     };
   }
   function isProfileComplete(profile=authState.profile){
     const normalized=normalizeProfile(profile);
-    return Boolean(normalized.age&&normalized.gender&&normalized.country&&normalized.learnerType&&normalized.curriculumTrack);
+    return Boolean(normalized.age&&normalized.gender&&normalized.country&&normalized.learnerType&&normalized.academicYear&&normalized.curriculumTrack);
   }
   function shouldForceProfileCompletion(){
     return isAuthenticated()&&!isProfileComplete();
@@ -576,6 +602,8 @@
     if($('profileGender'))$('profileGender').value=normalized.gender||'';
     if($('profileCountry'))$('profileCountry').value=normalized.country||'';
     if($('profileLearnerType'))$('profileLearnerType').value=normalized.learnerType||'';
+    renderAcademicYearOptions(normalized);
+    if($('profileAcademicYear'))$('profileAcademicYear').value=normalized.academicYear||'';
     renderProfileCurriculumOptions(normalized);
     if($('profileCurriculumTrack'))$('profileCurriculumTrack').value=normalized.curriculumTrack||'';
   }
@@ -593,6 +621,7 @@
       ['Gender',normalized.gender],
       ['Country',normalized.country],
       ['Learner Type',normalized.learnerType],
+      ['Academic Year',normalized.academicYear],
       ['Curriculum',normalized.curriculumTrack]
     ].map(([label,value])=>`<div><strong>${escapeHtml(label)}</strong><div>${escapeHtml(value)}</div></div>`).join('');
   }
@@ -626,7 +655,7 @@
     $('headerAuthButton')?.setAttribute('aria-label',user?'Open account':'User Login Button');
     setText('heroSessionState',user?`Signed in as ${user.displayName||user.email}`:'Preview access');
     setText('heroSessionCopy',user?(profileComplete?'Your progress, curriculum-aware roadmaps, theme, and chat history now sync through your account.':'Finish your first-time profile setup to complete your account and start syncing with your learner details attached.'):'Browse every panel freely, then sign in to unlock saved study state, planner history, and ORGANOBOT conversations.');
-    setText('authSessionSummary',user?(profileComplete?`Signed in as ${user.displayName||'Learner'} (${user.email}). Theme: ${user.theme||localStorage.getItem(THEME_KEY)||'lab-noir'}. Curriculum: ${authState.profile?.curriculumTrack||'Pending'}.`:`Signed in as ${user.displayName||'Learner'} (${user.email}). Complete the first-time profile questions below to finish your account setup.`):'You are not signed in. Choose a provider or use your OrganoChem account to start a session.');
+    setText('authSessionSummary',user?(profileComplete?`Signed in as ${user.displayName||'Learner'} (${user.email}). Theme: ${user.theme||localStorage.getItem(THEME_KEY)||'lab-noir'}. Curriculum: ${authState.profile?.curriculumTrack||'Pending'}. Academic year: ${authState.profile?.academicYear||'Pending'}.`:`Signed in as ${user.displayName||'Learner'} (${user.email}). Complete the first-time profile questions below to finish your account setup.`):'You are not signed in. Choose a provider or use your OrganoChem account to start a session.');
     const logoutButton=$('logoutButton');
     if(logoutButton)logoutButton.style.display=user?'inline-flex':'none';
     const authFormCard=$('authFormCard');
@@ -784,10 +813,11 @@
         gender:$('profileGender')?.value,
         country:$('profileCountry')?.value,
         learnerType:$('profileLearnerType')?.value,
+        academicYear:$('profileAcademicYear')?.value,
         curriculumTrack:$('profileCurriculumTrack')?.value
       });
       if(!isProfileComplete(profile)){
-        showMessage('profileStatusMessage','Please complete age, gender, country, learner type, and curriculum before continuing.','error');
+        showMessage('profileStatusMessage','Please complete age, gender, country, learner type, academic year, and curriculum before continuing.','error');
         return;
       }
       const data=await apiJson('/api/user-state',{
@@ -956,12 +986,17 @@
       learnerType:$('profileLearnerType')?.value,
       curriculumTrack:''
     }));
-    $('profileLearnerType')?.addEventListener('change',()=>renderProfileCurriculumOptions({
-      ...normalizeProfile(authState.profile),
-      country:$('profileCountry')?.value,
-      learnerType:$('profileLearnerType')?.value,
-      curriculumTrack:''
-    }));
+    $('profileLearnerType')?.addEventListener('change',()=>{
+      const nextProfile={
+        ...normalizeProfile(authState.profile),
+        country:$('profileCountry')?.value,
+        learnerType:$('profileLearnerType')?.value,
+        academicYear:'',
+        curriculumTrack:''
+      };
+      renderAcademicYearOptions(nextProfile);
+      renderProfileCurriculumOptions(nextProfile);
+    });
     document.querySelectorAll('[data-auth-mode]').forEach(button=>button.addEventListener('click',()=>setAuthMode(button.dataset.authMode)));
     document.querySelectorAll('[data-provider]').forEach(button=>button.addEventListener('click',handleProviderChoice));
     window.addEventListener('organo:state-changed',event=>queueSync(event.detail?.key||'state'));

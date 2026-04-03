@@ -13,12 +13,12 @@ const prettyDate=v=>new Date(v).toLocaleDateString(undefined,{month:'short',day:
 const today=()=>new Date().toLocaleDateString(undefined,{month:'short',day:'numeric'});
 const AI=window.OrganoAI;
 const canUseAccountFeature=message=>window.OrganoApp?.assertFeatureAccess(message)??true;
-const PLANNER_INTENSITY_PRESETS=[
-  {minutes:20,label:'Light',mode:'Quick reset'},
-  {minutes:35,label:'Balanced',mode:'Stay on track'},
-  {minutes:50,label:'Focused',mode:'Deep work'},
-  {minutes:75,label:'Sprint',mode:'Big push'}
-];
+const PLANNER_TIMELINE_DEFAULTS={
+  minDays:14,
+  maxDays:112,
+  stepDays:7,
+  defaultDays:84
+};
 
 function togglePanel(){document.getElementById('themePanel').classList.toggle('open');}
 function closePanel(){document.getElementById('themePanel').classList.remove('open');}
@@ -280,7 +280,7 @@ function renderPlannerCurriculumSummary(){
     node.textContent=`Curriculum "${profile.curriculumTrack}" is saved on your account, but it is not present in the loaded curriculum library.`;
     return;
   }
-  node.textContent=`Planner and ORGANOBOT are using ${entry.title}. ${entry.topics.length} curriculum topics will be used to bias roadmap priorities and explanations.`;
+  node.textContent=`Planner and ORGANOBOT are using ${entry.title}${profile.academicYear?` for ${profile.academicYear}`:''}. ${entry.topics.length} curriculum topics will be used to bias roadmap priorities, study guidance, and explanations.`;
 }
 
 function openLessonTopic(slug){
@@ -381,26 +381,80 @@ function setPlannerError(message=''){
   box.textContent=message;
 }
 
-function plannerIntensityIndex(minutes){
-  const exactIndex=PLANNER_INTENSITY_PRESETS.findIndex(item=>item.minutes===minutes);
-  if(exactIndex>=0)return exactIndex;
-  return PLANNER_INTENSITY_PRESETS.reduce((bestIndex,item,index)=>Math.abs(item.minutes-minutes)<Math.abs(PLANNER_INTENSITY_PRESETS[bestIndex].minutes-minutes)?index:bestIndex,0);
+function clampCourseDays(days){
+  const numeric=Number(days);
+  const base=Number.isFinite(numeric)?numeric:PLANNER_TIMELINE_DEFAULTS.defaultDays;
+  const clamped=Math.max(PLANNER_TIMELINE_DEFAULTS.minDays,Math.min(PLANNER_TIMELINE_DEFAULTS.maxDays,base));
+  return Math.round(clamped/PLANNER_TIMELINE_DEFAULTS.stepDays)*PLANNER_TIMELINE_DEFAULTS.stepDays;
 }
 
-function syncPlannerIntensityUI(){
-  const slider=document.getElementById('plannerIntensity');
-  const select=document.getElementById('sessionMinutes');
-  if(!slider||!select)return;
-  const index=plannerIntensityIndex(Number(select.value)||35);
-  const preset=PLANNER_INTENSITY_PRESETS[index]||PLANNER_INTENSITY_PRESETS[1];
-  slider.value=String(index);
-  slider.style.setProperty('--planner-progress',`${index/Math.max(1,PLANNER_INTENSITY_PRESETS.length-1)*100}%`);
-  const label=document.getElementById('plannerIntensityLabel');
-  const minutes=document.getElementById('plannerIntensityMinutes');
+function derivePlannerTimeline(days){
+  const courseDays=clampCourseDays(days);
+  const courseWeeks=Math.max(2,Math.ceil(courseDays/7));
+  let sessionMinutes=35;
+  let recommendedQuizzesPerWeek=2;
+  let plannedMajorExams=3;
+  let mode='Stay on track';
+  if(courseDays<=28){
+    sessionMinutes=75;
+    recommendedQuizzesPerWeek=4;
+    plannedMajorExams=1;
+    mode='Fast track';
+  }else if(courseDays<=49){
+    sessionMinutes=50;
+    recommendedQuizzesPerWeek=3;
+    plannedMajorExams=2;
+    mode='Focused push';
+  }else if(courseDays<=84){
+    sessionMinutes=35;
+    recommendedQuizzesPerWeek=2;
+    plannedMajorExams=3;
+    mode='Stay on track';
+  }else{
+    sessionMinutes=20;
+    recommendedQuizzesPerWeek=1;
+    plannedMajorExams=4;
+    mode='Long runway';
+  }
+  return{
+    courseDays,
+    courseWeeks,
+    sessionMinutes,
+    recommendedQuizzesPerWeek,
+    plannedQuizzes:courseWeeks*recommendedQuizzesPerWeek,
+    plannedMajorExams,
+    mode
+  };
+}
+
+function syncPlannerTimelineUI(){
+  const slider=document.getElementById('plannerCourseDays');
+  const daysInput=document.getElementById('courseDays');
+  const weeksInput=document.getElementById('courseWeeks');
+  const minutesSelect=document.getElementById('sessionMinutes');
+  if(!slider||!daysInput||!weeksInput||!minutesSelect)return;
+  const timeline=derivePlannerTimeline(slider.value||daysInput.value||PLANNER_TIMELINE_DEFAULTS.defaultDays);
+  slider.value=String(timeline.courseDays);
+  slider.style.setProperty('--planner-progress',`${(timeline.courseDays-PLANNER_TIMELINE_DEFAULTS.minDays)/Math.max(1,PLANNER_TIMELINE_DEFAULTS.maxDays-PLANNER_TIMELINE_DEFAULTS.minDays)*100}%`);
+  daysInput.value=String(timeline.courseDays);
+  weeksInput.value=String(timeline.courseWeeks);
+  minutesSelect.value=String(timeline.sessionMinutes);
+
+  const daysLabel=document.getElementById('plannerCourseDaysValue');
+  const daysMeta=document.getElementById('plannerCourseDaysMeta');
   const mode=document.getElementById('plannerModeValue');
-  if(label)label.textContent=preset.label;
-  if(minutes)minutes.textContent=`${preset.minutes} min sessions`;
-  if(mode)mode.textContent=preset.mode;
+  const derivedTimeline=document.getElementById('plannerDerivedTimeline');
+  const derivedSession=document.getElementById('plannerDerivedSessionLength');
+  const derivedQuizzes=document.getElementById('plannerDerivedQuizzes');
+  const derivedExams=document.getElementById('plannerDerivedExams');
+
+  if(daysLabel)daysLabel.textContent=`${timeline.courseDays} days`;
+  if(daysMeta)daysMeta.textContent=`${timeline.courseWeeks} weeks / ${timeline.sessionMinutes} min sessions`;
+  if(mode)mode.textContent=timeline.mode;
+  if(derivedTimeline)derivedTimeline.value=`${timeline.courseDays} days / ${timeline.courseWeeks} weeks`;
+  if(derivedSession)derivedSession.value=`${timeline.sessionMinutes} minutes`;
+  if(derivedQuizzes)derivedQuizzes.value=`${timeline.plannedQuizzes} total / ${timeline.recommendedQuizzesPerWeek} per week`;
+  if(derivedExams)derivedExams.value=`${timeline.plannedMajorExams} total`;
 }
 
 function syncPlannerFocusUI(){
@@ -414,22 +468,15 @@ function syncPlannerFocusUI(){
 }
 
 function syncPlannerSetupUI(){
-  syncPlannerIntensityUI();
+  syncPlannerTimelineUI();
   syncPlannerFocusUI();
 }
 
 function bindPlannerSetupUI(){
-  const slider=document.getElementById('plannerIntensity');
-  const minutesSelect=document.getElementById('sessionMinutes');
-  if(slider&&minutesSelect&&!slider.dataset.bound){
-    const syncFromSlider=()=>{
-      const preset=PLANNER_INTENSITY_PRESETS[Math.max(0,Math.min(PLANNER_INTENSITY_PRESETS.length-1,Number(slider.value)||0))]||PLANNER_INTENSITY_PRESETS[1];
-      minutesSelect.value=String(preset.minutes);
-      syncPlannerIntensityUI();
-    };
-    slider.addEventListener('input',syncFromSlider);
-    slider.addEventListener('change',syncFromSlider);
-    minutesSelect.addEventListener('change',syncPlannerIntensityUI);
+  const slider=document.getElementById('plannerCourseDays');
+  if(slider&&!slider.dataset.bound){
+    slider.addEventListener('input',syncPlannerTimelineUI);
+    slider.addEventListener('change',syncPlannerTimelineUI);
     slider.dataset.bound='true';
   }
   const focusSelect=document.getElementById('studyFocus');
@@ -469,15 +516,22 @@ async function refreshPlannerActivationState(){
 
 function readPlannerInputs(){
   const curriculumEntry=getAssignedCurriculumEntry();
+  const timeline=derivePlannerTimeline(document.getElementById('courseDays')?.value);
   return{
     focusArea:document.getElementById('studyFocus').value,
-    sessionMinutes:Number(document.getElementById('sessionMinutes').value),
-    courseWeeks:Math.max(2,Math.min(52,Number(document.getElementById('courseWeeks').value)||12)),
+    courseDays:timeline.courseDays,
+    sessionMinutes:timeline.sessionMinutes,
+    courseWeeks:timeline.courseWeeks,
+    recommendedQuizzesPerWeek:timeline.recommendedQuizzesPerWeek,
+    plannedQuizzes:timeline.plannedQuizzes,
+    plannedMajorExams:timeline.plannedMajorExams,
+    pacingMode:timeline.mode,
     completedQuizzes:Math.max(0,Number(document.getElementById('completedQuizzes').value)||0),
     completedMajorExams:Math.max(0,Number(document.getElementById('completedMajorExams').value)||0),
     startingLevel:document.getElementById('startingLevel').value,
     curriculum:curriculumEntry?{
       track:curriculumEntry.title,
+      academicYear:getSignedInProfile().academicYear||'',
       country:curriculumEntry.country,
       level:curriculumLevelLabel(curriculumEntry.level),
       topics:getCurriculumTopicLabels(curriculumEntry),
@@ -490,8 +544,8 @@ function hydratePlannerInputs(){
   const curriculumEntry=getAssignedCurriculumEntry();
   const cachedInputs=getLatestStoredPlan()?.inputs;
   if(cachedInputs?.focusArea)document.getElementById('studyFocus').value=cachedInputs.focusArea;
-  if(cachedInputs?.sessionMinutes)document.getElementById('sessionMinutes').value=String(cachedInputs.sessionMinutes);
-  if(cachedInputs?.courseWeeks)document.getElementById('courseWeeks').value=String(cachedInputs.courseWeeks);
+  const cachedDays=cachedInputs?.courseDays||(cachedInputs?.courseWeeks?Number(cachedInputs.courseWeeks)*7:PLANNER_TIMELINE_DEFAULTS.defaultDays);
+  document.getElementById('plannerCourseDays').value=String(clampCourseDays(cachedDays));
   if(cachedInputs?.completedQuizzes!==undefined)document.getElementById('completedQuizzes').value=String(cachedInputs.completedQuizzes);
   else document.getElementById('completedQuizzes').value=String(state.quizHistory.length);
   if(cachedInputs?.completedMajorExams!==undefined)document.getElementById('completedMajorExams').value=String(cachedInputs.completedMajorExams);
@@ -507,6 +561,7 @@ function savePlanHistory(plan,input){
     source:plan.source||'offline',
     focus:input.focusArea,
     duration:input.sessionMinutes,
+    courseDays:input.courseDays,
     courseWeeks:input.courseWeeks
   });
   state.studyPlans=state.studyPlans.slice(0,8);
@@ -562,8 +617,18 @@ function buildProgressSnapshot(input){
       createdAt:entry.createdAt
     })),
     requestedFocus:input.focusArea,
+    requestedTimeline:{
+      courseDays:input.courseDays,
+      courseWeeks:input.courseWeeks,
+      sessionMinutes:input.sessionMinutes,
+      plannedQuizzes:input.plannedQuizzes,
+      plannedMajorExams:input.plannedMajorExams,
+      recommendedQuizzesPerWeek:input.recommendedQuizzesPerWeek,
+      pacingMode:input.pacingMode
+    },
     curriculum:input.curriculum?{
       track:input.curriculum.track,
+      academicYear:input.curriculum.academicYear,
       level:input.curriculum.level,
       priorityTopics:input.curriculum.priorityTopics,
       topics:input.curriculum.topics.slice(0,10)
@@ -581,6 +646,16 @@ function normalizeStringArray(values,fallback=[]){
   return cleaned.length?cleaned:fallback;
 }
 
+function buildDefaultExamMilestones(input,priorityTopics,focusLabel){
+  const total=Math.max(1,Math.min(6,Number(input.plannedMajorExams)||1));
+  const topics=priorityTopics.length?priorityTopics:[focusLabel];
+  return Array.from({length:total},(_,index)=>({
+    week:Math.max(1,Math.min(input.courseWeeks,Math.round(((index+1)/total)*input.courseWeeks))),
+    type:index===total-1?'final major':'major',
+    focus:topics[index%topics.length]||focusLabel
+  }));
+}
+
 function normalizeRoadmapEntries(roadmap,input){
   const topicsPool=chemistryCategories();
   const source=Array.isArray(roadmap)?roadmap:[];
@@ -589,7 +664,7 @@ function normalizeRoadmapEntries(roadmap,input){
     week:index+1,
     goal:normalizeText(entry?.goal,`Build week ${index+1} around ${input.focusArea==='all'?'core organic chemistry patterns':input.focusArea}.`),
     topics:normalizeStringArray(entry?.topics,[topicsPool[index%topicsPool.length]]).slice(0,4),
-    quizzes:Math.max(1,Math.min(5,Number(entry?.quizzes)||2)),
+    quizzes:Math.max(1,Math.min(5,Number(entry?.quizzes)||input.recommendedQuizzesPerWeek||2)),
     majorExam:Boolean(entry?.majorExam),
     notes:normalizeText(entry?.notes,'Use retrieval plus worked examples to keep the week active.')
   }));
@@ -599,8 +674,8 @@ function normalizeRoadmapEntries(roadmap,input){
       week:index+1,
       goal:`Strengthen ${input.focusArea==='all'?'organic chemistry foundations':input.focusArea} with a steady week-${index+1} push.`,
       topics:[topicsPool[index%topicsPool.length]],
-      quizzes:Math.max(1,Math.min(4,Math.round(input.sessionMinutes>=50?3:2))),
-      majorExam:index===weeksToShow-1&&input.courseWeeks>=4,
+      quizzes:Math.max(1,Math.min(5,input.recommendedQuizzesPerWeek||2)),
+      majorExam:false,
       notes:'Keep one quiz, one review block, and one worked-example block each week.'
     });
   }
@@ -656,43 +731,36 @@ function normalizePlanObject(raw,input,source='ai'){
   const priorityTopics=normalizeStringArray(raw?.priorityTopics,[...curriculumPriority,focusLabel,input.startingLevel==='Beginner'?'Functional Groups':'Reaction Mechanisms']).slice(0,5);
   const roadmap=normalizeRoadmapEntries(raw?.roadmap,input);
   const sessionTitle=normalizeText(raw?.nextSession?.title,`${focusLabel} next-session plan`);
-  const totalMinutes=Math.max(20,Math.round(Number(raw?.nextSession?.totalMinutes)||input.sessionMinutes));
   const blocks=normalizeSessionBlocks(raw?.nextSession?.blocks,input.sessionMinutes,input.focusArea);
   const milestoneSeed=Array.isArray(raw?.examMilestones)?raw.examMilestones:[];
-  const examMilestones=milestoneSeed.slice(0,4).map((item,index)=>({
+  const fallbackMilestones=buildDefaultExamMilestones(input,priorityTopics,focusLabel);
+  const examMilestones=milestoneSeed.slice(0,Math.max(1,input.plannedMajorExams||1)).map((item,index)=>({
     week:Math.max(1,Math.min(input.courseWeeks,Math.round(Number(item?.week)||Math.max(1,(index+1)*Math.round(input.courseWeeks/Math.max(1,milestoneSeed.length||2)))))),
-    type:normalizeText(item?.type,index===milestoneSeed.length-1?'major':'checkpoint'),
+    type:normalizeText(item?.type,index===milestoneSeed.length-1?'final major':'major'),
     focus:normalizeText(item?.focus,priorityTopics[index%priorityTopics.length]||focusLabel)
   }));
-  const normalizedMilestones=examMilestones.length?examMilestones:[{
-    week:Math.max(1,Math.min(input.courseWeeks,Math.round(input.courseWeeks*.5))),
-    type:'checkpoint',
-    focus:priorityTopics[0]||focusLabel
-  },{
-    week:input.courseWeeks,
-    type:'major',
-    focus:priorityTopics[1]||focusLabel
-  }];
+  const normalizedMilestones=fallbackMilestones.map((fallback,index)=>examMilestones[index]||fallback);
+  const majorExamWeeks=new Set(normalizedMilestones.map(item=>item.week));
   return{
     source,
     createdAt:new Date().toISOString(),
     inputs:{...input},
     focusArea:input.focusArea,
-    summary:normalizeText(raw?.summary,`Build from ${input.startingLevel.toLowerCase()} toward mastery by spacing quizzes, topic rebuilds, and exam checkpoints across ${input.courseWeeks} weeks${input.curriculum?.track?` while staying aligned with ${input.curriculum.track}.`:'.'}`),
+    summary:normalizeText(raw?.summary,`Build from ${input.startingLevel.toLowerCase()} toward mastery by spacing quizzes, topic rebuilds, and major exams across ${input.courseDays} days (${input.courseWeeks} weeks)${input.curriculum?.track?` while staying aligned with ${input.curriculum.track}${input.curriculum?.academicYear?` for ${input.curriculum.academicYear}`:''}.`:'.'}`),
     learnerProfile:{
       startingLevel:normalizeText(raw?.learnerProfile?.startingLevel,input.startingLevel),
       targetLevel:'Master',
-      pace:normalizeText(raw?.learnerProfile?.pace,`${input.sessionMinutes}-minute sessions across ${input.courseWeeks} weeks`)
+      pace:normalizeText(raw?.learnerProfile?.pace,`${input.sessionMinutes}-minute sessions across ${input.courseDays} days (${input.courseWeeks} weeks)`)
     },
     curriculum:input.curriculum?{...input.curriculum}:null,
-    roadmap,
+    roadmap:roadmap.map(entry=>({...entry,majorExam:majorExamWeeks.has(entry.week)||entry.majorExam})),
     nextSession:{
       title:sessionTitle,
       totalMinutes:input.sessionMinutes,
       blocks
     },
     quizStrategy:{
-      recommendedPerWeek:Math.max(1,Math.min(5,Math.round(Number(raw?.quizStrategy?.recommendedPerWeek)||Math.max(1,input.sessionMinutes>=50?3:2)))),
+      recommendedPerWeek:Math.max(1,Math.min(5,Math.round(Number(raw?.quizStrategy?.recommendedPerWeek)||input.recommendedQuizzesPerWeek||2))),
       reason:normalizeText(raw?.quizStrategy?.reason,'Frequent retrieval keeps weak patterns visible before they harden into gaps.')
     },
     examMilestones:normalizedMilestones,
@@ -711,18 +779,19 @@ function buildOfflineStudyPlanObject(input){
   const curriculumPriority=Array.isArray(input.curriculum?.priorityTopics)?input.curriculum.priorityTopics:[];
   const emphasis=[...curriculumPriority,input.focusArea==='all'?weakTopics[0]||curriculumPriority[0]||'Functional Groups':input.focusArea,...reviewTopics,...weakTopics].filter(Boolean);
   const priorityTopics=[...new Set(emphasis.concat(chemistryCategories()))].slice(0,5);
-  const recommendedPerWeek=Math.max(1,Math.min(4,Math.round((input.sessionMinutes>=50?3:2)+(input.startingLevel==='Advanced'?1:0)-(input.courseWeeks>=16?1:0))));
+  const recommendedPerWeek=Math.max(1,Math.min(5,input.recommendedQuizzesPerWeek+(input.startingLevel==='Advanced'&&input.courseDays<=49?1:0)));
+  const examMilestones=buildDefaultExamMilestones({...input,plannedMajorExams:input.plannedMajorExams},priorityTopics,input.focusArea==='all'?'Balanced review':input.focusArea);
   const roadmap=normalizeRoadmapEntries(Array.from({length:Math.max(2,input.courseWeeks)},(_,index)=>({
     week:index+1,
     goal:index===0?`Establish a stable base in ${priorityTopics[0]||'organic chemistry fundamentals'}.`:index===Math.max(2,input.courseWeeks)-1?'Consolidate toward a mastery checkpoint.':`Extend the plan into ${priorityTopics[(index+1)%priorityTopics.length]||'applied examples'}.`,
     topics:priorityTopics.slice(index,index+2).length?priorityTopics.slice(index,index+2):[priorityTopics[index%priorityTopics.length]||'Functional Groups'],
     quizzes:recommendedPerWeek,
-    majorExam:index===Math.max(2,input.courseWeeks)-1&&input.courseWeeks>=4,
+    majorExam:examMilestones.some(item=>item.week===index+1),
     notes:index===0?'Start with recognition, naming, and pattern recall before pushing speed.':'Mix one retrieval block with one worked-example block each week.'
   })),input);
   return normalizePlanObject({
-    summary:`This offline roadmap uses your ${input.startingLevel.toLowerCase()} starting level, ${input.courseWeeks}-week course timeline, saved weak areas,${input.curriculum?.track?` and ${input.curriculum.track}`:' and your current topic data'} to keep progress moving toward mastery.`,
-    learnerProfile:{startingLevel:input.startingLevel,targetLevel:'Master',pace:`${input.sessionMinutes}-minute sessions with ${recommendedPerWeek} quizzes per week`},
+    summary:`This offline roadmap uses your ${input.startingLevel.toLowerCase()} starting level, ${input.courseDays}-day course timeline, saved weak areas,${input.curriculum?.track?` and ${input.curriculum.track}${input.curriculum?.academicYear?` (${input.curriculum.academicYear})`:''}`:' and your current topic data'} to keep progress moving toward mastery.`,
+    learnerProfile:{startingLevel:input.startingLevel,targetLevel:'Master',pace:`${input.sessionMinutes}-minute sessions with ${recommendedPerWeek} quizzes per week across ${input.courseDays} days`},
     roadmap,
     nextSession:{
       title:`Offline focus session: ${input.focusArea==='all'?'balanced review':input.focusArea}`,
@@ -733,16 +802,13 @@ function buildOfflineStudyPlanObject(input){
       recommendedPerWeek,
       reason:`Your current history suggests ${recommendedPerWeek} quizzes per week is enough to reinforce weak spots without crowding out concept review.`
     },
-    examMilestones:[
-      {week:Math.max(1,Math.round(input.courseWeeks*.5)),type:'checkpoint',focus:priorityTopics[0]||'Functional Groups'},
-      {week:input.courseWeeks,type:'major',focus:priorityTopics[1]||priorityTopics[0]||'Reaction Mechanisms'}
-    ],
+    examMilestones,
     priorityTopics,
     advice:[
-      input.curriculum?.track?`Keep ${input.curriculum.track} in view by revisiting ${curriculumPriority.slice(0,2).join(' and ')||'its core topics'} every week.`:'',
+      input.curriculum?.track?`Keep ${input.curriculum.track}${input.curriculum?.academicYear?` for ${input.curriculum.academicYear}`:''} in view by revisiting ${curriculumPriority.slice(0,2).join(' and ')||'its core topics'} every week.`:'',
       weakTopics.length?`Front-load ${weakTopics.join(' and ')} because they are currently your weakest quiz categories.`:'Front-load recognition-heavy topics before switching into mechanism drills.',
       input.completedQuizzes>=8?'Use completed quizzes as revision checkpoints, not just score reports.':'Build quiz volume steadily so recall becomes routine.',
-      input.completedMajorExams?`You have already taken ${input.completedMajorExams} major exam${input.completedMajorExams>1?'s':''}, so shift more time toward error correction and synthesis.`:'Add at least one timed exam-style review checkpoint before the final mastery week.'
+      input.completedMajorExams?`You have already taken ${input.completedMajorExams} major exam${input.completedMajorExams>1?'s':''}, so shift more time toward error correction and synthesis.`:`This ${input.courseDays}-day plan includes ${input.plannedMajorExams} major exam${input.plannedMajorExams>1?'s':''}, so use them as full-course synthesis checkpoints.`
     ]
   },input,'offline');
 }
@@ -763,6 +829,7 @@ function renderStudyPlan(plan=getLatestStoredPlan()){
     `<span class="inline-chip">${esc((plan.source||'offline').toUpperCase())} Planner</span>`,
     `<span class="inline-chip">${esc(plan.learnerProfile?.startingLevel||'Beginner')} to ${esc(plan.learnerProfile?.targetLevel||'Master')}</span>`,
     `${plan.curriculum?.track?`<span class="inline-chip">${esc(plan.curriculum.track)}</span>`:''}`,
+    `${plan.inputs?.courseDays?`<span class="inline-chip">${esc(plan.inputs.courseDays)}-day course</span>`:''}`,
     `<span class="inline-chip">${esc(plan.nextSession?.totalMinutes||0)} min session</span>`
   ].join('');
   const weakList=weakCats().slice(0,3).map(item=>`<li>${esc(item.cat)} - ${item.p}% accuracy</li>`).join('')||'<li>No weak quiz categories yet. Finish a quiz to surface one here.</li>';
@@ -792,7 +859,7 @@ function renderStudyPlan(plan=getLatestStoredPlan()){
       <div class="plan-panel">
         <h4>Quiz and Exam Strategy</h4>
         <ul class="plan-list">
-          <li><strong>${plan.quizStrategy?.recommendedPerWeek||2} quizzes per week</strong>${esc(plan.quizStrategy?.reason||'')}</li>
+          <li><strong>${plan.inputs?.plannedQuizzes||0} quizzes planned</strong>${esc(plan.quizStrategy?.reason||'')} ${esc(`${plan.quizStrategy?.recommendedPerWeek||2} per week across ${plan.inputs?.courseWeeks||0} weeks.`)}</li>
           ${(plan.examMilestones||[]).map(item=>`<li><strong>Week ${item.week} - ${esc(item.type)}</strong>${esc(item.focus)}</li>`).join('')}
         </ul>
       </div>
@@ -822,7 +889,7 @@ function buildOfflineStudyPlan(){
   renderMission();
   window.OrganoApp?.notify?.({
     title:'Offline roadmap ready',
-    body:`A ${input.sessionMinutes}-minute ${input.focusArea==='all'?'balanced review':input.focusArea} session is ready in the planner.`,
+    body:`Your ${input.courseDays}-day roadmap is ready with a ${input.sessionMinutes}-minute ${input.focusArea==='all'?'balanced review':input.focusArea} session.`,
     kind:'success',
     actionHref:'#dashboard',
     actionLabel:'Review roadmap'
@@ -854,7 +921,7 @@ async function buildStudyPlan(){
     renderMission();
     window.OrganoApp?.notify?.({
       title:'AI roadmap generated',
-      body:`Your ${input.courseWeeks}-week ${input.focusArea==='all'?'balanced review':input.focusArea} roadmap is ready.`,
+      body:`Your ${input.courseDays}-day ${input.focusArea==='all'?'balanced review':input.focusArea} roadmap is ready.`,
       kind:'success',
       actionHref:'#dashboard',
       actionLabel:'Open planner'
