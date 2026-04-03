@@ -198,7 +198,7 @@
                 <h3>Generate an AI roadmap</h3>
               </div>
             </div>
-            <p class="panel-copy">Set your pace, current course progress, and level, then let the planner generate a multi-week roadmap plus your next session.</p>
+            <p class="panel-copy">Set your pace, current course progress, and level, then let the planner generate a day-based roadmap plus your next session.</p>
             <div class="planner-setup-shell">
               <div class="planner-setup-frame">
                 <div class="planner-setup-card">
@@ -209,7 +209,7 @@
                     </div>
                     <div class="planner-mode-pill">
                       <span>Mode</span>
-                      <strong id="plannerModeValue">Stay on track</strong>
+                      <strong id="plannerModeValue">Balanced month</strong>
                     </div>
                   </div>
 
@@ -217,23 +217,24 @@
                     <div class="planner-block-copy">
                       <span class="planner-block-label">Course timeline</span>
                       <div class="planner-intensity-readout">
-                        <strong id="plannerCourseDaysValue">84 days</strong>
-                        <span id="plannerCourseDaysMeta">12 weeks / 35 min sessions</span>
+                        <strong id="plannerCourseDaysValue">28 days</strong>
+                        <span id="plannerCourseDaysMeta">28 days total / 35 min sessions</span>
                       </div>
                     </div>
-                    <input class="planner-intensity-slider" id="plannerCourseDays" type="range" min="14" max="112" step="7" value="84" aria-label="Course duration in days">
+                    <input class="planner-intensity-slider" id="plannerCourseDays" type="range" min="7" max="28" step="1" value="28" aria-label="Course duration in days">
                     <div class="planner-intensity-scale" aria-hidden="true">
+                      <span>7 days</span>
                       <span>14 days</span>
-                      <span>56 days</span>
-                      <span>112 days</span>
+                      <span>21 days</span>
+                      <span>28 days</span>
                     </div>
                     <label class="planner-native-field" aria-hidden="true" tabindex="-1">
                       <span>Course Days</span>
-                      <input id="courseDays" type="number" min="14" max="112" step="7" value="84" tabindex="-1">
+                      <input id="courseDays" type="number" min="7" max="28" step="1" value="28" tabindex="-1">
                     </label>
                     <label class="planner-native-field" aria-hidden="true" tabindex="-1">
                       <span>Course Length</span>
-                      <input id="courseWeeks" type="number" min="2" max="16" value="12" tabindex="-1">
+                      <input id="courseWeeks" type="number" min="1" max="4" value="4" tabindex="-1">
                     </label>
                     <label class="planner-native-field" aria-hidden="true" tabindex="-1">
                       <span>Session Time</span>
@@ -281,7 +282,7 @@
               <div class="planner-detail-grid">
                 <label class="field">
                   <span>Course Timeline</span>
-                  <input id="plannerDerivedTimeline" type="text" value="84 days / 12 weeks" readonly>
+                  <input id="plannerDerivedTimeline" type="text" value="28 days total" readonly>
                 </label>
                 <label class="field">
                   <span>Session Length</span>
@@ -289,11 +290,11 @@
                 </label>
                 <label class="field">
                   <span>Planned Quizzes</span>
-                  <input id="plannerDerivedQuizzes" type="text" value="24 total / 2 per week" readonly>
+                  <input id="plannerDerivedQuizzes" type="text" value="8 total / 2 every 7 days" readonly>
                 </label>
                 <label class="field">
                   <span>Major Exams</span>
-                  <input id="plannerDerivedExams" type="text" value="3 total" readonly>
+                  <input id="plannerDerivedExams" type="text" value="2 total" readonly>
                 </label>
               </div>
 

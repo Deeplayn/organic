@@ -1104,7 +1104,7 @@ body.has-global-loader .global-loader{
   font-size:.88rem;
 }
 .planner-intensity-slider{
-  --planner-progress:33.333%;
+  --planner-progress:100%;
   appearance:none;
   width:100%;
   height:46px;
@@ -1118,10 +1118,24 @@ body.has-global-loader .global-loader{
       color-mix(in srgb,var(--accent) 35%,var(--accent3)) 38%,
       color-mix(in srgb,var(--accent2) 30%,var(--accent)) 72%,
       color-mix(in srgb,var(--danger) 40%,var(--accent2)) 100%) 0/var(--planner-progress) 100% no-repeat,
+    linear-gradient(90deg,
+      transparent calc(25% - 1px),
+      color-mix(in srgb,var(--border) 76%,transparent) calc(25% - 1px),
+      color-mix(in srgb,var(--border) 76%,transparent) calc(25% + 1px),
+      transparent calc(25% + 1px),
+      transparent calc(50% - 1px),
+      color-mix(in srgb,var(--border) 76%,transparent) calc(50% - 1px),
+      color-mix(in srgb,var(--border) 76%,transparent) calc(50% + 1px),
+      transparent calc(50% + 1px),
+      transparent calc(75% - 1px),
+      color-mix(in srgb,var(--border) 76%,transparent) calc(75% - 1px),
+      color-mix(in srgb,var(--border) 76%,transparent) calc(75% + 1px),
+      transparent calc(75% + 1px)) center/100% 100% no-repeat,
     color-mix(in srgb,var(--bg) 68%,var(--surface) 32%);
   position:relative;
   outline:none;
   box-shadow:inset 0 0 0 10px color-mix(in srgb,var(--bg) 40%,transparent);
+  transition:background-size .18s ease,box-shadow .18s ease;
 }
 .planner-intensity-slider::-webkit-slider-runnable-track{
   height:46px;
@@ -1132,6 +1146,19 @@ body.has-global-loader .global-loader{
       color-mix(in srgb,var(--accent) 35%,var(--accent3)) 38%,
       color-mix(in srgb,var(--accent2) 30%,var(--accent)) 72%,
       color-mix(in srgb,var(--danger) 40%,var(--accent2)) 100%) 0/var(--planner-progress) 100% no-repeat,
+    linear-gradient(90deg,
+      transparent calc(25% - 1px),
+      color-mix(in srgb,var(--border) 76%,transparent) calc(25% - 1px),
+      color-mix(in srgb,var(--border) 76%,transparent) calc(25% + 1px),
+      transparent calc(25% + 1px),
+      transparent calc(50% - 1px),
+      color-mix(in srgb,var(--border) 76%,transparent) calc(50% - 1px),
+      color-mix(in srgb,var(--border) 76%,transparent) calc(50% + 1px),
+      transparent calc(50% + 1px),
+      transparent calc(75% - 1px),
+      color-mix(in srgb,var(--border) 76%,transparent) calc(75% - 1px),
+      color-mix(in srgb,var(--border) 76%,transparent) calc(75% + 1px),
+      transparent calc(75% + 1px)) center/100% 100% no-repeat,
     color-mix(in srgb,var(--bg) 68%,var(--surface) 32%);
 }
 .planner-intensity-slider::-webkit-slider-thumb{
@@ -1157,6 +1184,19 @@ body.has-global-loader .global-loader{
       color-mix(in srgb,var(--accent) 35%,var(--accent3)) 38%,
       color-mix(in srgb,var(--accent2) 30%,var(--accent)) 72%,
       color-mix(in srgb,var(--danger) 40%,var(--accent2)) 100%) 0/var(--planner-progress) 100% no-repeat,
+    linear-gradient(90deg,
+      transparent calc(25% - 1px),
+      color-mix(in srgb,var(--border) 76%,transparent) calc(25% - 1px),
+      color-mix(in srgb,var(--border) 76%,transparent) calc(25% + 1px),
+      transparent calc(25% + 1px),
+      transparent calc(50% - 1px),
+      color-mix(in srgb,var(--border) 76%,transparent) calc(50% - 1px),
+      color-mix(in srgb,var(--border) 76%,transparent) calc(50% + 1px),
+      transparent calc(50% + 1px),
+      transparent calc(75% - 1px),
+      color-mix(in srgb,var(--border) 76%,transparent) calc(75% - 1px),
+      color-mix(in srgb,var(--border) 76%,transparent) calc(75% + 1px),
+      transparent calc(75% + 1px)) center/100% 100% no-repeat,
     color-mix(in srgb,var(--bg) 68%,var(--surface) 32%);
 }
 .planner-intensity-slider::-moz-range-thumb{
@@ -1181,12 +1221,13 @@ body.has-global-loader .global-loader{
 }
 .planner-intensity-scale{
   display:grid;
-  grid-template-columns:repeat(3,minmax(0,1fr));
+  grid-template-columns:repeat(4,minmax(0,1fr));
   gap:10px;
   color:var(--text-bright);
   font-size:.95rem;
 }
-.planner-intensity-scale span:nth-child(2){text-align:center;}
+.planner-intensity-scale span{text-align:center;}
+.planner-intensity-scale span:first-child{text-align:left;}
 .planner-intensity-scale span:last-child{text-align:right;}
 .planner-setup-divider{
   height:1px;

@@ -14,10 +14,10 @@ const today=()=>new Date().toLocaleDateString(undefined,{month:'short',day:'nume
 const AI=window.OrganoAI;
 const canUseAccountFeature=message=>window.OrganoApp?.assertFeatureAccess(message)??true;
 const PLANNER_TIMELINE_DEFAULTS={
-  minDays:14,
-  maxDays:112,
-  stepDays:7,
-  defaultDays:84
+  minDays:7,
+  maxDays:28,
+  stepDays:1,
+  defaultDays:28
 };
 
 function togglePanel(){document.getElementById('themePanel').classList.toggle('open');}
@@ -455,31 +455,31 @@ function clampCourseDays(days){
 
 function derivePlannerTimeline(days){
   const courseDays=clampCourseDays(days);
-  const courseWeeks=Math.max(2,Math.ceil(courseDays/7));
+  const courseWeeks=Math.max(1,Math.ceil(courseDays/7));
   let sessionMinutes=35;
   let recommendedQuizzesPerWeek=2;
-  let plannedMajorExams=3;
-  let mode='Stay on track';
-  if(courseDays<=28){
+  let plannedMajorExams=2;
+  let mode='Balanced month';
+  if(courseDays<=7){
     sessionMinutes=75;
     recommendedQuizzesPerWeek=4;
     plannedMajorExams=1;
-    mode='Fast track';
-  }else if(courseDays<=49){
+    mode='Rapid sprint';
+  }else if(courseDays<=14){
     sessionMinutes=50;
     recommendedQuizzesPerWeek=3;
-    plannedMajorExams=2;
+    plannedMajorExams=1;
     mode='Focused push';
-  }else if(courseDays<=84){
+  }else if(courseDays<=21){
     sessionMinutes=35;
     recommendedQuizzesPerWeek=2;
-    plannedMajorExams=3;
-    mode='Stay on track';
+    plannedMajorExams=2;
+    mode='Steady climb';
   }else{
-    sessionMinutes=20;
-    recommendedQuizzesPerWeek=1;
-    plannedMajorExams=4;
-    mode='Long runway';
+    sessionMinutes=35;
+    recommendedQuizzesPerWeek=2;
+    plannedMajorExams=2;
+    mode='Balanced month';
   }
   return{
     courseDays,
@@ -514,11 +514,11 @@ function syncPlannerTimelineUI(){
   const derivedExams=document.getElementById('plannerDerivedExams');
 
   if(daysLabel)daysLabel.textContent=`${timeline.courseDays} days`;
-  if(daysMeta)daysMeta.textContent=`${timeline.courseWeeks} weeks / ${timeline.sessionMinutes} min sessions`;
+  if(daysMeta)daysMeta.textContent=`${timeline.courseDays} days total / ${timeline.sessionMinutes} min sessions`;
   if(mode)mode.textContent=timeline.mode;
-  if(derivedTimeline)derivedTimeline.value=`${timeline.courseDays} days / ${timeline.courseWeeks} weeks`;
+  if(derivedTimeline)derivedTimeline.value=`${timeline.courseDays} days total`;
   if(derivedSession)derivedSession.value=`${timeline.sessionMinutes} minutes`;
-  if(derivedQuizzes)derivedQuizzes.value=`${timeline.plannedQuizzes} total / ${timeline.recommendedQuizzesPerWeek} per week`;
+  if(derivedQuizzes)derivedQuizzes.value=`${timeline.plannedQuizzes} total / ${timeline.recommendedQuizzesPerWeek} every 7 days`;
   if(derivedExams)derivedExams.value=`${timeline.plannedMajorExams} total`;
 }
 
@@ -714,6 +714,15 @@ function normalizeStringArray(values,fallback=[]){
   return cleaned.length?cleaned:fallback;
 }
 
+function plannerDayRangeLabel(segment,totalSegments,totalDays){
+  const safeSegment=Math.max(1,Math.round(Number(segment)||1));
+  const safeTotalSegments=Math.max(1,Math.round(Number(totalSegments)||1));
+  const safeTotalDays=Math.max(safeSegment,Math.round(Number(totalDays)||safeTotalSegments*7));
+  const start=Math.floor(((safeSegment-1)*safeTotalDays)/safeTotalSegments)+1;
+  const end=Math.max(start,Math.floor((safeSegment*safeTotalDays)/safeTotalSegments));
+  return start===end?`Day ${start}`:`Days ${start}-${end}`;
+}
+
 function buildDefaultExamMilestones(input,priorityTopics,focusLabel){
   const total=Math.max(1,Math.min(6,Number(input.plannedMajorExams)||1));
   const topics=priorityTopics.length?priorityTopics:[focusLabel];
@@ -727,24 +736,24 @@ function buildDefaultExamMilestones(input,priorityTopics,focusLabel){
 function normalizeRoadmapEntries(roadmap,input){
   const topicsPool=chemistryCategories();
   const source=Array.isArray(roadmap)?roadmap:[];
-  const weeksToShow=Math.max(2,input.courseWeeks);
+  const weeksToShow=Math.max(1,input.courseWeeks);
   const normalized=source.slice(0,weeksToShow).map((entry,index)=>({
     week:index+1,
-    goal:normalizeText(entry?.goal,`Build week ${index+1} around ${input.focusArea==='all'?'core organic chemistry patterns':input.focusArea}.`),
+    goal:normalizeText(entry?.goal,`Build stage ${index+1} around ${input.focusArea==='all'?'core organic chemistry patterns':input.focusArea}.`),
     topics:normalizeStringArray(entry?.topics,[topicsPool[index%topicsPool.length]]).slice(0,4),
     quizzes:Math.max(1,Math.min(5,Number(entry?.quizzes)||input.recommendedQuizzesPerWeek||2)),
     majorExam:Boolean(entry?.majorExam),
-    notes:normalizeText(entry?.notes,'Use retrieval plus worked examples to keep the week active.')
+    notes:normalizeText(entry?.notes,'Use retrieval plus worked examples to keep this day block active.')
   }));
   while(normalized.length<weeksToShow){
     const index=normalized.length;
     normalized.push({
       week:index+1,
-      goal:`Strengthen ${input.focusArea==='all'?'organic chemistry foundations':input.focusArea} with a steady week-${index+1} push.`,
+      goal:`Strengthen ${input.focusArea==='all'?'organic chemistry foundations':input.focusArea} with a steady stage-${index+1} push.`,
       topics:[topicsPool[index%topicsPool.length]],
       quizzes:Math.max(1,Math.min(5,input.recommendedQuizzesPerWeek||2)),
       majorExam:false,
-      notes:'Keep one quiz, one review block, and one worked-example block each week.'
+      notes:'Keep one quiz, one review block, and one worked-example block every 7 days.'
     });
   }
   return normalized.map((entry,index)=>({
@@ -814,11 +823,11 @@ function normalizePlanObject(raw,input,source='ai'){
     createdAt:new Date().toISOString(),
     inputs:{...input},
     focusArea:input.focusArea,
-    summary:normalizeText(raw?.summary,`Build from ${input.startingLevel.toLowerCase()} toward mastery by spacing quizzes, topic rebuilds, and major exams across ${input.courseDays} days (${input.courseWeeks} weeks)${input.curriculum?.track?` while staying aligned with ${input.curriculum.track}${input.curriculum?.academicYear?` for ${input.curriculum.academicYear}`:''}.`:'.'}`),
+    summary:normalizeText(raw?.summary,`Build from ${input.startingLevel.toLowerCase()} toward mastery by spacing quizzes, topic rebuilds, and major exams across ${input.courseDays} days${input.curriculum?.track?` while staying aligned with ${input.curriculum.track}${input.curriculum?.academicYear?` for ${input.curriculum.academicYear}`:''}.`:'.'}`),
     learnerProfile:{
       startingLevel:normalizeText(raw?.learnerProfile?.startingLevel,input.startingLevel),
       targetLevel:'Master',
-      pace:normalizeText(raw?.learnerProfile?.pace,`${input.sessionMinutes}-minute sessions across ${input.courseDays} days (${input.courseWeeks} weeks)`)
+      pace:normalizeText(raw?.learnerProfile?.pace,`${input.sessionMinutes}-minute sessions across ${input.courseDays} days`)
     },
     curriculum:input.curriculum?{...input.curriculum}:null,
     roadmap:roadmap.map(entry=>({...entry,majorExam:majorExamWeeks.has(entry.week)||entry.majorExam})),
@@ -847,19 +856,19 @@ function buildOfflineStudyPlanObject(input){
   const curriculumPriority=Array.isArray(input.curriculum?.priorityTopics)?input.curriculum.priorityTopics:[];
   const emphasis=[...curriculumPriority,input.focusArea==='all'?weakTopics[0]||curriculumPriority[0]||'Functional Groups':input.focusArea,...reviewTopics,...weakTopics].filter(Boolean);
   const priorityTopics=[...new Set(emphasis.concat(chemistryCategories()))].slice(0,5);
-  const recommendedPerWeek=Math.max(1,Math.min(5,input.recommendedQuizzesPerWeek+(input.startingLevel==='Advanced'&&input.courseDays<=49?1:0)));
+  const recommendedPerWeek=Math.max(1,Math.min(5,input.recommendedQuizzesPerWeek+(input.startingLevel==='Advanced'&&input.courseDays<=14?1:0)));
   const examMilestones=buildDefaultExamMilestones({...input,plannedMajorExams:input.plannedMajorExams},priorityTopics,input.focusArea==='all'?'Balanced review':input.focusArea);
-  const roadmap=normalizeRoadmapEntries(Array.from({length:Math.max(2,input.courseWeeks)},(_,index)=>({
+  const roadmap=normalizeRoadmapEntries(Array.from({length:Math.max(1,input.courseWeeks)},(_,index)=>({
     week:index+1,
-    goal:index===0?`Establish a stable base in ${priorityTopics[0]||'organic chemistry fundamentals'}.`:index===Math.max(2,input.courseWeeks)-1?'Consolidate toward a mastery checkpoint.':`Extend the plan into ${priorityTopics[(index+1)%priorityTopics.length]||'applied examples'}.`,
+    goal:index===0?`Establish a stable base in ${priorityTopics[0]||'organic chemistry fundamentals'}.`:index===Math.max(1,input.courseWeeks)-1?'Consolidate toward a mastery checkpoint.':`Extend the plan into ${priorityTopics[(index+1)%priorityTopics.length]||'applied examples'}.`,
     topics:priorityTopics.slice(index,index+2).length?priorityTopics.slice(index,index+2):[priorityTopics[index%priorityTopics.length]||'Functional Groups'],
     quizzes:recommendedPerWeek,
     majorExam:examMilestones.some(item=>item.week===index+1),
-    notes:index===0?'Start with recognition, naming, and pattern recall before pushing speed.':'Mix one retrieval block with one worked-example block each week.'
+    notes:index===0?'Start with recognition, naming, and pattern recall before pushing speed.':'Mix one retrieval block with one worked-example block every 7 days.'
   })),input);
   return normalizePlanObject({
     summary:`This offline roadmap uses your ${input.startingLevel.toLowerCase()} starting level, ${input.courseDays}-day course timeline, saved weak areas,${input.curriculum?.track?` and ${input.curriculum.track}${input.curriculum?.academicYear?` (${input.curriculum.academicYear})`:''}`:' and your current topic data'} to keep progress moving toward mastery.`,
-    learnerProfile:{startingLevel:input.startingLevel,targetLevel:'Master',pace:`${input.sessionMinutes}-minute sessions with ${recommendedPerWeek} quizzes per week across ${input.courseDays} days`},
+    learnerProfile:{startingLevel:input.startingLevel,targetLevel:'Master',pace:`${input.sessionMinutes}-minute sessions with ${recommendedPerWeek} quizzes every 7 days across ${input.courseDays} days`},
     roadmap,
     nextSession:{
       title:`Offline focus session: ${input.focusArea==='all'?'balanced review':input.focusArea}`,
@@ -868,12 +877,12 @@ function buildOfflineStudyPlanObject(input){
     },
     quizStrategy:{
       recommendedPerWeek,
-      reason:`Your current history suggests ${recommendedPerWeek} quizzes per week is enough to reinforce weak spots without crowding out concept review.`
+      reason:`Your current history suggests ${recommendedPerWeek} quizzes every 7 days is enough to reinforce weak spots without crowding out concept review.`
     },
     examMilestones,
     priorityTopics,
     advice:[
-      input.curriculum?.track?`Keep ${input.curriculum.track}${input.curriculum?.academicYear?` for ${input.curriculum.academicYear}`:''} in view by revisiting ${curriculumPriority.slice(0,2).join(' and ')||'its core topics'} every week.`:'',
+      input.curriculum?.track?`Keep ${input.curriculum.track}${input.curriculum?.academicYear?` for ${input.curriculum.academicYear}`:''} in view by revisiting ${curriculumPriority.slice(0,2).join(' and ')||'its core topics'} every 7 days.`:'',
       weakTopics.length?`Front-load ${weakTopics.join(' and ')} because they are currently your weakest quiz categories.`:'Front-load recognition-heavy topics before switching into mechanism drills.',
       input.completedQuizzes>=8?'Use completed quizzes as revision checkpoints, not just score reports.':'Build quiz volume steadily so recall becomes routine.',
       input.completedMajorExams?`You have already taken ${input.completedMajorExams} major exam${input.completedMajorExams>1?'s':''}, so shift more time toward error correction and synthesis.`:`This ${input.courseDays}-day plan includes ${input.plannedMajorExams} major exam${input.plannedMajorExams>1?'s':''}, so use them as full-course synthesis checkpoints.`
@@ -889,7 +898,7 @@ function renderLegacyPlan(plan){
 function renderStudyPlan(plan=getLatestStoredPlan()){
   const box=document.getElementById('studyPlan');
   if(!plan){
-    box.innerHTML='<div class="plan-empty"><strong>No roadmap generated yet.</strong><div>Generate a multi-week roadmap and next session with the built-in AI, or use the offline quick plan.</div></div>';
+    box.innerHTML='<div class="plan-empty"><strong>No roadmap generated yet.</strong><div>Generate a day-based roadmap and next session with the built-in AI, or use the offline quick plan.</div></div>';
     return;
   }
   if(plan.tasks)return renderLegacyPlan(plan);
@@ -906,6 +915,8 @@ function renderStudyPlan(plan=getLatestStoredPlan()){
     const quizAction=(block.activity==='quiz'||block.activity==='exam-drill')?`<div class="planner-side-actions"><button class="btn btn-secondary" type="button" onclick="startPlanQuiz('${esc(derivedCategory)}',5,'${block.activity==='exam-drill'?'Intermediate':'all'}')">Start quiz from this block</button></div>`:'';
     return`<div class="session-block"><div class="session-block-top"><strong>${esc(block.label)}</strong><span class="session-min">${block.minutes} min</span></div><div class="activity-badge">${esc(block.activity)}</div>${quizAction}</div>`;
   }).join('');
+  const roadmapSegments=Math.max(1,plan.inputs?.courseWeeks||plan.roadmap?.length||1);
+  const roadmapDays=Math.max(1,plan.inputs?.courseDays||roadmapSegments*7);
   box.innerHTML=`<div class="plan-shell">
     <div class="plan-summary">
       <div class="plan-source">${summaryChips}</div>
@@ -916,7 +927,7 @@ function renderStudyPlan(plan=getLatestStoredPlan()){
     <div class="plan-columns">
       <div class="plan-panel">
         <h4>Roadmap</h4>
-        <div class="roadmap-grid">${(plan.roadmap||[]).map(week=>`<article class="roadmap-card"><div class="roadmap-week">Week ${week.week}${week.majorExam?' - Major exam':''}</div><strong>${esc(week.goal)}</strong><div class="roadmap-topics">${(week.topics||[]).map(topic=>`<span class="roadmap-topic">${esc(topic)}</span>`).join('')}</div><div class="plan-note">${esc(week.notes)}</div><div class="activity-badge">${week.quizzes} quiz${week.quizzes===1?'':'zes'} planned</div></article>`).join('')}</div>
+        <div class="roadmap-grid">${(plan.roadmap||[]).map(week=>`<article class="roadmap-card"><div class="roadmap-week">${plannerDayRangeLabel(week.week,roadmapSegments,roadmapDays)}${week.majorExam?' - Major exam':''}</div><strong>${esc(week.goal)}</strong><div class="roadmap-topics">${(week.topics||[]).map(topic=>`<span class="roadmap-topic">${esc(topic)}</span>`).join('')}</div><div class="plan-note">${esc(week.notes)}</div><div class="activity-badge">${week.quizzes} quiz${week.quizzes===1?'':'zes'} planned</div></article>`).join('')}</div>
       </div>
       <div class="plan-panel">
         <h4>Next Session</h4>
@@ -927,8 +938,8 @@ function renderStudyPlan(plan=getLatestStoredPlan()){
       <div class="plan-panel">
         <h4>Quiz and Exam Strategy</h4>
         <ul class="plan-list">
-          <li><strong>${plan.inputs?.plannedQuizzes||0} quizzes planned</strong>${esc(plan.quizStrategy?.reason||'')} ${esc(`${plan.quizStrategy?.recommendedPerWeek||2} per week across ${plan.inputs?.courseWeeks||0} weeks.`)}</li>
-          ${(plan.examMilestones||[]).map(item=>`<li><strong>Week ${item.week} - ${esc(item.type)}</strong>${esc(item.focus)}</li>`).join('')}
+          <li><strong>${plan.inputs?.plannedQuizzes||0} quizzes planned</strong>${esc(plan.quizStrategy?.reason||'')} ${esc(`${plan.quizStrategy?.recommendedPerWeek||2} every 7 days across ${plan.inputs?.courseDays||0} days.`)}</li>
+          ${(plan.examMilestones||[]).map(item=>`<li><strong>${plannerDayRangeLabel(item.week,roadmapSegments,roadmapDays)} - ${esc(item.type)}</strong>${esc(item.focus)}</li>`).join('')}
         </ul>
       </div>
       <div class="plan-panel">
