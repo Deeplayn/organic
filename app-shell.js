@@ -3,6 +3,7 @@
   const THEME_KEY='oc-theme';
   const BOT_STATE_KEY='oc-organobot-history-v1';
   const NOTIFICATION_STORE_KEY='oc-notification-center-v1';
+  const POST_SIGNIN_NOTICE_KEY='oc-post-signin-notice-v1';
   const NOTIFICATION_LIMIT=24;
   const THEME_LABELS={
     'lab-noir':'Lab Noir',
@@ -46,11 +47,13 @@
   const authState={status:'loading',user:null,profile:null,syncing:false};
   const notificationState=DEFAULT_NOTIFICATION_STATE;
   const loaderState={count:0,defaultMessage:'Preparing your chemistry workspace.'};
+  const DEFAULT_AVATAR_PRESETS=buildDefaultAvatarPresets();
 
   let currentAuthMode='login';
   let syncTimer=0;
   let notificationPanelOpen=false;
   let authNotificationBaseline=null;
+  let profileEditorOpen=false;
 
   function $(id){return document.getElementById(id);}
   function escapeHtml(value){
@@ -64,9 +67,181 @@
   function safeParse(raw,fallback){
     try{return raw?JSON.parse(raw):fallback;}catch{return fallback;}
   }
+  function readSessionFlag(key){
+    try{return sessionStorage.getItem(key)||'';}catch{return'';}
+  }
+  function writeSessionFlag(key,value){
+    try{
+      if(value)sessionStorage.setItem(key,value);
+      else sessionStorage.removeItem(key);
+    }catch{}
+  }
   function currentRelativeUrl(){
     const file=window.location.pathname.split('/').pop()||'index.html';
     return `${file}${window.location.search||''}${window.location.hash||''}`;
+  }
+  function encodeSvgDataUrl(svg){
+    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+  }
+  function buildPresetAvatar({id,label,start,end,accent,shapePath,detailColor='#ffffff'}){
+    return{
+      id,
+      label,
+      url:encodeSvgDataUrl(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-label="${escapeHtml(label)}"><defs><linearGradient id="g-${id}" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${start}"/><stop offset="100%" stop-color="${end}"/></linearGradient></defs><rect width="160" height="160" rx="40" fill="url(#g-${id})"/><circle cx="80" cy="58" r="28" fill="${detailColor}" opacity=".18"/><path d="${shapePath}" fill="${detailColor}" opacity=".88"/><circle cx="118" cy="40" r="10" fill="${accent}" opacity=".9"/></svg>`)
+    };
+  }
+  function buildDefaultAvatarPresets(){
+    return[
+      buildPresetAvatar({
+        id:'orbit-fern',
+        label:'Orbit Fern',
+        start:'#567d46',
+        end:'#86c46f',
+        accent:'#f4e6b2',
+        shapePath:'M42 116c8-20 24-30 38-30s30 10 38 30H42Z'
+      }),
+      buildPresetAvatar({
+        id:'copper-spark',
+        label:'Copper Spark',
+        start:'#8f4b2f',
+        end:'#f0a15f',
+        accent:'#ffe8bf',
+        shapePath:'M48 114c7-14 18-24 32-28 14 4 25 14 32 28H48Z'
+      }),
+      buildPresetAvatar({
+        id:'deep-tide',
+        label:'Deep Tide',
+        start:'#24507f',
+        end:'#62a6dc',
+        accent:'#dff6ff',
+        shapePath:'M38 114c10-18 24-30 42-34 18 4 32 16 42 34H38Z'
+      }),
+      buildPresetAvatar({
+        id:'violet-loop',
+        label:'Violet Loop',
+        start:'#54408d',
+        end:'#b18cff',
+        accent:'#f8e7ff',
+        shapePath:'M44 116c10-16 22-27 36-31 14 4 26 15 36 31H44Z'
+      })
+    ];
+  }
+  function normalizeDisplayNameInput(value){
+    const text=String(value||'').trim();
+    return text.length>=2&&text.length<=60?text:'';
+  }
+  function normalizeAvatarUrlInput(value){
+    const text=String(value||'').trim();
+    if(!text)return'';
+    if(/^data:image\/(?:png|jpeg|jpg|webp|gif|svg\+xml);/i.test(text)){
+      return text.length<=350000?text:'';
+    }
+    try{
+      const url=new URL(text,window.location.href);
+      return['http:','https:'].includes(url.protocol)?url.toString():'';
+    }catch{
+      return'';
+    }
+  }
+  function normalizeAvatarPreset(item,index){
+    const source=item&&typeof item==='object'&&!Array.isArray(item)?item:{};
+    const label=String(source.label||source.name||`Avatar ${index+1}`).trim()||`Avatar ${index+1}`;
+    const url=normalizeAvatarUrlInput(source.url||source.image||source.src||'');
+    if(!url)return null;
+    return{
+      id:String(source.id||`avatar-${index+1}`).trim()||`avatar-${index+1}`,
+      label,
+      url
+    };
+  }
+  function getAvatarPresets(){
+    const source=Array.isArray(window.OrganoAvatarPresets)&&window.OrganoAvatarPresets.length?window.OrganoAvatarPresets:DEFAULT_AVATAR_PRESETS;
+    return source.map(normalizeAvatarPreset).filter(Boolean);
+  }
+  function getAvatarInitials(value){
+    const raw=String(value||'').trim();
+    if(!raw)return'OC';
+    const parts=raw.split(/\s+/).filter(Boolean).slice(0,2);
+    if(parts.length===1)return parts[0].slice(0,2).toUpperCase();
+    return`${parts[0][0]||''}${parts[1][0]||''}`.toUpperCase()||'OC';
+  }
+  function avatarMarkup(url,label){
+    return url?`<img src="${escapeHtml(url)}" alt="">`:`<span>${escapeHtml(getAvatarInitials(label))}</span>`;
+  }
+  function renderAvatarNode(id,{url='',label=''}={}){
+    const node=$(id);
+    if(!node)return;
+    const normalizedUrl=normalizeAvatarUrlInput(url);
+    node.innerHTML=avatarMarkup(normalizedUrl,label);
+    node.classList.toggle('has-image',Boolean(normalizedUrl));
+  }
+  function profileDisplayNameValue(){
+    return normalizeDisplayNameInput($('profileDisplayName')?.value)||authState.user?.displayName||authState.user?.email||'OrganoChem';
+  }
+  function currentProfileAvatarUrl(){
+    return normalizeAvatarUrlInput($('profileAvatarUrl')?.value||authState.user?.avatarUrl||'');
+  }
+  function renderAvatarPresetOptions(selectedUrl=currentProfileAvatarUrl()){
+    const grid=$('profileAvatarPresetGrid');
+    if(!grid)return;
+    const activeUrl=normalizeAvatarUrlInput(selectedUrl);
+    const presets=getAvatarPresets();
+    grid.innerHTML=presets.map(preset=>`<button class="avatar-preset-option ${preset.url===activeUrl?'is-active':''}" type="button" data-avatar-choice="${escapeHtml(preset.url)}"><span class="account-avatar">${avatarMarkup(preset.url,preset.label)}</span><span>${escapeHtml(preset.label)}</span></button>`).join('');
+    grid.querySelectorAll('[data-avatar-choice]').forEach(button=>{
+      button.addEventListener('click',()=>{
+        if($('profileAvatarUrl'))$('profileAvatarUrl').value=button.dataset.avatarChoice||'';
+        if($('profileAvatarUpload'))$('profileAvatarUpload').value='';
+        syncProfileAvatarPreview();
+      });
+    });
+  }
+  function syncProfileAvatarPreview(){
+    renderAvatarNode('profileAvatarPreview',{
+      url:currentProfileAvatarUrl(),
+      label:profileDisplayNameValue()
+    });
+    renderAvatarPresetOptions(currentProfileAvatarUrl());
+  }
+  function readFileAsDataUrl(file){
+    return new Promise((resolve,reject)=>{
+      const reader=new FileReader();
+      reader.onload=()=>resolve(String(reader.result||''));
+      reader.onerror=()=>reject(new Error('Could not read that image file.'));
+      reader.readAsDataURL(file);
+    });
+  }
+  function loadImageElement(src){
+    return new Promise((resolve,reject)=>{
+      const image=new Image();
+      image.onload=()=>resolve(image);
+      image.onerror=()=>reject(new Error('Could not process that image.'));
+      image.src=src;
+    });
+  }
+  async function avatarDataUrlFromFile(file){
+    if(!file||!/^image\//i.test(file.type||'')){
+      throw new Error('Choose an image file for the profile picture.');
+    }
+    const src=await readFileAsDataUrl(file);
+    const image=await loadImageElement(src);
+    const maxSize=240;
+    const width=image.naturalWidth||image.width||maxSize;
+    const height=image.naturalHeight||image.height||maxSize;
+    const scale=Math.min(1,maxSize/Math.max(width,height));
+    const canvas=document.createElement('canvas');
+    canvas.width=Math.max(1,Math.round(width*scale));
+    canvas.height=Math.max(1,Math.round(height*scale));
+    const context=canvas.getContext('2d');
+    if(!context)throw new Error('Profile picture editing is unavailable in this browser.');
+    context.drawImage(image,0,0,canvas.width,canvas.height);
+    let output=canvas.toDataURL(file.type==='image/png'?'image/png':'image/jpeg',.86);
+    if(output.length>350000){
+      output=canvas.toDataURL('image/jpeg',.76);
+    }
+    if(output.length>350000){
+      throw new Error('Please choose a smaller profile picture.');
+    }
+    return output;
   }
   function sanitizeReturnTarget(raw){
     if(!raw)return 'index.html#dashboard';
@@ -315,23 +490,46 @@
     }
     if(nextKey===authNotificationBaseline)return;
     authNotificationBaseline=nextKey;
-    if(user){
-      notify({
-        title:'Account connected',
-        body:`Signed in as ${user.displayName||user.email}. Your workspace can now sync across sessions.`,
-        kind:'success',
-        actionHref:IS_AUTH_PAGE?'index.html#dashboard':'#dashboard',
-        actionLabel:'Open dashboard',
-        dedupeKey:'auth-status'
-      });
-      return;
-    }
+    if(user)return;
     notify({
       title:'Signed out',
       body:'Preview mode is active again. Sign in anytime to restore synced progress and chat history.',
       kind:'info',
       actionHref:'auth.html',
       actionLabel:'Sign in',
+      dedupeKey:'auth-status'
+    });
+  }
+  function queuePostSignInNotification(){
+    writeSessionFlag(POST_SIGNIN_NOTICE_KEY,'pending');
+  }
+  function clearPostSignInNotification(){
+    writeSessionFlag(POST_SIGNIN_NOTICE_KEY,'');
+  }
+  function consumePostSignInNotification(){
+    const pending=readSessionFlag(POST_SIGNIN_NOTICE_KEY)==='pending';
+    if(pending)clearPostSignInNotification();
+    return pending;
+  }
+  function flushPostSignInNotification(){
+    if(!consumePostSignInNotification()||!authState.user)return;
+    if(!isProfileComplete()){
+      notify({
+        title:'Complete your profile',
+        body:'Update your learner profile to get the most benefit from curriculum-aware guidance, study plans, and ORGANOBOT support.',
+        kind:'warning',
+        actionHref:IS_AUTH_PAGE?'#auth':'auth.html?mode=login',
+        actionLabel:'Update profile',
+        dedupeKey:'profile-incomplete-reminder'
+      });
+      return;
+    }
+    notify({
+      title:'Account connected',
+      body:`Signed in as ${authState.user.displayName||authState.user.email}. Your workspace can now sync across sessions.`,
+      kind:'success',
+      actionHref:IS_AUTH_PAGE?'index.html#dashboard':'#dashboard',
+      actionLabel:'Open dashboard',
       dedupeKey:'auth-status'
     });
   }
@@ -388,6 +586,23 @@
   function deriveCurriculumTrack(profile){
     const matches=getCurriculumMatches(profile);
     return matches.length===1?matches[0].title:'';
+  }
+  function setProfileEditorOpen(nextOpen){
+    profileEditorOpen=Boolean(nextOpen)&&isAuthenticated()&&isProfileComplete();
+    showMessage('profileStatusMessage','');
+    updateAuthUI();
+    if(profileEditorOpen){
+      $('profileOnboardingCard')?.scrollIntoView({behavior:'smooth',block:'start'});
+    }
+  }
+  function updateProfileEditorLabels(profileComplete=isProfileComplete()){
+    const editingExisting=Boolean(authState.user)&&profileComplete&&profileEditorOpen;
+    setText('profileCardEyebrow',editingExisting?'Edit Profile':'First-Time Setup');
+    setText('profileCardTitle',editingExisting?'Update your profile':'Complete your profile');
+    setText('profileCardLead',editingExisting?'Change your display name, profile picture, and learner details whenever you need to.':'Tell OrganoChem a bit about yourself so your account profile and curriculum setup are ready after the first sign-in.');
+    setText('profileSaveButton',editingExisting?'Save Profile Changes':'Save Profile and Continue');
+    const cancelButton=$('cancelProfileEditButton');
+    if(cancelButton)cancelButton.hidden=!editingExisting;
   }
   function renderProfileCurriculumOptions(profile=authState.profile){
     const select=$('profileCurriculumTrack');
@@ -598,6 +813,9 @@
 
   function populateProfileForm(profile=authState.profile){
     const normalized=normalizeProfile(profile);
+    if($('profileDisplayName'))$('profileDisplayName').value=authState.user?.displayName||'';
+    if($('profileAvatarUrl'))$('profileAvatarUrl').value=authState.user?.avatarUrl||'';
+    if($('profileAvatarUpload'))$('profileAvatarUpload').value='';
     if($('profileAge'))$('profileAge').value=normalized.age?String(normalized.age):'';
     if($('profileGender'))$('profileGender').value=normalized.gender||'';
     if($('profileCountry'))$('profileCountry').value=normalized.country||'';
@@ -606,6 +824,7 @@
     if($('profileAcademicYear'))$('profileAcademicYear').value=normalized.academicYear||'';
     renderProfileCurriculumOptions(normalized);
     if($('profileCurriculumTrack'))$('profileCurriculumTrack').value=normalized.curriculumTrack||'';
+    syncProfileAvatarPreview();
   }
 
   function renderAccountProfile(profile=authState.profile){
@@ -638,6 +857,7 @@
   }
 
   function clearLocalAccountState(){
+    profileEditorOpen=false;
     authState.profile=null;
     localStorage.setItem(MAIN_STATE_KEY,JSON.stringify(DEFAULT_MAIN_STATE));
     localStorage.setItem(BOT_STATE_KEY,JSON.stringify(DEFAULT_BOT_STATE));
@@ -650,6 +870,7 @@
     const user=authState.user;
     const profileComplete=isProfileComplete();
     const profileCard=$('profileOnboardingCard');
+    const showProfileEditor=Boolean(user)&&(!profileComplete||profileEditorOpen);
     setText('authChipLabel',user?'Signed In':'Preview Mode');
     setText('headerAuthButtonLabel',user?'Account':'Log In');
     $('headerAuthButton')?.setAttribute('aria-label',user?'Open account':'User Login Button');
@@ -662,15 +883,23 @@
     if(authFormCard)authFormCard.hidden=Boolean(user);
     const accountCard=$('accountCard');
     if(accountCard)accountCard.hidden=!user||!profileComplete;
-    if(profileCard)profileCard.hidden=!user||profileComplete;
+    if(profileCard)profileCard.hidden=!showProfileEditor;
+    updateProfileEditorLabels(profileComplete);
     if(user){
       setText('accountName',user.displayName||'OrganoChem Account');
+      setText('accountIdentityCopy',user.avatarUrl?'Your saved picture and learner setup are synced with your OrganoChem account.':'Add a profile picture and keep your learner setup synced across sessions.');
       setHtml('accountMeta',`<div><strong>Email</strong><div>${escapeHtml(user.email)}</div></div><div><strong>Daily Serial</strong><div>${escapeHtml(user.dailySerial||'Pending')}</div></div><div><strong>Daily Serial Date</strong><div>${escapeHtml(user.dailySerialDate||'Pending')}</div></div><div><strong>Theme</strong><div>${escapeHtml(user.theme||localStorage.getItem(THEME_KEY)||'lab-noir')}</div></div>`);
+      renderAvatarNode('accountAvatarLarge',{url:user.avatarUrl,label:user.displayName||user.email});
+      renderAvatarNode('headerAuthAvatar',{url:user.avatarUrl,label:user.displayName||user.email});
       renderAccountProfile(authState.profile);
       populateProfileForm(authState.profile);
     }else{
+      renderAvatarNode('headerAuthAvatar',{label:'OrganoChem'});
+      renderAvatarNode('accountAvatarLarge',{label:'OrganoChem'});
+      profileEditorOpen=false;
       setHtml('accountMeta','');
       setHtml('accountProfile','');
+      setText('accountIdentityCopy','Your synced OrganoChem account details live here.');
       populateProfileForm(null);
     }
     updateLockedUI();
@@ -762,6 +991,7 @@
       if(data.user){
         authState.user=data.user;
       }
+      flushPostSignInNotification();
       if(shouldForceProfileCompletion()&&!IS_AUTH_PAGE){
         openAuthPage({
           mode:'login',
@@ -783,15 +1013,18 @@
       const data=await apiJson('/api/auth/session');
       authState.user=data.user||null;
       authState.profile=null;
+      profileEditorOpen=false;
       updateAuthUI();
       if(authState.user){
         await loadRemoteState();
       }else{
+        clearPostSignInNotification();
         showMessage('authStatusMessage','');
       }
     }catch{
       authState.user=null;
       authState.profile=null;
+      clearPostSignInNotification();
       updateAuthUI();
     }finally{
       authState.status='ready';
@@ -808,6 +1041,18 @@
     showMessage('profileStatusMessage','');
     showLoader('Saving your profile and curriculum setup...');
     try{
+      const wasEditingExistingProfile=profileEditorOpen&&isProfileComplete();
+      const displayName=normalizeDisplayNameInput($('profileDisplayName')?.value);
+      const rawAvatarUrl=String($('profileAvatarUrl')?.value||'').trim();
+      const avatarUrl=normalizeAvatarUrlInput(rawAvatarUrl);
+      if(!displayName){
+        showMessage('profileStatusMessage','Display name must be between 2 and 60 characters.','error');
+        return;
+      }
+      if(rawAvatarUrl&&!avatarUrl){
+        showMessage('profileStatusMessage','Use a valid image URL or choose one of the preset profile pictures.','error');
+        return;
+      }
       const profile=normalizeProfile({
         age:$('profileAge')?.value,
         gender:$('profileGender')?.value,
@@ -824,13 +1069,31 @@
         method:'PUT',
         body:JSON.stringify({
           ...snapshotLocalState(),
+          displayName,
+          avatarUrl,
           profile,
           reason:'profile-onboarding'
         })
       });
       authState.profile=normalizeProfile(data.payload?.profile||profile);
       if(data.user)authState.user=data.user;
+      else if(authState.user){
+        authState.user={...authState.user,displayName,avatarUrl};
+      }
+      if(wasEditingExistingProfile)profileEditorOpen=false;
       updateAuthUI();
+      if(wasEditingExistingProfile){
+        showMessage('authStatusMessage','Profile updated successfully.');
+        notify({
+          title:'Profile updated',
+          body:'Your display name, profile picture, and learner details were updated.',
+          kind:'success',
+          actionHref:IS_AUTH_PAGE?'#auth':'auth.html',
+          actionLabel:'Review account',
+          dedupeKey:'profile-updated'
+        });
+        return;
+      }
       showMessage('profileStatusMessage','Profile saved. Your account setup is complete.');
       notify({
         title:'Profile completed',
@@ -866,6 +1129,7 @@
         })
       });
       authState.user=data.user;
+      queuePostSignInNotification();
       updateAuthUI();
       await loadRemoteState();
       $('loginForm')?.reset();
@@ -897,6 +1161,7 @@
         })
       });
       authState.user=data.user;
+      queuePostSignInNotification();
       updateAuthUI();
       await loadRemoteState();
       $('signupForm')?.reset();
@@ -918,6 +1183,7 @@
     showLoader('Signing you out...');
     try{
       await apiJson('/api/auth/logout',{method:'POST'});
+      profileEditorOpen=false;
       authState.user=null;
       authState.profile=null;
       clearLocalAccountState();
@@ -938,6 +1204,7 @@
 
   function handleProviderChoice(event){
     const provider=event.currentTarget.dataset.provider||'provider';
+    queuePostSignInNotification();
     window.location.href=buildOAuthStartUrl(provider);
   }
 
@@ -967,7 +1234,7 @@
     window.addEventListener('hashchange',()=>setActivePanel(window.location.hash,{replace:true}));
     $('headerAuthButton')?.addEventListener('click',()=>{
       if(IS_AUTH_PAGE){
-        const target=isAuthenticated()?(shouldForceProfileCompletion()?$('profileOnboardingCard'):$('accountCard')):$('websiteAccount');
+        const target=isAuthenticated()?(shouldForceProfileCompletion()||profileEditorOpen?$('profileOnboardingCard'):$('accountCard')):$('websiteAccount');
         target?.scrollIntoView({behavior:'smooth',block:'start'});
         return;
       }
@@ -977,9 +1244,31 @@
     $('accountLogoutButton')?.addEventListener('click',handleLogout);
     $('profileLogoutButton')?.addEventListener('click',handleLogout);
     $('accountRefreshButton')?.addEventListener('click',()=>loadRemoteState({allowImport:false}));
+    $('editProfileButton')?.addEventListener('click',()=>setProfileEditorOpen(true));
+    $('cancelProfileEditButton')?.addEventListener('click',()=>setProfileEditorOpen(false));
     $('loginForm')?.addEventListener('submit',handleLogin);
     $('signupForm')?.addEventListener('submit',handleSignup);
     $('profileOnboardingForm')?.addEventListener('submit',handleProfileOnboarding);
+    $('profileDisplayName')?.addEventListener('input',()=>syncProfileAvatarPreview());
+    $('profileAvatarUrl')?.addEventListener('input',()=>syncProfileAvatarPreview());
+    $('clearProfileAvatarButton')?.addEventListener('click',()=>{
+      if($('profileAvatarUrl'))$('profileAvatarUrl').value='';
+      if($('profileAvatarUpload'))$('profileAvatarUpload').value='';
+      syncProfileAvatarPreview();
+    });
+    $('profileAvatarUpload')?.addEventListener('change',async event=>{
+      const file=event.target.files?.[0];
+      if(!file)return;
+      showMessage('profileStatusMessage','');
+      try{
+        const dataUrl=await avatarDataUrlFromFile(file);
+        if($('profileAvatarUrl'))$('profileAvatarUrl').value=dataUrl;
+        syncProfileAvatarPreview();
+      }catch(error){
+        event.target.value='';
+        showMessage('profileStatusMessage',error.message,'error');
+      }
+    });
     $('profileCountry')?.addEventListener('change',()=>renderProfileCurriculumOptions({
       ...normalizeProfile(authState.profile),
       country:$('profileCountry')?.value,

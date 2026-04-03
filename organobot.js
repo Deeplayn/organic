@@ -179,7 +179,6 @@ async function sendToOrganobot(prompt){
   document.getElementById('chatInput').value='';
 
   setBotStatus('ORGANOBOT is thinking through your prompt...');
-  window.OrganoApp?.showLoader?.('ORGANOBOT is thinking through your chemistry question...');
   const activeSession=getActiveSession();
   const recentMessages=activeSession.messages
     .filter(message=>message.role==='user'||message.role==='assistant')
@@ -224,8 +223,6 @@ async function sendToOrganobot(prompt){
       actionLabel:'Try again',
       dedupeKey:'organobot-error'
     });
-  }finally{
-    window.OrganoApp?.hideLoader?.();
   }
 }
 

@@ -43,6 +43,7 @@ async function ensureSchema() {
       learner_type TEXT,
       academic_year TEXT,
       curriculum_track TEXT,
+      avatar_url TEXT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
@@ -97,6 +98,7 @@ async function ensureSchema() {
     ALTER TABLE users ADD COLUMN IF NOT EXISTS learner_type TEXT;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS academic_year TEXT;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS curriculum_track TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;
     ALTER TABLE users ALTER COLUMN account_serial SET DEFAULT nextval('user_account_serial_seq');
     ALTER TABLE oauth_identities
       ADD COLUMN IF NOT EXISTS provider_email TEXT NOT NULL DEFAULT '';
@@ -115,7 +117,8 @@ async function ensureSchema() {
       country = COALESCE(NULLIF(users.country, ''), NULLIF(user_state.payload->'profile'->>'country', '')),
       learner_type = COALESCE(NULLIF(users.learner_type, ''), NULLIF(user_state.payload->'profile'->>'learnerType', '')),
       academic_year = COALESCE(NULLIF(users.academic_year, ''), NULLIF(user_state.payload->'profile'->>'academicYear', '')),
-      curriculum_track = COALESCE(NULLIF(users.curriculum_track, ''), NULLIF(user_state.payload->'profile'->>'curriculumTrack', ''))
+      curriculum_track = COALESCE(NULLIF(users.curriculum_track, ''), NULLIF(user_state.payload->'profile'->>'curriculumTrack', '')),
+      avatar_url = COALESCE(NULLIF(users.avatar_url, ''), NULLIF(user_state.payload->>'avatarUrl', ''))
     FROM user_state
     WHERE user_state.user_id = users.id;
 

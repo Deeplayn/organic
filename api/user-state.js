@@ -7,7 +7,7 @@ const {
   sendJson
 } = require('./_security');
 const { getPool, ensureSchema } = require('./_db');
-const { getSessionUser } = require('./_auth');
+const { getSessionUser, validateDisplayName } = require('./_auth');
 
 module.exports = async (req, res) => {
   const cors = buildCorsContext(req);
@@ -62,7 +62,9 @@ module.exports = async (req, res) => {
         {
           ...(payload || {}),
           profile: payload?.profile ?? session.user.profile,
-          theme: payload?.theme ?? session.user.theme
+          theme: payload?.theme ?? session.user.theme,
+          displayName: payload?.displayName || session.user.displayName,
+          avatarUrl: payload?.avatarUrl ?? session.user.avatarUrl
         },
         session.user.theme
       );
@@ -81,7 +83,11 @@ module.exports = async (req, res) => {
       [session.user.id]
     );
     const existingPayload = existingResult.rows[0]?.payload || {};
-    const payload = normalizeIncomingPayload(body, existingPayload, session.user.theme);
+    const payload = normalizeIncomingPayload(body, {
+      ...existingPayload,
+      displayName: existingPayload.displayName || session.user.displayName,
+      avatarUrl: existingPayload.avatarUrl ?? session.user.avatarUrl
+    }, session.user.theme);
     const payloadJson = JSON.stringify(payload);
 
     if (payloadJson.length > 1_000_000) {
@@ -100,17 +106,21 @@ module.exports = async (req, res) => {
     await getPool().query(
       `UPDATE users
        SET theme = $2,
-           age = $3,
-           gender = $4,
-           country = $5,
-           learner_type = $6,
-           academic_year = $7,
-           curriculum_track = $8,
+           display_name = $3,
+           avatar_url = $4,
+           age = $5,
+           gender = $6,
+           country = $7,
+           learner_type = $8,
+           academic_year = $9,
+           curriculum_track = $10,
            updated_at = NOW()
        WHERE id = $1`,
       [
         session.user.id,
         payload.theme,
+        payload.displayName,
+        nullableText(payload.avatarUrl),
         payload.profile.age,
         nullableText(payload.profile.gender),
         nullableText(payload.profile.country),
@@ -124,7 +134,9 @@ module.exports = async (req, res) => {
       ok: true,
       user: {
         ...session.user,
+        displayName: payload.displayName,
         theme: payload.theme,
+        avatarUrl: payload.avatarUrl,
         profile: payload.profile
       },
       payload
@@ -139,6 +151,8 @@ function normalizePayload(payload, fallbackTheme) {
     mainState: normalizeObject(payload.mainState),
     botState: normalizeObject(payload.botState),
     theme: normalizeTheme(payload.theme || fallbackTheme),
+    displayName: normalizeDisplayName(payload.displayName),
+    avatarUrl: normalizeAvatarUrl(payload.avatarUrl),
     profile: normalizeProfile(payload.profile)
   };
 }
@@ -149,11 +163,15 @@ function normalizeIncomingPayload(body, existingPayload, fallbackTheme) {
   const nextMainState = body.mainState === undefined ? current.mainState : normalizeObject(body.mainState);
   const nextBotState = body.botState === undefined ? current.botState : normalizeObject(body.botState);
   const nextProfile = body.profile === undefined ? current.profile : normalizeProfile(body.profile);
+  const nextDisplayName = body.displayName === undefined ? current.displayName : normalizeDisplayName(body.displayName) || current.displayName;
+  const nextAvatarUrl = body.avatarUrl === undefined ? current.avatarUrl : normalizeAvatarUrl(body.avatarUrl);
 
   return {
     mainState: nextMainState,
     botState: nextBotState,
     theme: nextTheme,
+    displayName: nextDisplayName,
+    avatarUrl: nextAvatarUrl,
     profile: nextProfile
   };
 }
@@ -165,6 +183,27 @@ function normalizeObject(value) {
 function normalizeTheme(value) {
   const theme = String(value || '').trim();
   return theme || 'lab-noir';
+}
+
+function normalizeDisplayName(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  return validateDisplayName(text) ? text : '';
+}
+
+function normalizeAvatarUrl(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  if (/^data:image\/(?:png|jpeg|jpg|webp|gif|svg\+xml);/i.test(text)) {
+    return text.length <= 350000 ? text : '';
+  }
+  try {
+    const url = new URL(text);
+    if (!['http:', 'https:'].includes(url.protocol)) return '';
+    return url.toString();
+  } catch {
+    return '';
+  }
 }
 
 function normalizeProfile(value) {
