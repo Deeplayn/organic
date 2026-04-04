@@ -510,7 +510,11 @@ function getAverageQuizScore(){
 }
 
 function setPlannerStatus(message){
-  document.getElementById('plannerStatus').textContent=message;
+  const box=document.getElementById('plannerStatus');
+  if(!box)return;
+  const text=typeof message==='string'?message.trim():'';
+  box.textContent=text;
+  box.hidden=!text;
 }
 
 function setPlannerError(message=''){
@@ -653,20 +657,7 @@ function syncPlannerAISettingsUI(){
 }
 
 async function refreshPlannerActivationState(){
-  if(!AI){
-    setPlannerStatus('Shared Grok AI is unavailable right now. You can still use the offline quick plan.');
-    return;
-  }
-  const client=await AI.readHostedProxyStatus();
-  if(client.available&&client.configured){
-    setPlannerStatus(`Shared Grok AI is ready through ${client.provider==='puter'?'Puter':'the server route'}. Generate a roadmap whenever you are ready.`);
-    return;
-  }
-  if(client.available&&!client.configured){
-    setPlannerStatus('Shared Grok AI is not configured on the server. You can still use the offline quick plan.');
-    return;
-  }
-  setPlannerStatus('Shared Grok AI is unavailable right now. Check Puter or the server connection, or use the offline quick plan.');
+  setPlannerStatus('');
 }
 
 function readPlannerInputs(){
