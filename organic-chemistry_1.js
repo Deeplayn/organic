@@ -30,26 +30,8 @@ function setPlannerSliderProgress(slider,courseDays){
   slider.setAttribute('aria-valuetext',`${courseDays} days`);
 }
 
-function getPlannerSliderMetrics(slider){
-  const min=Number(slider?.min||PLANNER_TIMELINE_DEFAULTS.minDays);
-  const max=Number(slider?.max||PLANNER_TIMELINE_DEFAULTS.maxDays);
-  const step=Math.max(1,Number(slider?.step||PLANNER_TIMELINE_DEFAULTS.stepDays));
-  return{min,max,step};
-}
-
 function readPlannerCourseDays(value){
   return clampCourseDays(value);
-}
-
-function getPlannerCourseDaysFromPointer(slider,clientX){
-  if(!slider)return PLANNER_TIMELINE_DEFAULTS.defaultDays;
-  const rect=slider.getBoundingClientRect();
-  if(!rect.width)return readPlannerCourseDays(slider.value);
-  const {min,max,step}=getPlannerSliderMetrics(slider);
-  const ratio=Math.max(0,Math.min(1,(clientX-rect.left)/rect.width));
-  const raw=min+(ratio*(max-min));
-  const stepped=min+(Math.round((raw-min)/step)*step);
-  return readPlannerCourseDays(stepped);
 }
 
 function togglePanel(){document.getElementById('themePanel').classList.toggle('open');}
@@ -650,37 +632,16 @@ function syncPlannerSetupUI(){
 function bindPlannerSetupUI(){
   const slider=document.getElementById('plannerCourseDays');
   if(slider&&!slider.dataset.bound){
-    let activePointerId=null;
     const releaseSlider=()=>{
-      activePointerId=null;
       slider.classList.remove('is-dragging');
       syncPlannerTimelineUI();
     };
-    const updateFromPointer=event=>{
-      const nextDays=getPlannerCourseDaysFromPointer(slider,event.clientX);
-      if(String(nextDays)!==slider.value){
-        slider.value=String(nextDays);
-      }
-      syncPlannerTimelineUI(nextDays);
-    };
     slider.addEventListener('input',()=>syncPlannerTimelineUI(slider.value));
     slider.addEventListener('change',releaseSlider);
-    slider.addEventListener('pointerdown',event=>{
-      activePointerId=event.pointerId;
+    slider.addEventListener('pointerdown',()=>{
       slider.classList.add('is-dragging');
-      slider.setPointerCapture?.(event.pointerId);
-      updateFromPointer(event);
     });
-    slider.addEventListener('pointermove',event=>{
-      if(activePointerId!==event.pointerId)return;
-      updateFromPointer(event);
-    });
-    slider.addEventListener('pointerup',event=>{
-      if(activePointerId===event.pointerId){
-        slider.releasePointerCapture?.(event.pointerId);
-      }
-      releaseSlider();
-    });
+    slider.addEventListener('pointerup',releaseSlider);
     slider.addEventListener('pointercancel',releaseSlider);
     slider.addEventListener('blur',()=>slider.classList.remove('is-dragging'));
     window.addEventListener('pointerup',()=>slider.classList.remove('is-dragging'));
