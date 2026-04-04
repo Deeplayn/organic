@@ -305,6 +305,7 @@
               </div>
             </div>
             <div class="reference-summary" id="plannerCurriculumSummary">Sign in and complete your profile to attach a curriculum track to the planner and OrganoBot.</div>
+            <div class="planner-journey-guard" id="plannerJourneyGuard" hidden></div>
             <div class="ai-settings-card">
               <p class="settings-note"><strong>Shared Grok AI</strong><br>Roadmap generation uses Grok as the shared AI. The app tries Puter first, then falls back to the server route when available. Sign in to save roadmaps to your account.</p>
             </div>
@@ -323,41 +324,23 @@
       <section class="content-section" id="quiz" aria-labelledby="quizTitle">
         <div class="section-tag">02</div>
         <div class="section-copy">
-          <h3 id="quizTitle">Quiz partition</h3>
-          <p>Choose between a skippable first-time evaluation, course-linked progressive quizzes, monthly exams, and the final end-of-course challenge. OrganoBot now builds adaptive questions from your study plan, quiz history, and learner level.</p>
+          <h3 id="quizTitle">Quiz Journey</h3>
+          <p>Complete your evaluation, progress through guided quizzes, and unlock the final exam as you advance.</p>
         </div>
         <div class="quiz-section">
-          <div class="quiz-mode-grid" id="quizModeGrid" role="group" aria-label="Quiz types">
-            <button class="quiz-mode-card is-active" type="button" data-quiz-type="evaluation">
-              <span class="quiz-mode-kicker">Placement</span>
-              <strong>Evaluating Quiz</strong>
-              <span>First-ever skippable assessment that scales from beginner to scholar.</span>
-              <span class="quiz-mode-meta">20 questions</span>
-            </button>
-            <button class="quiz-mode-card" type="button" data-quiz-type="progressive">
-              <span class="quiz-mode-kicker">Course Check</span>
-              <strong>Progressive Quiz</strong>
-              <span>Course-linked quiz that checks understanding at the learner course level.</span>
-              <span class="quiz-mode-meta">7 to 10 questions</span>
-            </button>
-            <button class="quiz-mode-card" type="button" data-quiz-type="monthly">
-              <span class="quiz-mode-kicker">Monthly</span>
-              <strong>Per Month Exam</strong>
-              <span>20-question exam checkpoint built around the current course difficulty.</span>
-              <span class="quiz-mode-meta">20 questions</span>
-            </button>
-            <button class="quiz-mode-card" type="button" data-quiz-type="final">
-              <span class="quiz-mode-kicker">Capstone</span>
-              <strong>End of Course Exam</strong>
-              <span>30-question final with 20 course-level items and 10 higher-level stretch items.</span>
-              <span class="quiz-mode-meta">30 questions</span>
-            </button>
-          </div>
-          <div class="quiz-type-summary" id="quizTypeSummary">The evaluating quiz is the recommended first step because it can place the learner from beginner to scholar and can be skipped if needed.</div>
+          <div class="quiz-type-summary" id="quizTypeSummary">This guided journey starts with evaluation, continues through required progressive quizzes, and unlocks the final exam only when you are ready.</div>
+          <div class="quiz-journey-recommendation" id="quizJourneyRecommendation">We strongly recommend starting with the Evaluating Exam for maximum benefit, better personalization, and more adaptive quiz generation.</div>
+          <div class="quiz-stage-grid" id="quizStageGrid" aria-label="Quiz progression"></div>
+          <div class="quiz-session-banner" id="quizSessionBanner" hidden></div>
           <div class="quiz-assessment-panel" id="quizAssessmentPanel" role="status" aria-live="polite"></div>
+          <div class="quiz-badges-panel">
+            <div class="panel-eyebrow">Achievements</div>
+            <h3>Course completion badges</h3>
+            <div class="quiz-badges-grid" id="quizBadgesGrid"></div>
+          </div>
           <div class="toolbar quiz-setup">
             <label class="field">
-              <span>Course Area</span>
+              <span>Focus Area</span>
               <select id="quizCategory">
                 <option value="all">All categories</option>
                 <option value="Functional Groups">Functional Groups</option>
@@ -368,36 +351,15 @@
                 <option value="Spectroscopy">Spectroscopy</option>
               </select>
             </label>
-            <label class="field">
-              <span>Difficulty</span>
-              <select id="quizDifficulty">
-                <option value="all">Mixed difficulty</option>
-                <option value="Beginner">Beginner</option>
-                <option value="Intermediate">Intermediate</option>
-                <option value="Advanced">Advanced</option>
-                <option value="Scholar">Scholar</option>
-              </select>
-            </label>
-            <label class="field">
-              <span>Question Count</span>
-              <select id="quizLength">
-                <option value="5">5 questions</option>
-                <option value="7">7 questions</option>
-                <option value="8" selected>8 questions</option>
-                <option value="9">9 questions</option>
-                <option value="10">10 questions</option>
-                <option value="20">20 questions</option>
-                <option value="30">30 questions</option>
-              </select>
-            </label>
-            <button class="btn btn-primary" type="button" onclick="setupQuiz()">Generate with OrganoBot</button>
-            <button class="btn btn-secondary" id="skipEvaluationBtn" type="button" onclick="skipEvaluationQuiz()" style="display:none;">Skip First Evaluation</button>
+            <button class="btn btn-primary" id="startQuizJourneyBtn" type="button" onclick="setupQuiz()">Start current step</button>
+            <button class="btn btn-secondary danger-btn" id="resetQuizJourneyBtn" type="button" onclick="openQuizResetModal()">Reset quiz journey</button>
           </div>
           <div class="quiz-header">
-            <div class="quiz-question" id="qText">Build a quiz to begin.</div>
+            <div class="quiz-question" id="qText">Start your guided quiz journey.</div>
             <div class="quiz-progress">
               <div id="qNum">0/0</div>
-              <div id="quizMeta">Custom practice</div>
+              <div id="quizMeta">Quiz Journey</div>
+              <div class="quiz-timer" id="quizTimer" hidden>00:00</div>
             </div>
           </div>
           <div class="quiz-options" id="qOptions"></div>
@@ -417,6 +379,18 @@
             <div class="panel-eyebrow">Saved Sessions</div>
             <h3>Recent quiz history</h3>
             <div id="quizHistory" class="history-list"></div>
+          </div>
+          <div class="quiz-modal-backdrop" id="quizResetModal" hidden>
+            <div class="quiz-modal-card" role="dialog" aria-modal="true" aria-labelledby="quizResetModalTitle">
+              <div class="panel-eyebrow">Reset quiz journey</div>
+              <h3 id="quizResetModalTitle">Delete current quiz progress?</h3>
+              <p>Deleting the current quiz journey will erase related progress, remove any active quiz session, and unlock plan generation again.</p>
+              <p>This action is irreversible unless it can be restored later through backend support or admin tools.</p>
+              <div class="quiz-modal-actions">
+                <button class="btn btn-secondary" type="button" onclick="closeQuizResetModal()">Keep progress</button>
+                <button class="btn btn-primary danger-btn" type="button" onclick="confirmQuizJourneyReset()">Delete current quiz progress</button>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -611,6 +585,11 @@
         <span>Sign in to send chemistry questions, create persistent chat sessions, and sync OrganoBot history to your account.</span>
         <a class="button secondary small" href="auth.html">Sign In for Chat</a>
       </div>
+      <div class="auth-notice" id="quizChatGuardNotice" hidden>
+        <strong>Quiz integrity is active.</strong>
+        <span>OrganoBot chat is unavailable during quizzes to preserve quiz integrity.</span>
+        <a class="button secondary small" href="#quiz">Return to Quiz Journey</a>
+      </div>
 
       <section class="bot-hero">
         <div class="bot-copy">
@@ -695,6 +674,7 @@
 <script src="https://js.puter.com/v2/" data-puter-sdk></script>
 <script src="organochem-ai.js"></script>
 <script src="curriculum-data.js"></script>
+<script src="quiz-journey.js"></script>
 <script src="app-shell.js"></script>
 <script src="organic-chemistry_1.js"></script>
 <script src="organic-material-studio.js"></script>

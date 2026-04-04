@@ -4,6 +4,7 @@
   const BOT_STATE_KEY='oc-organobot-history-v1';
   const NOTIFICATION_STORE_KEY='oc-notification-center-v1';
   const POST_SIGNIN_NOTICE_KEY='oc-post-signin-notice-v1';
+  const QuizJourney=window.OrganoQuizJourney||null;
   const NOTIFICATION_LIMIT=24;
   const THEME_LABELS={
     'lab-noir':'Lab Noir',
@@ -31,7 +32,7 @@
     chatShell:'bot',
     auth:'auth'
   };
-  const DEFAULT_MAIN_STATE={topicStatus:{},savedReactions:[],quizHistory:[],studyPlans:[],quizAssessment:null};
+  const DEFAULT_MAIN_STATE=QuizJourney?.normalizeMainState?.({})||{topicStatus:{},savedReactions:[],quizHistory:[],studyPlans:[],quizAssessment:null,quizJourney:null,achievements:[]};
   const DEFAULT_BOT_STATE={activeId:'',sessions:[]};
   const DEFAULT_NOTIFICATION_STATE={items:[]};
   const PROFILE_GENDERS=['Male','Female','Non-binary','Prefer not to say'];
@@ -276,7 +277,7 @@
   }
   function readMainState(){
     const parsed=safeParse(localStorage.getItem(MAIN_STATE_KEY),DEFAULT_MAIN_STATE);
-    return{
+    return QuizJourney?.normalizeMainState?.(parsed)||{
       ...DEFAULT_MAIN_STATE,
       ...parsed,
       topicStatus:parsed?.topicStatus||{},
@@ -543,7 +544,7 @@
   function hasLocalData(snapshot=snapshotLocalState()){
     const main=snapshot.mainState||DEFAULT_MAIN_STATE;
     const bot=snapshot.botState||DEFAULT_BOT_STATE;
-    const hasMain=Object.keys(main.topicStatus||{}).length>0||(main.savedReactions||[]).length>0||(main.quizHistory||[]).length>0||(main.studyPlans||[]).length>0||Boolean(main.quizAssessment?.level||main.quizAssessment?.skippedAt);
+    const hasMain=Object.keys(main.topicStatus||{}).length>0||(main.savedReactions||[]).length>0||(main.quizHistory||[]).length>0||(main.studyPlans||[]).length>0||Boolean(main.quizAssessment?.level||main.quizAssessment?.skippedAt)||Boolean(QuizJourney?.hasAnyJourneyProgress?.(main.quizJourney));
     const hasBot=(bot.sessions||[]).some(session=>(session.messages||[]).some(message=>message.role==='user'));
     const hasTheme=Boolean(snapshot.theme&&snapshot.theme!=='lab-noir');
     return hasMain||hasBot||hasTheme;
@@ -705,6 +706,20 @@
   }
   function setActivePanel(hash,{replace=false}={}){
     const route=resolvePanel(hash);
+    if(route.panel==='bot'&&QuizJourney?.isChatBlocked?.(readMainState())){
+      notify({
+        title:'OrganoBot locked during quiz',
+        body:'OrganoBot chat is unavailable during quizzes to preserve quiz integrity.',
+        kind:'warning',
+        actionHref:'#quiz',
+        actionLabel:'Return to quiz',
+        dedupeKey:'bot-quiz-lock'
+      });
+      const fallbackHash='#quiz';
+      if(replace)history.replaceState(null,'',fallbackHash);
+      else if(window.location.hash!=='#quiz')history.pushState(null,'',fallbackHash);
+      return setActivePanel(fallbackHash,{replace:true});
+    }
     const panels=[...document.querySelectorAll('.app-panel')];
     const hasAuthPanel=panels.some(panel=>panel.dataset.panel==='auth');
     if(route.panel==='auth'&&!hasAuthPanel&&!IS_AUTH_PAGE){
@@ -1321,6 +1336,7 @@
     refreshRemoteState(){return loadRemoteState({allowImport:false});},
     getUser(){return authState.user;},
     getProfile(){return normalizeProfile(authState.profile);},
+    getMainState(){return readMainState();},
     showLoader,
     hideLoader,
     setActivePanel

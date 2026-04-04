@@ -1,8 +1,10 @@
 (function(){
 const AI=window.OrganoAI;
+const QuizJourney=window.OrganoQuizJourney||null;
 const BOT_STORE_KEY=AI?.ORGANOBOT_HISTORY_KEY||'oc-organobot-history-v1';
 const canUseBotFeature=message=>window.OrganoApp?.assertFeatureAccess(message)??true;
 const BOT_DISPLAY_NAME='OrganoBot';
+const QUIZ_LOCK_MESSAGE='OrganoBot chat is unavailable during quizzes to preserve quiz integrity.';
 
 function botNow(){
   return new Date().toISOString();
@@ -59,6 +61,35 @@ function ensureActiveSession(){
     saveBotStore();
   }
   return active;
+}
+
+function readMainStateSnapshot(){
+  const state=window.OrganoApp?.getMainState?.();
+  if(state)return QuizJourney?.normalizeMainState?.(state)||state;
+  try{
+    const parsed=JSON.parse(localStorage.getItem('oc-state-v2')||'{}');
+    return QuizJourney?.normalizeMainState?.(parsed)||parsed;
+  }catch{
+    return QuizJourney?.normalizeMainState?.({})||{};
+  }
+}
+
+function isQuizChatLocked(){
+  return QuizJourney?.isChatBlocked?.(readMainStateSnapshot())||false;
+}
+
+function guardQuizChatAccess(){
+  if(!isQuizChatLocked())return true;
+  setBotStatus(QUIZ_LOCK_MESSAGE);
+  window.OrganoApp?.notify?.({
+    title:'OrganoBot locked during quiz',
+    body:QUIZ_LOCK_MESSAGE,
+    kind:'warning',
+    actionHref:'#quiz',
+    actionLabel:'Return to quiz',
+    dedupeKey:'bot-quiz-lock'
+  });
+  return false;
 }
 
 function getActiveSession(){
@@ -143,7 +174,37 @@ function renderOrganobot(){
   renderMessages();
 }
 
+function syncQuizChatGuard(){
+  const locked=isQuizChatLocked();
+  document.getElementById('quizChatGuardNotice')?.toggleAttribute('hidden',!locked);
+  document.querySelectorAll('.prompt-chip').forEach(button=>{
+    button.disabled=locked;
+    button.setAttribute('aria-disabled',locked?'true':'false');
+  });
+  ['newSessionBtn','clearHistoryBtn','sendChatBtn'].forEach(id=>{
+    const button=document.getElementById(id);
+    if(!button)return;
+    button.disabled=locked;
+    button.setAttribute('aria-disabled',locked?'true':'false');
+  });
+  const input=document.getElementById('chatInput');
+  if(input){
+    input.readOnly=locked;
+    input.disabled=locked;
+    input.placeholder=locked?QUIZ_LOCK_MESSAGE:'Ask a chemistry question, ask for a plan-aware quiz, paste rough notes, enter a formula, or type a short follow-up...';
+  }
+  if(locked){
+    setBotStatus(QUIZ_LOCK_MESSAGE);
+    return;
+  }
+  refreshBotActivationState();
+}
+
 async function refreshBotActivationState(){
+  if(isQuizChatLocked()){
+    setBotStatus(QUIZ_LOCK_MESSAGE);
+    return;
+  }
   if(!AI){
     setBotStatus('Shared Grok AI is unavailable right now.');
     return;
@@ -187,6 +248,7 @@ function normalizeUserPrompt(prompt){
 
 async function sendToOrganobot(prompt){
   if(!canUseBotFeature(`Sign in to send questions to ${BOT_DISPLAY_NAME}.`))return;
+  if(!guardQuizChatAccess())return;
   const trimmed=normalizeUserPrompt(prompt);
   if(!trimmed)return;
   addMessage('user',trimmed);
@@ -244,6 +306,7 @@ async function sendToOrganobot(prompt){
 
 document.getElementById('newSessionBtn').addEventListener('click',()=>{
   if(!canUseBotFeature(`Sign in to create and save ${BOT_DISPLAY_NAME} chat sessions.`))return;
+  if(!guardQuizChatAccess())return;
   const session=createSession();
   botState.sessions.unshift(session);
   botState.activeId=session.id;
@@ -261,6 +324,7 @@ document.getElementById('newSessionBtn').addEventListener('click',()=>{
 });
 document.getElementById('clearHistoryBtn').addEventListener('click',()=>{
   if(!canUseBotFeature(`Sign in to manage ${BOT_DISPLAY_NAME} chat history.`))return;
+  if(!guardQuizChatAccess())return;
   if(!confirm(`Clear all ${BOT_DISPLAY_NAME} chat history? This will remove every saved chemistry session on this browser.`))return;
   const session=createSession();
   botState={activeId:session.id,sessions:[session]};
@@ -287,12 +351,20 @@ document.querySelectorAll('[data-prompt]').forEach(button=>{
 window.addEventListener('organo:hydrate-bot-state',()=>{
   botState=readBotStore();
   renderOrganobot();
+  syncQuizChatGuard();
+});
+window.addEventListener('organo:hydrate-main-state',()=>{
+  syncQuizChatGuard();
 });
 window.addEventListener('organo:auth-changed',()=>{
   botState=readBotStore();
   renderOrganobot();
+  syncQuizChatGuard();
+});
+window.addEventListener('organo:state-changed',event=>{
+  if(event.detail?.key==='oc-state-v2')syncQuizChatGuard();
 });
 
 renderOrganobot();
-refreshBotActivationState();
+syncQuizChatGuard();
 })();

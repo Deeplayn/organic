@@ -1,9 +1,12 @@
 const LABELS={'lab-noir':'Lab Noir','cyberpunk':'Cyberpunk','academic-ink':'Academic Ink','deep-space':'Deep Space','copper-reactor':'Copper Reactor','forest-glass':'Forest Glass','lab-white':'Lab White','neon-day':'Neon Day','ivory':'Ivory Academic','clean-slate':'Clean Slate','paper-spectrum':'Paper Spectrum','solar-lab':'Solar Lab'};
 const STORE='oc-state-v2',THEME='oc-theme';
-const baseState={topicStatus:{},savedReactions:[],quizHistory:[],studyPlans:[],quizAssessment:null};
-const readState=()=>{try{const s=JSON.parse(localStorage.getItem(STORE)||'{}');return{...baseState,...s,topicStatus:s.topicStatus||{},savedReactions:s.savedReactions||[],quizHistory:s.quizHistory||[],studyPlans:s.studyPlans||[],quizAssessment:s.quizAssessment&&typeof s.quizAssessment==='object'&&!Array.isArray(s.quizAssessment)?s.quizAssessment:null};}catch{return{...baseState};}};
+const QuizJourney=window.OrganoQuizJourney||null;
+const baseState=QuizJourney?.normalizeMainState?.({})||{topicStatus:{},savedReactions:[],quizHistory:[],studyPlans:[],quizAssessment:null,quizJourney:null,achievements:[]};
+const normalizeMainState=value=>QuizJourney?.normalizeMainState?.(value)||{...baseState,...value,topicStatus:value?.topicStatus||{},savedReactions:value?.savedReactions||[],quizHistory:value?.quizHistory||[],studyPlans:value?.studyPlans||[]};
+const readState=()=>{try{return normalizeMainState(JSON.parse(localStorage.getItem(STORE)||'{}'));}catch{return normalizeMainState({});}};
 let state=readState();
 const saveState=()=>{
+  state=normalizeMainState(state);
   localStorage.setItem(STORE,JSON.stringify(state));
   window.dispatchEvent(new CustomEvent('organo:state-changed',{detail:{key:STORE}}));
 };
@@ -14,6 +17,7 @@ const today=()=>new Date().toLocaleDateString(undefined,{month:'short',day:'nume
 const AI=window.OrganoAI;
 const canUseAccountFeature=message=>window.OrganoApp?.assertFeatureAccess(message)??true;
 const ORGANOQUIZO_BOT_NAME='OrganoBot';
+const QUIZ_LOCK_MESSAGE='OrganoBot chat is unavailable during quizzes to preserve quiz integrity.';
 const PLANNER_TIMELINE_DEFAULTS={
   minDays:7,
   maxDays:28,
@@ -308,17 +312,15 @@ const bank=[
   {q:'Which intermediate best explains allylic bromination with NBS under radical conditions?',opts:['A carbocation','A benzyne','An allylic radical','An enolate'],ans:2,exp:'NBS allylic bromination proceeds through a resonance-stabilized allylic radical.',cat:'Reaction Mechanisms',diff:'Scholar'}
 ];
 
-const QUIZ_LEVELS=['Beginner','Intermediate','Advanced','Scholar'];
-const COURSE_LEVELS=['Beginner','Intermediate','Advanced'];
+const QUIZ_LEVELS=QuizJourney?.QUIZ_LEVELS||['Beginner','Intermediate','Advanced','Scholar'];
+const COURSE_LEVELS=QuizJourney?.COURSE_LEVELS||['Beginner','Intermediate','Advanced'];
 const QUIZ_MODE_CONFIG={
-  evaluation:{label:'Evaluating Quiz',historyLabel:'Evaluating quiz',defaultLength:20},
+  evaluation:{label:'Evaluating Exam',historyLabel:'Evaluating exam',defaultLength:20},
   progressive:{label:'Progressive Quiz',historyLabel:'Progressive quiz'},
-  monthly:{label:'Per Month Exam',historyLabel:'Per month exam',defaultLength:20},
-  final:{label:'End of Course Exam',historyLabel:'End of course exam',defaultLength:30},
-  practice:{label:'Practice Quiz',historyLabel:'Practice quiz'}
+  final:{label:'End of Course Exam',historyLabel:'End of course exam',defaultLength:30}
 };
 
-let activeTopic=topics[0].id,currentReaction='sn2',quiz=[],qi=0,score=0,answered=false,quizMode='evaluation',quizMeta={type:'Evaluating Quiz',category:'All categories',difficulty:'Placement ladder'},catResults={},difficultyResults={},questionResults=[];
+let activeTopic=topics[0].id,currentReaction='sn2',quiz=[],qi=0,score=0,answered=false,quizMode='evaluation',quizMeta={type:'Evaluating Exam',category:'All categories',difficulty:'Placement ladder'},catResults={},difficultyResults={},questionResults=[],activeQuizSession=null,quizTimerHandle=0,quizJourneyBindingsReady=false;
 const topicStatus=id=>state.topicStatus[id]||'new';
 const statusLabel=s=>s==='confident'?'Confident':s==='review'?'Needs review':'Unmarked';
 const curriculumData=window.OrganoCurriculumData||{countries:[],entries:[]};
@@ -367,27 +369,12 @@ function courseDifficultyFromLearnerLevel(level){
 }
 
 function normalizeQuizAssessment(value){
-  const source=value&&typeof value==='object'&&!Array.isArray(value)?value:{};
-  const level=QUIZ_LEVELS.includes(source.level)?source.level:'';
-  const recommendedCourseDifficulty=COURSE_LEVELS.includes(source.recommendedCourseDifficulty)?source.recommendedCourseDifficulty:(level?courseDifficultyFromLearnerLevel(level):'');
-  const percent=Math.max(0,Math.min(100,Math.round(Number(source.percent)||0)));
-  const score=Math.max(0,Math.round(Number(source.score)||0));
-  const total=Math.max(0,Math.round(Number(source.total)||0));
-  const createdAt=source.createdAt?String(source.createdAt):'';
-  const skippedAt=source.skippedAt?String(source.skippedAt):'';
-  if(!level&&!skippedAt)return null;
-  return{
-    level,
-    recommendedCourseDifficulty,
-    percent,
-    score,
-    total,
-    createdAt,
-    skippedAt
-  };
+  return QuizJourney?.normalizeQuizAssessment?.(value)||null;
 }
 
 state.quizAssessment=normalizeQuizAssessment(state.quizAssessment);
+state.quizJourney=QuizJourney?.normalizeQuizJourney?.(state.quizJourney,{quizAssessment:state.quizAssessment,quizHistory:state.quizHistory})||state.quizJourney;
+state.achievements=QuizJourney?.normalizeAchievements?.(state.achievements)||state.achievements||[];
 
 function getCurriculumTopicLabels(entry=getAssignedCurriculumEntry()){
   return entry?(entry.topics||[]).map(curriculumTopicTitle).filter(Boolean):[];
@@ -746,11 +733,7 @@ function categoryFromText(text,fallback='all'){
 
 function startPlanQuiz(category='all',length=5,difficulty='all'){
   const preset=buildPlanQuizPreset(category,length,difficulty);
-  setQuizMode('practice',{silent:true});
   document.getElementById('quizCategory').value=preset.category;
-  document.getElementById('quizDifficulty').value=preset.difficulty;
-  document.getElementById('quizLength').value=String(preset.length);
-  syncQuizBuilderUI();
   Promise.resolve(setupQuiz()).then(()=>{
     document.getElementById('quiz').scrollIntoView({behavior:'smooth',block:'start'});
     setTimeout(()=>document.querySelector('#qOptions .quiz-opt')?.focus(),120);
@@ -1057,6 +1040,7 @@ function renderStudyPlan(plan=getLatestStoredPlan()){
 
 function buildOfflineStudyPlan(){
   if(!canUseAccountFeature('Sign in to save offline study plans and planner history.'))return;
+  if(!ensurePlanGenerationAllowed())return;
   const input=readPlannerInputs();
   const plan=buildOfflineStudyPlanObject(input);
   AI?.savePlannerCache?.(plan);
@@ -1077,6 +1061,7 @@ function buildOfflineStudyPlan(){
 
 async function buildStudyPlan(){
   if(!canUseAccountFeature('Sign in to save AI roadmaps and planner history.'))return;
+  if(!ensurePlanGenerationAllowed())return;
   const input=readPlannerInputs();
   if(!AI){
     setPlannerError('The built-in AI module did not load, so the AI roadmap is unavailable.');
@@ -1115,22 +1100,17 @@ async function buildStudyPlan(){
 
 function resetPlannerData(){
   if(!canUseAccountFeature('Sign in to manage planner history and stored progress.'))return;
-  if(!confirm('Reset planner data? This clears study plans, cached roadmap data, and quiz history, but keeps your theme, topic marks, saved reactions, material studio state, and OrganoBot chats.'))return;
-  state.quizHistory=[];
+  if(!confirm('Reset planner data? This clears saved study plans and cached roadmap data, but keeps your quiz journey, badges, theme, topic marks, saved reactions, material studio state, and OrganoBot chats.'))return;
   state.studyPlans=[];
   saveState();
   AI?.clearPlannerCache?.();
   setPlannerError('');
-  setPlannerStatus('Planner data cleared. Your theme, topic status, saved reactions, material studio state, and OrganoBot chats were preserved.');
+  setPlannerStatus('Planner data cleared. Your quiz journey, badges, theme, topic status, saved reactions, material studio state, and OrganoBot chats were preserved.');
   renderStats();
   renderStudyPlan();
-  renderWeakAreas();
-  renderMission();
-  renderQuizHistory();
-  setupQuiz();
   window.OrganoApp?.notify?.({
     title:'Planner data cleared',
-    body:'Quiz history, saved roadmaps, and cached planner data were reset for a clean restart.',
+    body:'Saved roadmaps and cached planner data were reset for a clean restart.',
     kind:'warning',
     actionHref:'#dashboard',
     actionLabel:'Start fresh',
@@ -1755,6 +1735,787 @@ function renderQuizHistory(){
   document.getElementById('quizHistory').innerHTML=state.quizHistory.map(s=>`<div class="history-item"><strong>${s.percent}% - ${esc(s.type||'Quiz')}</strong>${esc(s.category)} - ${esc(s.difficulty)} - ${s.score}/${s.total} correct${s.evaluatedLevel?` - placed at ${esc(s.evaluatedLevel)}`:''}${s.generator?` - ${esc(s.generator)}`:''} - ${prettyDate(s.createdAt)}</div>`).join('')||(locked?'<div class="history-item"><strong>Sign in to save quiz sessions</strong>Your completed quizzes still work in preview mode, but history is only stored for signed-in users.</div>':'<div class="history-item"><strong>No saved sessions yet</strong>Your completed quizzes will appear here.</div>');
 }
 
+function getQuizJourneyState(){
+  state=normalizeMainState(state);
+  return state.quizJourney;
+}
+
+function getJourneyLaunchMode(){
+  const journey=getQuizJourneyState();
+  if(activeQuizSession?.mode)return activeQuizSession.mode;
+  if(journey.stage==='COMPLETED')return'final';
+  if(journey.stage==='FINAL')return'final';
+  if(journey.stage==='PROGRESSIVE')return'progressive';
+  return'evaluation';
+}
+
+function hasQuizJourneyProgress(){
+  return QuizJourney?.hasAnyJourneyProgress?.(getQuizJourneyState())||false;
+}
+
+function getPlanGenerationBlockMessage(){
+  return 'You must finish and pass your current quiz path before generating a new plan. If you delete it, your current progress will be lost.';
+}
+
+function updatePlannerJourneyGuard(){
+  const locked=!(QuizJourney?.canGenerateNewPlan?.(state)??true);
+  const guard=document.getElementById('plannerJourneyGuard');
+  if(guard){
+    guard.hidden=!locked;
+    guard.textContent=getPlanGenerationBlockMessage();
+  }
+  document.querySelectorAll('.planner-toolbar .btn').forEach(button=>{
+    if(button.classList.contains('danger-btn'))return;
+    button.disabled=locked;
+    button.setAttribute('aria-disabled',locked?'true':'false');
+  });
+}
+
+function ensurePlanGenerationAllowed(notify=true){
+  const allowed=QuizJourney?.canGenerateNewPlan?.(state)??true;
+  updatePlannerJourneyGuard();
+  if(allowed)return true;
+  setPlannerError(getPlanGenerationBlockMessage());
+  setPlannerStatus(getPlanGenerationBlockMessage());
+  if(notify){
+    window.OrganoApp?.notify?.({
+      title:'Finish or reset your quiz journey',
+      body:getPlanGenerationBlockMessage(),
+      kind:'warning',
+      actionHref:'#quiz',
+      actionLabel:'Open quiz journey',
+      dedupeKey:'planner-quiz-path-locked'
+    });
+  }
+  return false;
+}
+
+function modeToJourneyStage(mode){
+  if(mode==='evaluation')return'EVALUATION';
+  if(mode==='final')return'FINAL';
+  return'PROGRESSIVE';
+}
+
+function createSessionResponses(length){
+  return Array.from({length},()=>({selectedIndex:null,isCorrect:null,answeredAt:''}));
+}
+
+function setQuizSessionBanner(message=''){
+  const node=document.getElementById('quizSessionBanner');
+  if(!node)return;
+  if(!message){
+    node.hidden=true;
+    node.textContent='';
+    return;
+  }
+  node.hidden=false;
+  node.textContent=message;
+}
+
+function clearQuizSessionBanner(){
+  setQuizSessionBanner('');
+}
+
+function stopQuizTimer(){
+  clearInterval(quizTimerHandle);
+  quizTimerHandle=0;
+}
+
+function computeSessionResults(session=activeQuizSession){
+  const source=session||{};
+  const nextCatResults={};
+  const nextDifficultyResults={};
+  const nextQuestionResults=[];
+  let nextScore=0;
+  (source.questions||[]).forEach((question,index)=>{
+    const response=source.responses?.[index];
+    if(response?.selectedIndex===null||response?.selectedIndex===undefined)return;
+    if(!nextCatResults[question.cat])nextCatResults[question.cat]={correct:0,total:0};
+    if(!nextDifficultyResults[question.diff])nextDifficultyResults[question.diff]={correct:0,total:0};
+    nextCatResults[question.cat].total+=1;
+    nextDifficultyResults[question.diff].total+=1;
+    const correct=Boolean(response.isCorrect);
+    if(correct){
+      nextScore+=1;
+      nextCatResults[question.cat].correct+=1;
+      nextDifficultyResults[question.diff].correct+=1;
+    }
+    nextQuestionResults.push({index,correct,difficulty:question.diff,category:question.cat});
+  });
+  return{
+    score:nextScore,
+    catResults:nextCatResults,
+    difficultyResults:nextDifficultyResults,
+    questionResults:nextQuestionResults
+  };
+}
+
+function syncRuntimeFromSession(session){
+  if(!session){
+    quiz=[];
+    qi=0;
+    score=0;
+    answered=false;
+    quizMode=getJourneyLaunchMode();
+    quizMeta={type:QUIZ_MODE_CONFIG[quizMode]?.label||'Quiz Journey',category:'All categories',difficulty:'Adaptive'};
+    catResults={};
+    difficultyResults={};
+    questionResults=[];
+    return;
+  }
+  quiz=session.questions||[];
+  qi=Math.max(0,Math.min(session.currentIndex||0,Math.max(quiz.length-1,0)));
+  quizMode=session.mode;
+  quizMeta={
+    mode:session.mode,
+    type:session.type,
+    category:session.category,
+    difficulty:session.difficulty,
+    length:quiz.length,
+    generator:session.generator,
+    strategy:session.strategy,
+    challengeStartsAt:session.challengeStartsAt,
+    blockLabels:session.blockLabels
+  };
+  const results=computeSessionResults(session);
+  score=results.score;
+  catResults=results.catResults;
+  difficultyResults=results.difficultyResults;
+  questionResults=results.questionResults;
+  answered=Boolean(session.responses?.[qi]&&session.responses[qi].selectedIndex!==null);
+}
+
+function renderQuizTimer(){
+  const timer=document.getElementById('quizTimer');
+  if(!timer)return;
+  if(!activeQuizSession||activeQuizSession.status!=='active'){
+    timer.hidden=true;
+    timer.classList.remove('is-warning','is-expired');
+    timer.textContent='00:00';
+    return;
+  }
+  const remainingMs=QuizJourney?.getRemainingMs?.(activeQuizSession)||0;
+  timer.hidden=false;
+  timer.textContent=QuizJourney?.formatRemainingTime?.(remainingMs)||'00:00';
+  timer.classList.toggle('is-warning',remainingMs>0&&remainingMs<=((QuizJourney?.LOW_TIME_WARNING_MS)||300000));
+  timer.classList.toggle('is-expired',remainingMs<=0);
+}
+
+function setActiveQuizSession(session,{persist=true}={}){
+  stopQuizTimer();
+  activeQuizSession=session?QuizJourney?.normalizeActiveSession?.(session)||session:null;
+  state.quizJourney.activeSession=activeQuizSession;
+  syncRuntimeFromSession(activeQuizSession);
+  if(persist)saveState();
+  renderQuizTimer();
+}
+
+function startQuizTimer(){
+  renderQuizTimer();
+  if(!activeQuizSession||activeQuizSession.status!=='active')return;
+  quizTimerHandle=window.setInterval(()=>{
+    const remainingMs=QuizJourney?.getRemainingMs?.(activeQuizSession)||0;
+    renderQuizTimer();
+    if(remainingMs<=0)finalizeQuizSession('expired');
+  },1000);
+}
+
+function buildIdleQuizPrompt(){
+  const mode=getJourneyLaunchMode();
+  if(mode==='evaluation')return'Evaluating Exam is the first guided step. Start it to unlock your progressive quizzes.';
+  if(mode==='progressive')return`Progressive quizzes completed and passed: ${getQuizJourneyState().progressive.passedCount} / ${getQuizJourneyState().progressive.requiredCount}.`;
+  if(getQuizJourneyState().stage==='COMPLETED')return'Your guided quiz journey is complete. You can review your results, reset the journey, or retake the final exam.';
+  return'Your final exam is unlocked. Start it when you are ready to complete the journey.';
+}
+
+function createQuizSession(nextQuiz,nextMeta){
+  const mode=nextMeta.mode;
+  const startedAt=new Date().toISOString();
+  const durationMin=QuizJourney?.durationMinutesForMode?.(mode)||(mode==='progressive'?20:60);
+  return QuizJourney?.normalizeActiveSession?.({
+    id:`quiz-session-${Date.now()}-${Math.random().toString(36).slice(2,8)}`,
+    stage:modeToJourneyStage(mode),
+    mode,
+    status:'active',
+    type:nextMeta.type,
+    category:nextMeta.category,
+    difficulty:nextMeta.difficulty,
+    generator:nextMeta.generator||'',
+    strategy:nextMeta.strategy||'',
+    challengeStartsAt:nextMeta.challengeStartsAt||0,
+    blockLabels:nextMeta.blockLabels||[],
+    questions:nextQuiz,
+    responses:createSessionResponses(nextQuiz.length),
+    currentIndex:0,
+    startedAt,
+    expiresAt:new Date(Date.now()+durationMin*60*1000).toISOString(),
+    durationMin
+  })||null;
+}
+
+function beginQuizSession(nextQuiz,nextMeta){
+  const existing=getQuizJourneyState().activeSession;
+  if(existing&&QuizJourney?.isSessionActive?.(existing)){
+    setQuizSessionBanner('Finish or submit your current quiz before starting another one.');
+    restoreQuizSessionFromState();
+    return;
+  }
+  clearQuizSessionBanner();
+  const session=createQuizSession(nextQuiz,nextMeta);
+  if(!session)return;
+  setActiveQuizSession(session,{persist:true});
+  startQuizTimer();
+  document.getElementById('scoreDisplay').style.display='none';
+  loadQ();
+  renderQuizJourney();
+}
+
+function restoreQuizSessionFromState(){
+  const session=QuizJourney?.normalizeActiveSession?.(getQuizJourneyState().activeSession)||null;
+  if(!session){
+    setActiveQuizSession(null,{persist:false});
+    return false;
+  }
+  setActiveQuizSession(session,{persist:false});
+  if(session.status==='active'&&(QuizJourney?.getRemainingMs?.(session)||0)<=0){
+    finalizeQuizSession('expired');
+    return false;
+  }
+  if(session.status==='active')startQuizTimer();
+  loadQ();
+  return true;
+}
+
+function showQuizBuildState(message,detail){
+  const opts=document.getElementById('qOptions');
+  const feedback=document.getElementById('qFeedback');
+  document.getElementById('qText').textContent=message;
+  document.getElementById('qNum').textContent='...';
+  document.getElementById('quizMeta').textContent=`${ORGANOQUIZO_BOT_NAME} is preparing your quiz`;
+  document.getElementById('quizTimer').hidden=true;
+  opts.innerHTML='';
+  feedback.className='quiz-feedback show';
+  feedback.textContent=detail;
+  document.getElementById('nextBtn').style.display='none';
+  document.getElementById('restartBtn').style.display='none';
+  document.getElementById('scoreDisplay').style.display='none';
+}
+
+function buildAdaptiveQuizRequest({selectedCategory,effectiveCategory,course,learner,categoryLabel,mode}){
+  const plannerInput=readPlannerInputs();
+  const studyPlan=simplifyStudyPlanForQuiz();
+  const requestedLength=mode==='progressive'
+    ?resolveProgressiveQuizLength(learner.level)
+    :mode==='final'
+      ?30
+      :20;
+  return{
+    input:{
+      mode,
+      requestedLength,
+      selectedCategory,
+      effectiveCategory,
+      categoryLabel,
+      selectedDifficulty:'all',
+      effectiveDifficulty:mode==='evaluation'?'Beginner to Scholar':course.level,
+      courseLevel:course.level,
+      courseSource:course.source,
+      learnerLevel:learner.level,
+      learnerSource:learner.source,
+      focusArea:plannerInput.focusArea,
+      studyPlan,
+      availableCategories:chemistryCategories(),
+      availableDifficulties:QUIZ_LEVELS
+    },
+    progress:{
+      ...buildProgressSnapshot(plannerInput),
+      studyPlan,
+      latestQuizMode:mode
+    }
+  };
+}
+
+async function buildAdaptiveQuizSet(request){
+  if(!AI?.requestAdaptiveQuiz)throw new Error('OrganoBot is unavailable.');
+  showQuizBuildState(
+    `${ORGANOQUIZO_BOT_NAME} is building your quiz...`,
+    'Generating adaptive questions from your study plan, learner level, and weak areas.'
+  );
+  const rawQuiz=await AI.requestAdaptiveQuiz(request);
+  const questions=(Array.isArray(rawQuiz?.questions)?rawQuiz.questions:[])
+    .map(question=>normalizeAdaptiveQuizQuestion(question,request.input))
+    .filter(Boolean)
+    .slice(0,request.input.requestedLength);
+  if(questions.length!==request.input.requestedLength){
+    throw new Error(`${ORGANOQUIZO_BOT_NAME} returned an incomplete quiz.`);
+  }
+  beginQuizSession(questions,{
+    mode:request.input.mode,
+    type:normalizeText(rawQuiz?.title,QUIZ_MODE_CONFIG[request.input.mode]?.label||'Adaptive Quiz'),
+    category:request.input.categoryLabel,
+    difficulty:request.input.effectiveDifficulty,
+    length:questions.length,
+    generator:ORGANOQUIZO_BOT_NAME,
+    strategy:normalizeText(rawQuiz?.strategy,''),
+    blockLabels:normalizeAdaptiveBlockLabels(rawQuiz?.blockLabels,questions.length)
+  });
+}
+
+function buildLocalQuizSet({generator='',mode=getJourneyLaunchMode()}={}){
+  const selectedCategory=document.getElementById('quizCategory').value;
+  const effectiveCategory=getEffectiveQuizCategory(mode);
+  const course=getCourseDifficultyContext();
+  const learner=getLearnerLevelContext();
+  const categoryLabel=selectedCategory==='all'?(effectiveCategory==='all'?'All categories':`${effectiveCategory} focus`):selectedCategory;
+  let nextQuiz=[];
+  let nextMeta={mode,type:QUIZ_MODE_CONFIG[mode].label,category:categoryLabel,difficulty:course.level,length:0,generator};
+  if(mode==='evaluation'){
+    nextQuiz=[
+      ...sampleQuestions({count:5,category:'all',difficulties:['Beginner']}),
+      ...sampleQuestions({count:5,category:'all',difficulties:['Intermediate']}),
+      ...sampleQuestions({count:5,category:'all',difficulties:['Advanced']}),
+      ...sampleQuestions({count:5,category:'all',difficulties:['Scholar']})
+    ];
+    nextMeta={
+      mode,
+      type:QUIZ_MODE_CONFIG[mode].label,
+      category:'All categories',
+      difficulty:'Beginner to Scholar',
+      length:20,
+      blockLabels:[
+        {start:1,end:5,label:'Beginner ladder'},
+        {start:6,end:10,label:'Intermediate ladder'},
+        {start:11,end:15,label:'Advanced ladder'},
+        {start:16,end:20,label:'Scholar ladder'}
+      ]
+    };
+  }else if(mode==='progressive'){
+    const length=resolveProgressiveQuizLength(learner.level);
+    nextQuiz=shuffleList(sampleQuestions({count:length,category:effectiveCategory,difficulties:difficultyFallbackOrder(course.level)}));
+    nextMeta={mode,type:QUIZ_MODE_CONFIG[mode].label,category:categoryLabel,difficulty:course.level,length,generator};
+  }else{
+    const courseBlock=shuffleList(sampleQuestions({count:20,category:effectiveCategory,difficulties:difficultyFallbackOrder(course.level)}));
+    const challengeBlock=shuffleList(sampleQuestions({count:10,category:effectiveCategory,difficulties:higherDifficultyOrder(course.level),exclude:courseBlock}));
+    nextQuiz=[...courseBlock,...challengeBlock];
+    nextMeta={
+      mode,
+      type:QUIZ_MODE_CONFIG[mode].label,
+      category:categoryLabel,
+      difficulty:course.level,
+      length:30,
+      challengeStartsAt:21,
+      blockLabels:[
+        {start:1,end:20,label:'Course-level block'},
+        {start:21,end:30,label:'Higher-level stretch'}
+      ],
+      generator
+    };
+  }
+  beginQuizSession(nextQuiz,nextMeta);
+}
+
+function renderQuizAssessmentPanel(){
+  const panel=document.getElementById('quizAssessmentPanel');
+  if(!panel)return;
+  const assessment=normalizeQuizAssessment(state.quizAssessment);
+  const journey=getQuizJourneyState();
+  if(activeQuizSession&&activeQuizSession.status==='active'){
+    panel.innerHTML=`<strong>${esc(activeQuizSession.type)} in progress</strong><div>The timer is running, OrganoBot chat is locked, and plan generation stays blocked until this quiz is submitted or expires.</div><div class="quiz-assessment-meta"><span class="quiz-assessment-chip">${esc(activeQuizSession.category)}</span><span class="quiz-assessment-chip">${esc(activeQuizSession.difficulty)}</span><span class="quiz-assessment-chip">Stage ${esc(activeQuizSession.stage)}</span></div>`;
+    return;
+  }
+  if(assessment?.level){
+    panel.innerHTML=`<strong>Current learner level: ${esc(assessment.level)}</strong><div>The Evaluating Exam placed this learner at ${esc(assessment.level)} and recommends the ${esc(assessment.recommendedCourseDifficulty||courseDifficultyFromLearnerLevel(assessment.level))} course baseline for the guided journey.</div><div class="quiz-assessment-meta"><span class="quiz-assessment-chip">${esc(assessment.percent)}% placement score</span><span class="quiz-assessment-chip">${esc(assessment.score)}/${esc(assessment.total)} correct</span><span class="quiz-assessment-chip">${esc(prettyDate(assessment.createdAt||new Date().toISOString()))}</span></div>`;
+    return;
+  }
+  if(journey.evaluation.status==='legacy-exempt'){
+    panel.innerHTML=`<strong>Legacy quiz progress preserved</strong><div>An older quiz path skipped the original evaluation, so the guided journey continues from the progressive stage without breaking that learner history.</div><div class="quiz-assessment-meta"><span class="quiz-assessment-chip">Migrated from older flow</span>${journey.evaluation.skippedAt?`<span class="quiz-assessment-chip">${esc(prettyDate(journey.evaluation.skippedAt))}</span>`:''}</div>`;
+    return;
+  }
+  panel.innerHTML='<strong>No learner placement yet</strong><div>Start with the Evaluating Exam to personalize the guided path, unlock progressive quizzes, and improve how OrganoBot generates adaptive questions for you.</div>';
+}
+
+function buildStageStatus(stage){
+  const journey=getQuizJourneyState();
+  if(stage==='EVALUATION'){
+    if(journey.evaluation.status==='completed'||journey.evaluation.status==='legacy-exempt')return{label:'Completed',tone:'is-open',complete:true};
+    return{label:'Current step',tone:'is-open',current:true};
+  }
+  if(stage==='PROGRESSIVE'){
+    if(journey.progressive.passedCount>=journey.progressive.requiredCount)return{label:'Completed',tone:'is-open',complete:true};
+    if(['PROGRESSIVE','FINAL','COMPLETED'].includes(journey.stage))return{label:journey.stage==='PROGRESSIVE'?'Current step':'Open',tone:'is-open',current:journey.stage==='PROGRESSIVE'};
+    return{label:'Locked',tone:'is-locked',locked:true};
+  }
+  if(journey.stage==='COMPLETED')return{label:'Completed',tone:'is-open',complete:true};
+  if(journey.stage==='FINAL')return{label:'Current step',tone:'is-open',current:true};
+  return{label:'Locked',tone:'is-locked',locked:true};
+}
+
+function renderQuizAchievements(){
+  const grid=document.getElementById('quizBadgesGrid');
+  if(!grid)return;
+  grid.innerHTML=(state.achievements||[]).map(item=>`<article class="quiz-badge-card ${item.unlocked?'':'is-locked'}" data-badge-tone="${esc(item.badgeType)}"><div class="quiz-badge-top"><span class="quiz-badge-level">${esc(item.level)}</span><span class="quiz-badge-status ${item.unlocked?'is-earned':'is-locked'}">${item.unlocked?'Earned':'Locked'}</span></div><strong>${esc(item.title)}</strong><div class="quiz-badge-copy">${esc(item.badgeType.charAt(0).toUpperCase()+item.badgeType.slice(1))} badge</div><div class="quiz-badge-date">${item.earnedAt?`Earned ${esc(prettyDate(item.earnedAt))}`:'Finish this level successfully to unlock it.'}</div></article>`).join('');
+}
+
+function renderQuizJourney(){
+  const journey=getQuizJourneyState();
+  const launchMode=getJourneyLaunchMode();
+  document.getElementById('quizTypeSummary').textContent='This guided journey starts with evaluation, continues through required progressive quizzes, and unlocks the final exam only when you are ready.';
+  const recommendation=document.getElementById('quizJourneyRecommendation');
+  if(recommendation)recommendation.hidden=journey.evaluation.status!=='not_started';
+  const startButton=document.getElementById('startQuizJourneyBtn');
+  if(startButton){
+    startButton.textContent=activeQuizSession&&activeQuizSession.status==='active'
+      ?'Resume current quiz'
+      :launchMode==='evaluation'
+        ?'Start Evaluating Exam'
+        :launchMode==='progressive'
+          ?'Start Progressive Quiz'
+          :journey.stage==='COMPLETED'
+            ?'Retake Final Exam'
+            :'Start End of Course Exam';
+  }
+  const resetButton=document.getElementById('resetQuizJourneyBtn');
+  if(resetButton)resetButton.style.display=hasQuizJourneyProgress()?'inline-flex':'none';
+  const stageGrid=document.getElementById('quizStageGrid');
+  if(stageGrid){
+    const progressiveMeta=`Progressive quizzes completed and passed: ${journey.progressive.passedCount} / ${journey.progressive.requiredCount}`;
+    stageGrid.innerHTML=[
+      {id:'EVALUATION',kicker:'Step 1',title:'Evaluating Exam',copy:'Complete the evaluation first for better personalization and adaptive quiz generation.',meta:'60 minutes'},
+      {id:'PROGRESSIVE',kicker:'Step 2',title:'Progressive Quizzes',copy:'Pass the required progressive quizzes to unlock your final exam.',meta:progressiveMeta},
+      {id:'FINAL',kicker:'Step 3',title:'End of Course Exam',copy:'The final exam unlocks after the required progressive quizzes are completed and passed.',meta:'60 minutes'}
+    ].map(card=>{
+      const status=buildStageStatus(card.id);
+      return`<article class="quiz-stage-card ${status.current?'is-current':''} ${status.complete?'is-complete':''} ${status.locked?'is-locked':''}"><div class="quiz-stage-top"><span class="quiz-stage-kicker">${esc(card.kicker)}</span><span class="quiz-stage-status ${status.tone}">${esc(status.label)}</span></div><strong>${esc(card.title)}</strong><div class="quiz-stage-copy">${esc(card.copy)}</div><div class="quiz-stage-meta">${esc(card.meta)}</div></article>`;
+    }).join('');
+  }
+  renderQuizAssessmentPanel();
+  renderQuizAchievements();
+  updatePlannerJourneyGuard();
+  renderQuizTimer();
+}
+
+function openQuizResetModal(){
+  document.getElementById('quizResetModal')?.removeAttribute('hidden');
+}
+
+function closeQuizResetModal(){
+  document.getElementById('quizResetModal')?.setAttribute('hidden','hidden');
+}
+
+function confirmQuizJourneyReset(){
+  closeQuizResetModal();
+  stopQuizTimer();
+  activeQuizSession=null;
+  state.quizHistory=[];
+  state.quizAssessment=null;
+  state.quizJourney=QuizJourney?.createEmptyJourney?.()||null;
+  state.achievements=QuizJourney?.normalizeAchievements?.([])||[];
+  state.studyPlans=[];
+  AI?.clearPlannerCache?.();
+  saveState();
+  syncRuntimeFromSession(null);
+  clearQuizSessionBanner();
+  loadQ();
+  renderStats();
+  renderStudyPlan();
+  renderWeakAreas();
+  renderMission();
+  renderQuizHistory();
+  renderQuizJourney();
+  window.OrganoApp?.notify?.({
+    title:'Quiz journey reset',
+    body:'Your quiz path, related progress, and active session were deleted. You can generate a new plan again.',
+    kind:'warning',
+    actionHref:'#quiz',
+    actionLabel:'Start again',
+    dedupeKey:'quiz-journey-reset'
+  });
+}
+
+function syncQuizBuilderUI(){
+  renderQuizJourney();
+}
+
+function initializeQuizModes(){
+  if(!quizJourneyBindingsReady){
+    document.getElementById('quizCategory').addEventListener('change',renderQuizJourney);
+    document.getElementById('startingLevel')?.addEventListener('change',renderQuizJourney);
+    document.getElementById('studyFocus')?.addEventListener('change',renderQuizJourney);
+    quizJourneyBindingsReady=true;
+  }
+  restoreQuizSessionFromState();
+  renderQuizJourney();
+  loadQ();
+}
+
+async function setupQuiz(){
+  if(restoreQuizSessionFromState())return;
+  const mode=getJourneyLaunchMode();
+  const selectedCategory=document.getElementById('quizCategory').value;
+  const effectiveCategory=getEffectiveQuizCategory(mode);
+  const course=getCourseDifficultyContext();
+  const learner=getLearnerLevelContext();
+  const categoryLabel=selectedCategory==='all'?(effectiveCategory==='all'?'All categories':`${effectiveCategory} focus`):selectedCategory;
+  if(mode==='evaluation'){
+    buildLocalQuizSet({mode});
+    return;
+  }
+  const adaptiveRequest=buildAdaptiveQuizRequest({selectedCategory,effectiveCategory,course,learner,categoryLabel,mode});
+  try{
+    await buildAdaptiveQuizSet(adaptiveRequest);
+  }catch(error){
+    buildLocalQuizSet({generator:'Local backup',mode});
+    window.OrganoApp?.notify?.({
+      title:`${ORGANOQUIZO_BOT_NAME} fallback`,
+      body:`Adaptive quiz generation was unavailable, so the local quiz bank was used instead. ${AI?.normalizeAIError?.(error)||String(error)}`,
+      kind:'info',
+      actionHref:'#quiz',
+      actionLabel:'Review quiz'
+    });
+  }
+}
+
+function loadQ(){
+  const q=quiz[qi],opts=document.getElementById('qOptions'),fb=document.getElementById('qFeedback');
+  if(!q||!activeQuizSession){
+    document.getElementById('qText').textContent=buildIdleQuizPrompt();
+    document.getElementById('qNum').textContent='0/0';
+    document.getElementById('quizMeta').textContent=QUIZ_MODE_CONFIG[getJourneyLaunchMode()]?.label||'Quiz Journey';
+    opts.innerHTML='';
+    fb.className='quiz-feedback';
+    fb.textContent='';
+    document.getElementById('nextBtn').style.display='none';
+    document.getElementById('restartBtn').style.display='none';
+    document.getElementById('scoreDisplay').style.display='none';
+    renderQuizTimer();
+    return;
+  }
+  document.getElementById('qText').textContent=q.q;
+  document.getElementById('qNum').textContent=`${qi+1}/${quiz.length}`;
+  document.getElementById('quizMeta').textContent=buildQuizMetaText(quizMeta,qi);
+  opts.innerHTML='';
+  q.opts.forEach((opt,i)=>{
+    const button=document.createElement('button');
+    button.className='quiz-opt';
+    button.textContent=opt;
+    button.onclick=()=>checkA(i);
+    opts.appendChild(button);
+  });
+  fb.className='quiz-feedback';
+  fb.textContent='';
+  document.getElementById('nextBtn').style.display='none';
+  document.getElementById('restartBtn').style.display='none';
+  document.getElementById('scoreDisplay').style.display='none';
+  const response=activeQuizSession.responses?.[qi];
+  answered=Boolean(response&&response.selectedIndex!==null);
+  if(answered){
+    const buttons=[...document.querySelectorAll('.quiz-opt')];
+    const explanation=buildQuizAnswerExplanation(q);
+    buttons.forEach(button=>button.classList.add('disabled'));
+    if(response.isCorrect){
+      buttons[response.selectedIndex]?.classList.add('correct');
+      fb.className='quiz-feedback correct-fb show';
+      fb.textContent=`Correct. ${explanation}`;
+    }else{
+      buttons[response.selectedIndex]?.classList.add('wrong');
+      buttons[q.ans]?.classList.add('correct');
+      fb.className='quiz-feedback wrong-fb show';
+      fb.textContent=`Not quite. ${explanation}`;
+    }
+    if(qi<quiz.length-1)document.getElementById('nextBtn').style.display='inline-block';
+  }
+  renderQuizTimer();
+}
+
+function checkA(choice){
+  if(answered||!activeQuizSession||activeQuizSession.status!=='active')return;
+  if((QuizJourney?.getRemainingMs?.(activeQuizSession)||0)<=0){
+    finalizeQuizSession('expired');
+    return;
+  }
+  const q=quiz[qi],opts=document.querySelectorAll('.quiz-opt'),fb=document.getElementById('qFeedback');
+  const explanation=buildQuizAnswerExplanation(q);
+  const correct=choice===q.ans;
+  activeQuizSession.responses[qi]={
+    selectedIndex:choice,
+    isCorrect:correct,
+    answeredAt:new Date().toISOString()
+  };
+  activeQuizSession.currentIndex=qi;
+  state.quizJourney.activeSession=activeQuizSession;
+  saveState();
+  syncRuntimeFromSession(activeQuizSession);
+  opts.forEach(button=>button.classList.add('disabled'));
+  if(correct){
+    opts[choice].classList.add('correct');
+    fb.className='quiz-feedback correct-fb show';
+    fb.textContent=`Correct. ${explanation}`;
+  }else{
+    opts[choice].classList.add('wrong');
+    opts[q.ans].classList.add('correct');
+    fb.className='quiz-feedback wrong-fb show';
+    fb.textContent=`Not quite. ${explanation}`;
+  }
+  if(qi<quiz.length-1)document.getElementById('nextBtn').style.display='inline-block';
+  else finalizeQuizSession('submitted');
+}
+
+function nextQ(){
+  if(!activeQuizSession)return;
+  activeQuizSession.currentIndex=Math.min(qi+1,Math.max(quiz.length-1,0));
+  state.quizJourney.activeSession=activeQuizSession;
+  saveState();
+  syncRuntimeFromSession(activeQuizSession);
+  loadQ();
+}
+
+function showScore(){
+  finalizeQuizSession('submitted');
+}
+
+function finalizeQuizSession(reason='submitted'){
+  const session=activeQuizSession?QuizJourney?.normalizeActiveSession?.(activeQuizSession)||activeQuizSession:null;
+  if(!session)return;
+  stopQuizTimer();
+  const results=computeSessionResults(session);
+  const pct=Math.round((results.score/Math.max(1,session.questions.length))*100);
+  const genericMsg=[[0,50,'Build back up from the topic explorer and try again.'],[50,75,'Good base. Tighten the weaker categories next.'],[75,90,'Strong understanding. One more focused pass could push this higher.'],[90,101,'Excellent work. The patterns are sticking.']].find(([a,b])=>pct>=a&&pct<b)?.[2]||'';
+  let msg=genericMsg;
+  let evaluatedLevel='';
+  const pass=session.mode==='evaluation'?true:(QuizJourney?.isPassedPercent?.(pct)??pct>=60);
+  if(session.mode==='evaluation'){
+    evaluatedLevel=evaluateLearnerLevel(pct,results.difficultyResults);
+    msg=`Placement complete. This learner currently sits at the ${evaluatedLevel} level.`;
+  }else if(session.mode==='progressive'){
+    msg=pass
+      ?`Progressive quiz passed. ${genericMsg}`
+      :`Progressive quiz finished. Reach ${(QuizJourney?.PASS_PERCENTAGE)||60}% to count this checkpoint toward unlocking the final exam.`;
+  }else{
+    const challengeStart=(session.challengeStartsAt||session.questions.length+1)-1;
+    const challengeCorrect=results.questionResults.slice(challengeStart).filter(item=>item.correct).length;
+    msg=pass
+      ?`End-of-course exam complete. You solved ${challengeCorrect}/${Math.max(0,session.questions.length-challengeStart)} of the higher-level stretch questions.`
+      :`End-of-course exam finished. Reach ${(QuizJourney?.PASS_PERCENTAGE)||60}% to complete this journey and earn the course badge.`;
+  }
+  document.getElementById('scoreDisplay').style.display='grid';
+  document.getElementById('scoreText').textContent=`${results.score}/${session.questions.length} - ${pct}%`;
+  document.getElementById('scoreMsg').textContent=msg;
+  const scoreChips=[];
+  if(session.mode==='final'&&session.challengeStartsAt){
+    const challengeStart=session.challengeStartsAt-1;
+    const courseCorrect=results.questionResults.slice(0,challengeStart).filter(item=>item.correct).length;
+    const challengeCorrect=results.questionResults.slice(challengeStart).filter(item=>item.correct).length;
+    scoreChips.push(`<div class="score-chip"><strong>Course-level block</strong>${courseCorrect}/${challengeStart} correct</div>`);
+    scoreChips.push(`<div class="score-chip"><strong>Higher-level stretch</strong>${challengeCorrect}/${session.questions.length-challengeStart} correct</div>`);
+  }
+  if(session.mode==='evaluation'){
+    scoreChips.push(...Object.entries(results.difficultyResults).map(([k,v])=>`<div class="score-chip"><strong>${esc(k)}</strong>${v.correct}/${v.total} correct - ${Math.round(v.correct/v.total*100)}%</div>`));
+  }
+  scoreChips.push(...Object.entries(results.catResults).map(([k,v])=>`<div class="score-chip"><strong>${esc(k)}</strong>${v.correct}/${v.total} correct - ${Math.round(v.correct/v.total*100)}%</div>`));
+  document.getElementById('scoreBreakdown').innerHTML=scoreChips.join('');
+  document.getElementById('restartBtn').style.display='inline-block';
+  document.getElementById('nextBtn').style.display='none';
+  const completedAt=new Date().toISOString();
+  if(session.mode==='evaluation'){
+    state.quizAssessment=normalizeQuizAssessment({
+      level:evaluatedLevel,
+      recommendedCourseDifficulty:courseDifficultyFromLearnerLevel(evaluatedLevel),
+      percent:pct,
+      score:results.score,
+      total:session.questions.length,
+      createdAt:completedAt
+    });
+    const startingLevel=document.getElementById('startingLevel');
+    if(startingLevel&&COURSE_LEVELS.includes(state.quizAssessment.recommendedCourseDifficulty)){
+      startingLevel.value=state.quizAssessment.recommendedCourseDifficulty;
+      syncPlannerSetupUI();
+    }
+  }
+  state.quizHistory.unshift({
+    createdAt:completedAt,
+    score:results.score,
+    total:session.questions.length,
+    percent:pct,
+    category:session.category,
+    difficulty:session.difficulty,
+    type:session.type,
+    mode:session.mode,
+    breakdown:results.catResults,
+    evaluatedLevel,
+    generator:session.generator||'',
+    passed:pass,
+    sessionId:session.id,
+    completedBy:reason,
+    journeyStage:session.stage
+  });
+  state.quizHistory=state.quizHistory.slice(0,12);
+  const nextJourney={...getQuizJourneyState(),activeSession:null};
+  if(session.mode==='evaluation'){
+    nextJourney.evaluation={
+      status:'completed',
+      percent:pct,
+      passed:true,
+      learnerLevel:evaluatedLevel,
+      recommendedCourseDifficulty:courseDifficultyFromLearnerLevel(evaluatedLevel),
+      completedAt,
+      skippedAt:''
+    };
+  }else if(session.mode==='progressive'){
+    nextJourney.progressive={
+      ...nextJourney.progressive,
+      completedCount:(nextJourney.progressive.completedCount||0)+1,
+      passedCount:(nextJourney.progressive.passedCount||0)+(pass?1:0),
+      lastCompletedAt:completedAt,
+      lastPassedAt:pass?completedAt:(nextJourney.progressive.lastPassedAt||'')
+    };
+  }else{
+    nextJourney.final={
+      status:pass?'completed':'unlocked',
+      percent:pct,
+      passed:pass,
+      completedAt:pass?completedAt:'',
+      courseDifficulty:getCourseDifficultyContext().level,
+      learnerLevel:getLearnerLevelContext().level
+    };
+    if(pass){
+      const badgeLevel=QuizJourney?.deriveBadgeLevel?.({
+        courseDifficulty:nextJourney.final.courseDifficulty,
+        learnerLevel:nextJourney.final.learnerLevel,
+        percent:pct
+      });
+      state.achievements=QuizJourney?.awardBadge?.(state.achievements,badgeLevel,completedAt)||state.achievements;
+    }
+  }
+  state.quizJourney=QuizJourney?.normalizeQuizJourney?.(nextJourney,{quizAssessment:state.quizAssessment,quizHistory:state.quizHistory})||nextJourney;
+  activeQuizSession=null;
+  syncRuntimeFromSession(null);
+  saveState();
+  if(reason==='expired')setQuizSessionBanner('Time is up. Your quiz was submitted automatically.');
+  renderQuizHistory();
+  renderStats();
+  renderWeakAreas();
+  renderMission();
+  renderQuizJourney();
+  window.OrganoApp?.notify?.({
+    title:`Quiz saved: ${pct}%`,
+    body:reason==='expired'
+      ?`${session.type} was auto-submitted when the timer expired.`
+      :`${session.type} is now part of your saved quiz history.`,
+    kind:pct>=75?'success':'info',
+    actionHref:'#quiz',
+    actionLabel:'Review quiz history'
+  });
+}
+
+function restartQuiz(){
+  clearQuizSessionBanner();
+  Promise.resolve(setupQuiz());
+}
+
+function renderQuizHistory(){
+  document.getElementById('quizHistory').innerHTML=state.quizHistory.map(s=>`<div class="history-item"><strong>${s.percent}% - ${esc(s.type||'Quiz')}</strong>${esc(s.category)} - ${esc(s.difficulty)} - ${s.score}/${s.total} correct - ${s.passed?'Passed':'Needs retry'}${s.evaluatedLevel?` - placed at ${esc(s.evaluatedLevel)}`:''}${s.generator?` - ${esc(s.generator)}`:''} - ${prettyDate(s.createdAt)}</div>`).join('')||'<div class="history-item"><strong>No saved sessions yet</strong>Your completed quizzes will appear here.</div>';
+}
+
 function renderReference(){
   const q=document.getElementById('referenceSearch').value.trim().toLowerCase(),family=document.getElementById('referenceFamily').value,diff=document.getElementById('referenceDifficulty').value;
   const rows=refs.filter(([n,f,s,g,p,d])=>(!q||[n,f,s,g,p].join(' ').toLowerCase().includes(q))&&(family==='all'||f===family)&&(diff==='all'||d===diff));
@@ -1776,8 +2537,8 @@ window.addEventListener('organo:hydrate-main-state',()=>{
   renderSavedReactions();
   renderMission();
   renderQuizHistory();
-  renderQuizAssessmentPanel();
-  syncQuizBuilderUI();
+  initializeQuizModes();
+  renderQuizJourney();
   renderReference();
 });
 window.addEventListener('organo:auth-changed',()=>{
@@ -1790,8 +2551,7 @@ window.addEventListener('organo:auth-changed',()=>{
   renderMission();
   renderSavedReactions();
   renderQuizHistory();
-  renderQuizAssessmentPanel();
-  syncQuizBuilderUI();
+  renderQuizJourney();
   renderCurriculum();
 });
 bindPlannerSetupUI();
@@ -1807,8 +2567,7 @@ renderWeakAreas();
 renderSavedReactions();
 renderMission();
 renderQuizHistory();
-renderQuizAssessmentPanel();
+renderQuizJourney();
 renderReference();
 currentMol=pickTodaysCompound()?.id||currentMol;
 drawMol(currentMol);
-setupQuiz();
