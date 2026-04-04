@@ -1209,19 +1209,28 @@ function renderCurriculum(){
 }
 
 function renderReactionControls(){
-  document.getElementById('rxnControls').innerHTML=Object.entries(reactions).map(([id,r])=>`<button class="rxn-btn ${id===currentReaction?'active':''}" type="button" onclick="showRxn('${id}')">${esc(r.name)}</button>`).join('');
+  const controls=document.getElementById('rxnControls');
+  if(!controls)return;
+  controls.innerHTML=Object.entries(reactions).map(([id,r])=>`<button class="rxn-btn ${id===currentReaction?'active':''}" type="button" onclick="showRxn('${id}')">${esc(r.name)}</button>`).join('');
 }
 
 function showRxn(id){
   currentReaction=id;
   const r=reactions[id];
+  const display=document.getElementById('rxnDisplay');
+  const info=document.getElementById('rxnInfo');
+  const title=document.getElementById('rxnCardTitle');
+  const quickTake=document.getElementById('rxnQuickTake');
+  const tags=document.getElementById('rxnTags');
+  const saveButton=document.getElementById('saveReactionBtn');
+  if(!display||!info||!title||!quickTake||!tags||!saveButton)return;
   renderReactionControls();
-  document.getElementById('rxnDisplay').innerHTML=r.display;
-  document.getElementById('rxnInfo').innerHTML=`<div class="panel-eyebrow">Mechanism notes</div><h3>${esc(r.name)}</h3><div class="decision-notes">${r.info.map(x=>`<div class="note-item">${esc(x)}</div>`).join('')}</div>`;
-  document.getElementById('rxnCardTitle').textContent=r.name;
-  document.getElementById('rxnQuickTake').textContent=r.quick;
-  document.getElementById('rxnTags').innerHTML=r.tags.map(tag=>`<span class="chip">${esc(tag)}</span>`).join('');
-  document.getElementById('saveReactionBtn').textContent=state.savedReactions.includes(id)?'Remove from saved reactions':'Save reaction for review';
+  display.innerHTML=r.display;
+  info.innerHTML=`<div class="panel-eyebrow">Mechanism notes</div><h3>${esc(r.name)}</h3><div class="decision-notes">${r.info.map(x=>`<div class="note-item">${esc(x)}</div>`).join('')}</div>`;
+  title.textContent=r.name;
+  quickTake.textContent=r.quick;
+  tags.innerHTML=r.tags.map(tag=>`<span class="chip">${esc(tag)}</span>`).join('');
+  saveButton.textContent=state.savedReactions.includes(id)?'Remove from saved reactions':'Save reaction for review';
 }
 
 function learnerLevelRank(level){
@@ -1771,7 +1780,6 @@ window.addEventListener('organo:hydrate-main-state',()=>{
   renderCurriculum();
   renderWeakAreas();
   renderSavedReactions();
-  showRxn(currentReaction);
   renderMission();
   renderQuizHistory();
   renderQuizAssessmentPanel();
@@ -1787,7 +1795,6 @@ window.addEventListener('organo:auth-changed',()=>{
   renderWeakAreas();
   renderMission();
   renderSavedReactions();
-  showRxn(currentReaction);
   renderQuizHistory();
   renderQuizAssessmentPanel();
   syncQuizBuilderUI();
@@ -1804,7 +1811,6 @@ renderStudyPlan();
 renderCurriculum();
 renderWeakAreas();
 renderSavedReactions();
-showRxn(currentReaction);
 renderMission();
 renderQuizHistory();
 renderQuizAssessmentPanel();
