@@ -613,7 +613,6 @@ function syncPlannerTimelineUI(){
   const derivedTimeline=document.getElementById('plannerDerivedTimeline');
   const derivedSession=document.getElementById('plannerDerivedSessionLength');
   const derivedQuizzes=document.getElementById('plannerDerivedQuizzes');
-  const derivedExams=document.getElementById('plannerDerivedExams');
 
   if(daysLabel)daysLabel.textContent=`${timeline.courseDays} days`;
   if(daysMeta)daysMeta.textContent=`${timeline.courseDays} days total / ${timeline.sessionMinutes} min sessions`;
@@ -621,7 +620,6 @@ function syncPlannerTimelineUI(){
   if(derivedTimeline)derivedTimeline.value=`${timeline.courseDays} days total`;
   if(derivedSession)derivedSession.value=`${timeline.sessionMinutes} minutes`;
   if(derivedQuizzes)derivedQuizzes.value=`${timeline.plannedQuizzes} total / ${timeline.recommendedQuizzesPerWeek} every 7 days`;
-  if(derivedExams)derivedExams.value=`${timeline.plannedMajorExams} total`;
 }
 
 function syncPlannerFocusUI(){
@@ -702,8 +700,8 @@ function readPlannerInputs(){
     plannedQuizzes:timeline.plannedQuizzes,
     plannedMajorExams:timeline.plannedMajorExams,
     pacingMode:timeline.mode,
-    completedQuizzes:Math.max(0,Number(document.getElementById('completedQuizzes').value)||0),
-    completedMajorExams:Math.max(0,Number(document.getElementById('completedMajorExams').value)||0),
+    completedQuizzes:Math.max(0,state.quizHistory.length),
+    completedMajorExams:0,
     startingLevel:document.getElementById('startingLevel').value,
     curriculum:curriculumEntry?{
       track:curriculumEntry.title,
@@ -722,9 +720,6 @@ function hydratePlannerInputs(){
   if(cachedInputs?.focusArea)document.getElementById('studyFocus').value=cachedInputs.focusArea;
   const cachedDays=cachedInputs?.courseDays||(cachedInputs?.courseWeeks?Number(cachedInputs.courseWeeks)*7:PLANNER_TIMELINE_DEFAULTS.defaultDays);
   document.getElementById('plannerCourseDays').value=String(clampCourseDays(cachedDays));
-  if(cachedInputs?.completedQuizzes!==undefined)document.getElementById('completedQuizzes').value=String(cachedInputs.completedQuizzes);
-  else document.getElementById('completedQuizzes').value=String(state.quizHistory.length);
-  if(cachedInputs?.completedMajorExams!==undefined)document.getElementById('completedMajorExams').value=String(cachedInputs.completedMajorExams);
   if(cachedInputs?.startingLevel)document.getElementById('startingLevel').value=cachedInputs.startingLevel;
   else if(COURSE_LEVELS.includes(state.quizAssessment?.recommendedCourseDifficulty))document.getElementById('startingLevel').value=state.quizAssessment.recommendedCourseDifficulty;
   else if(curriculumEntry)document.getElementById('startingLevel').value=curriculumLevelStartingLevel(curriculumEntry.level);
@@ -1072,7 +1067,6 @@ function buildOfflineStudyPlan(){
   const plan=buildOfflineStudyPlanObject(input);
   AI?.savePlannerCache?.(plan);
   savePlanHistory(plan,input);
-  document.getElementById('completedQuizzes').value=String(Math.max(input.completedQuizzes,state.quizHistory.length));
   setPlannerError('');
   setPlannerStatus('Offline quick plan ready. Use the built-in AI whenever you want a richer roadmap or OrganoQuizo Bot chat.');
   renderStats();
@@ -1132,7 +1126,6 @@ function resetPlannerData(){
   state.studyPlans=[];
   saveState();
   AI?.clearPlannerCache?.();
-  document.getElementById('completedQuizzes').value='0';
   setPlannerError('');
   setPlannerStatus('Planner data cleared. Your theme, topic status, saved reactions, material studio state, and OrganoQuizo Bot chats were preserved.');
   renderStats();
@@ -1210,10 +1203,9 @@ function renderCurriculum(){
   const visibleEntries=entries
     .filter(entry=>entry.country===activeCurriculumCountry)
     .sort((a,b)=>(a.level==='high-school'?0:1)-(b.level==='high-school'?0:1));
-  const linkedCount=visibleEntries.reduce((count,entry)=>count+entry.topics.filter(topic=>curriculumTopicLessonSlug(topic)).length,0);
-  summaryNode.textContent=`Showing ${activeCurriculumCountry} with ${visibleEntries.length} track${visibleEntries.length===1?'':'s'} and ${linkedCount} topic${linkedCount===1?'':'s'} linked to existing lesson cards.`;
-  grid.innerHTML=visibleEntries.map(entry=>`<article class="dashboard-panel curriculum-card"><div class="panel-header"><div><div class="panel-eyebrow">${esc(entry.country)}</div><h3>${esc(curriculumLevelLabel(entry.level))}</h3></div><span class="status-pill">${entry.topics.length} topics</span></div><p class="panel-copy">${esc(entry.title)}</p><div class="curriculum-meta"><span class="topic-tag">${esc(curriculumLevelLabel(entry.level))}</span><span class="topic-tag">${entry.sources.length} source${entry.sources.length===1?'':'s'}</span></div><div><div class="panel-eyebrow">Topics</div><div class="curriculum-topic-list">${entry.topics.map(topic=>{const title=curriculumTopicTitle(topic),slug=curriculumTopicLessonSlug(topic);return slug?`<a class="curriculum-topic-link" href="#topics" data-curriculum-lesson="${esc(slug)}">${esc(title)}</a>`:`<span class="curriculum-topic-plain">${esc(title)}</span>`;}).join('')}</div></div><div><div class="panel-eyebrow">Sources</div><div class="curriculum-source-list">${entry.sources.map(source=>`<div class="curriculum-source"><strong>${esc(source.label)}</strong><span class="curriculum-source-meta">${esc(curriculumSourceTypeLabel(source.type))}</span><span class="panel-copy">${esc(curriculumSourceNote(source))}</span></div>`).join('')}</div></div></article>`).join('');
-  grid.querySelectorAll('[data-curriculum-lesson]').forEach(link=>link.addEventListener('click',()=>openLessonTopic(link.dataset.curriculumLesson||'')));
+  const topicCount=visibleEntries.reduce((count,entry)=>count+entry.topics.length,0);
+  summaryNode.textContent=`Showing ${activeCurriculumCountry} with ${visibleEntries.length} track${visibleEntries.length===1?'':'s'} and ${topicCount} topic${topicCount===1?'':'s'} in view.`;
+  grid.innerHTML=visibleEntries.map(entry=>`<article class="dashboard-panel curriculum-card"><div class="panel-header"><div><div class="panel-eyebrow">${esc(entry.country)}</div><h3>${esc(curriculumLevelLabel(entry.level))}</h3></div><span class="status-pill">${entry.topics.length} topics</span></div><p class="panel-copy">${esc(entry.title)}</p><div class="curriculum-meta"><span class="topic-tag">${esc(curriculumLevelLabel(entry.level))}</span><span class="topic-tag">${entry.sources.length} source${entry.sources.length===1?'':'s'}</span></div><div><div class="panel-eyebrow">Topics</div><div class="curriculum-topic-list">${entry.topics.map(topic=>`<span class="curriculum-topic-plain">${esc(curriculumTopicTitle(topic))}</span>`).join('')}</div></div><div><div class="panel-eyebrow">Sources</div><div class="curriculum-source-list">${entry.sources.map(source=>`<div class="curriculum-source"><strong>${esc(source.label)}</strong><span class="curriculum-source-meta">${esc(curriculumSourceTypeLabel(source.type))}</span><span class="panel-copy">${esc(curriculumSourceNote(source))}</span></div>`).join('')}</div></div></article>`).join('');
 }
 
 function renderReactionControls(){
@@ -1745,8 +1737,6 @@ function showScore(){
   state.quizHistory.unshift({createdAt:new Date().toISOString(),score,total:quiz.length,percent:pct,category:quizMeta.category,difficulty:quizMeta.difficulty,type:quizMeta.type,mode:quizMeta.mode,breakdown:catResults,evaluatedLevel,generator:quizMeta.generator||''});
   state.quizHistory=state.quizHistory.slice(0,8);
   saveState();
-  const completedQuizzesInput=document.getElementById('completedQuizzes');
-  if(completedQuizzesInput)completedQuizzesInput.value=String(state.quizHistory.length);
   renderQuizHistory();renderStats();renderWeakAreas();renderMission();
   window.OrganoApp?.notify?.({
     title:`Quiz saved: ${pct}%`,
@@ -1769,9 +1759,6 @@ function renderReference(){
   document.getElementById('referenceBody').innerHTML=rows.map(([n,f,s,g,p,d])=>`<tr><td>${esc(n)}</td><td>${esc(f)}</td><td class="mono">${esc(s)}</td><td class="mono">${esc(g)}</td><td>${esc(p)}</td><td><span class="tag-pill">${esc(d)}</span></td></tr>`).join('');
 }
 
-document.getElementById('topicSearch').addEventListener('input',renderTopics);
-document.getElementById('topicDifficulty').addEventListener('change',renderTopics);
-document.getElementById('topicStatus').addEventListener('change',renderTopics);
 document.getElementById('referenceSearch').addEventListener('input',renderReference);
 document.getElementById('referenceFamily').addEventListener('change',renderReference);
 document.getElementById('referenceDifficulty').addEventListener('change',renderReference);
@@ -1781,8 +1768,6 @@ window.addEventListener('organo:hydrate-main-state',()=>{
   hydratePlannerInputs();
   renderStats();
   renderStudyPlan();
-  renderTopics();
-  renderTopicDetail();
   renderCurriculum();
   renderWeakAreas();
   renderSavedReactions();
@@ -1806,7 +1791,6 @@ window.addEventListener('organo:auth-changed',()=>{
   renderQuizHistory();
   renderQuizAssessmentPanel();
   syncQuizBuilderUI();
-  renderTopicDetail();
   renderCurriculum();
 });
 bindPlannerSetupUI();
@@ -1817,8 +1801,6 @@ setPlannerError('');
 refreshPlannerActivationState();
 renderStats();
 renderStudyPlan();
-renderTopics();
-renderTopicDetail();
 renderCurriculum();
 renderWeakAreas();
 renderSavedReactions();

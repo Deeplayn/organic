@@ -132,7 +132,6 @@
           <p class="section-lead">The learning panel keeps the original chemistry study tools together inside the main shell, with more horizontal space and account-aware save behavior.</p>
         </div>
         <div class="panel-jump-links">
-          <a href="#topics">Topics</a>
           <a href="#curriculum">Curriculum</a>
           <a href="#reactions">Reactions</a>
           <a href="#quiz">Quiz</a>
@@ -152,7 +151,7 @@
           <h3>Organic chemistry that adapts to you, not the other way around.</h3>
           <p>A powerful adaptive workspace that adjusts to your level, your weak spots, your curriculum, and your study rhythm so every session feels sharper, faster, and more personal.</p>
           <div class="btn-group">
-            <a href="#topics" class="btn btn-primary">Explore Topics</a>
+            <a href="#curriculum" class="btn btn-primary">Open Curriculum</a>
             <a href="#quiz" class="btn btn-secondary">Start Practice</a>
             <a href="#reference" class="btn btn-secondary">Open Reference</a>
           </div>
@@ -299,21 +298,6 @@
                   <input id="plannerDerivedQuizzes" type="text" value="8 total / 2 every 7 days" readonly>
                 </label>
                 <label class="field">
-                  <span>Major Exams</span>
-                  <input id="plannerDerivedExams" type="text" value="2 total" readonly>
-                </label>
-              </div>
-
-              <div class="planner-detail-grid">
-                <label class="field">
-                  <span>Completed Quizzes</span>
-                  <input id="completedQuizzes" type="number" min="0" max="500" value="0">
-                </label>
-                <label class="field">
-                  <span>Major Exams Taken</span>
-                  <input id="completedMajorExams" type="number" min="0" max="50" value="0">
-                </label>
-                <label class="field">
                   <span>Starting Level</span>
                   <select id="startingLevel">
                     <option value="Beginner" selected>Beginner</option>
@@ -339,47 +323,11 @@
         </div>
       </section>
 
-      <section class="content-section" id="topics" aria-labelledby="topicsTitle">
+      <section class="content-section" id="curriculum" aria-labelledby="curriculumTitle">
         <div class="section-tag">02</div>
         <div class="section-copy">
-          <h3 id="topicsTitle">Explore the course map</h3>
-          <p>Filter by difficulty, search by keyword, and keep track of which concepts feel stable versus shaky.</p>
-        </div>
-        <div class="toolbar">
-          <label class="field grow">
-            <span>Search topics</span>
-            <input type="search" id="topicSearch" placeholder="Try SN2, aromaticity, aldehydes...">
-          </label>
-          <label class="field">
-            <span>Difficulty</span>
-            <select id="topicDifficulty">
-              <option value="all">All levels</option>
-              <option value="Beginner">Beginner</option>
-              <option value="Intermediate">Intermediate</option>
-              <option value="Advanced">Advanced</option>
-            </select>
-          </label>
-          <label class="field">
-            <span>Status</span>
-            <select id="topicStatus">
-              <option value="all">Any status</option>
-              <option value="confident">Confident</option>
-              <option value="review">Needs review</option>
-              <option value="new">Not marked yet</option>
-            </select>
-          </label>
-        </div>
-        <div class="topics-grid" id="topicsGrid"></div>
-        <div class="detail-panel" id="topicDetail">
-          <div class="detail-empty">Select a topic card to open a deeper breakdown, study goals, and progress actions.</div>
-        </div>
-      </section>
-
-      <section class="content-section" id="curriculum" aria-labelledby="curriculumTitle">
-        <div class="section-tag">03</div>
-        <div class="section-copy">
           <h3 id="curriculumTitle">Curriculum tracks by country</h3>
-          <p>Compare high school and university organic chemistry coverage across countries, then open matching lesson cards already available in the app.</p>
+          <p>Compare high school and university organic chemistry coverage across countries with the lesson and source mix already available in the app.</p>
         </div>
         <div class="curriculum-toolbar">
           <div class="curriculum-country-pills" id="curriculumCountries"></div>
@@ -389,7 +337,7 @@
       </section>
 
       <section class="content-section" id="reactions" aria-labelledby="reactionTitle">
-        <div class="section-tag">04</div>
+        <div class="section-tag">03</div>
         <div class="section-copy">
           <h3 id="reactionTitle">Reaction lab and mechanism review</h3>
           <p>Switch between core mechanisms, compare their signatures, and save your review stack for later revision.</p>
@@ -425,7 +373,7 @@
 
       </section>
       <section class="content-section" id="quiz" aria-labelledby="quizTitle">
-        <div class="section-tag">05</div>
+        <div class="section-tag">04</div>
         <div class="section-copy">
           <h3 id="quizTitle">Quiz partition</h3>
           <p>Choose between a skippable first-time evaluation, course-linked progressive quizzes, monthly exams, and the final end-of-course challenge. OrganoQuizo Bot now builds adaptive questions from your study plan, quiz history, and learner level.</p>
