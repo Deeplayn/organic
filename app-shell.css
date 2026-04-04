@@ -973,17 +973,11 @@ body.has-global-loader .global-loader{
   padding:10px 0 44px;
   background:transparent;
 }
-.molecule-canvas #molImage{
-  width:min(100%,280px);
+.molecule-canvas #molSvg{
+  width:min(100%,320px);
   height:auto;
-  object-fit:contain;
-  filter:drop-shadow(0 12px 26px rgba(0,0,0,.2));
-}
-.compound-image-fallback{
-  padding:18px;
-  border-radius:18px;
-  border:1px dashed color-mix(in srgb,var(--border) 92%,transparent);
-  color:var(--text-dim);
+  overflow:visible;
+  filter:drop-shadow(0 12px 26px rgba(0,0,0,.22));
 }
 .compound-cid{
   position:absolute;
@@ -1003,7 +997,7 @@ body.has-global-loader .global-loader{
   text-transform:uppercase;
 }
 .molecule-canvas .compound-visual,
-.molecule-canvas #molImage,
+.molecule-canvas #molSvg,
 .molecule-canvas .mol-name,
 .molecule-canvas .mol-formula,
 .molecule-canvas .mol-copy,
@@ -1014,7 +1008,7 @@ body.has-global-loader .global-loader{
   will-change:transform,opacity,filter;
 }
 .molecule-canvas.is-switching .compound-visual,
-.molecule-canvas.is-switching #molImage{
+.molecule-canvas.is-switching #molSvg{
   transform:translateY(14px) scale(.92) rotateX(12deg);
   opacity:.18;
   filter:blur(8px) saturate(1.25);

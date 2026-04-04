@@ -55,59 +55,64 @@ function setTheme(theme,btn,options={}){
 const savedTheme=localStorage.getItem(THEME);
 if(savedTheme&&LABELS[savedTheme])setTheme(savedTheme,document.querySelector(`.t-opt[onclick*="${savedTheme}"]`),{userInitiated:false});
 
-const PUBCHEM_IMAGE_BASE='https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid';
 const todaysCompounds=[
   {
     id:'ethanol',
     cid:702,
     name:'Ethanol',
+    wikiUrl:'https://en.wikipedia.org/wiki/Ethanol',
     formula:'C2H6O',
     info:'A light alcohol used across solvents, sanitizers, fuels, and chemical processing.',
     benefit:'Its value comes from serving several markets at once, from industrial solvents to disinfectant products and fuel blending.',
-    industry:'PubChem lists ethanol as a major compound entry, and it remains commercially important in manufacturing, lab work, and energy-related formulations.'
+    industry:'PubChem lists ethanol as a major compound entry, and it remains commercially important in manufacturing, lab work, and energy-related formulations.',
+    draw(svg){drawEthanolSketch(svg);}
   },
   {
     id:'acetone',
     cid:180,
     name:'Acetone',
+    wikiUrl:'https://en.wikipedia.org/wiki/Acetone',
     formula:'C3H6O',
     info:'A fast-evaporating ketone widely used as both a solvent and a chemical intermediate.',
     benefit:'PubChem notes acetone is used to make plastics, fibers, drugs, and other chemicals, which makes it economically useful far beyond simple cleaning applications.',
-    industry:'Its ability to dissolve many materials quickly keeps it important in coatings, laboratories, and large-scale chemical production.'
+    industry:'Its ability to dissolve many materials quickly keeps it important in coatings, laboratories, and large-scale chemical production.',
+    draw(svg){drawAcetoneSketch(svg);}
   },
   {
     id:'acetic-acid',
     cid:176,
     name:'Acetic Acid',
+    wikiUrl:'https://en.wikipedia.org/wiki/Acetic_acid',
     formula:'C2H4O2',
     info:'A simple carboxylic acid that sits at the center of many industrial and food-related processes.',
     benefit:'PubChem notes acetic acid is used to make other chemicals, support petroleum production, and function as a food additive, so one compound supports several value chains.',
-    industry:'It matters commercially as a feedstock for synthesis and as a practical ingredient in preservation and process chemistry.'
+    industry:'It matters commercially as a feedstock for synthesis and as a practical ingredient in preservation and process chemistry.',
+    draw(svg){drawAceticAcidSketch(svg);}
   },
   {
     id:'toluene',
     cid:1140,
     name:'Toluene',
+    wikiUrl:'https://en.wikipedia.org/wiki/Toluene',
     formula:'C7H8',
     info:'An aromatic solvent widely used in paints, adhesives, fuels, and chemical manufacturing.',
     benefit:'Its commercial value comes from strong solvent performance plus its role in coatings, thinners, rubber, and fuel blending workflows.',
-    industry:'PubChem identifies it as an important compound entry, and industry uses it wherever fast evaporation and solvency are useful.'
+    industry:'PubChem identifies it as an important compound entry, and industry uses it wherever fast evaporation and solvency are useful.',
+    draw(svg){drawTolueneSketch(svg);}
   },
   {
     id:'d-glucose',
     cid:5793,
     name:'D-Glucose',
+    wikiUrl:'https://en.wikipedia.org/wiki/Glucose',
     formula:'C6H12O6',
     info:'A foundational sugar used in food systems, biology, fermentation, and chemical manufacturing.',
     benefit:'PubChem connects glucose to confectionery, infant foods, brewing, medicine, fuel ethanol, and sorbitol production, which gives it broad economic reach.',
-    industry:'It is valuable because the same molecule supports nutrition products, fermentation processes, and downstream industrial chemistry.'
+    industry:'It is valuable because the same molecule supports nutrition products, fermentation processes, and downstream industrial chemistry.',
+    draw(svg){drawGlucoseSketch(svg);}
   }
 ];
 let currentMol=todaysCompounds[0]?.id||'ethanol';
-
-function buildPubChemImageUrl(cid){
-  return `${PUBCHEM_IMAGE_BASE}/${cid}/PNG?image_size=large`;
-}
 
 function dayOfYear(date=new Date()){
   const start=new Date(date.getFullYear(),0,0);
@@ -122,25 +127,65 @@ function pickTodaysCompound(date=new Date()){
   return todaysCompounds[index];
 }
 
-function setCompoundImage(compound){
-  const image=document.getElementById('molImage');
-  const fallback=document.getElementById('molImageFallback');
-  if(!image||!compound)return;
-  if(fallback){
-    fallback.hidden=true;
-    fallback.textContent=`PubChem structure preview unavailable for ${compound.name}.`;
+function moleculeSketchPalette(){
+  return{
+    bond:cv('--accent'),
+    bondSoft:cv('--text-dim'),
+    atom:cv('--card'),
+    atomStroke:cv('--border'),
+    oxygen:cv('--accent2'),
+    accent:cv('--accent3'),
+    hydrogen:cv('--green-dim'),
+    text:cv('--text'),
+    orbit:colorMix('var(--accent3)','transparent',12)
+  };
+}
+
+function colorMix(a,b,amount){
+  return `color-mix(in srgb,${a} ${amount}%,${b})`;
+}
+
+function drawNode({x,y,r=16,label,fill,stroke,textColor,fontSize=10}){
+  return `<circle cx="${x}" cy="${y}" r="${r}" fill="${fill}" stroke="${stroke}" stroke-width="1.5"/><text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="central" fill="${textColor}" font-family="monospace" font-size="${fontSize}">${label}</text>`;
+}
+
+function baseSketch(svg,inner){
+  if(!svg)return;
+  const palette=moleculeSketchPalette();
+  svg.innerHTML=`<circle cx="194" cy="56" r="58" fill="none" stroke="${palette.orbit}" stroke-width="1.2" opacity=".7"/><circle cx="194" cy="56" r="88" fill="none" stroke="${palette.orbit}" stroke-width=".8" opacity=".28"/>${inner}`;
+  svg.setAttribute('aria-hidden','true');
+}
+
+function drawEthanolSketch(svg){
+  const p=moleculeSketchPalette();
+  baseSketch(svg,`<line x1="44" y1="102" x2="98" y2="102" stroke="${p.bond}" stroke-width="3" stroke-linecap="round"/><line x1="130" y1="102" x2="164" y2="78" stroke="${p.bond}" stroke-width="3" stroke-linecap="round"/>${drawNode({x:28,y:102,r:18,label:'CH3',fill:p.atom,stroke:p.atomStroke,textColor:p.text,fontSize:10})}${drawNode({x:114,y:102,r:18,label:'CH2',fill:p.atom,stroke:p.atomStroke,textColor:p.text,fontSize:10})}${drawNode({x:188,y:70,r:16,label:'OH',fill:p.atom,stroke:p.oxygen,textColor:p.oxygen,fontSize:10})}`);
+}
+
+function drawAcetoneSketch(svg){
+  const p=moleculeSketchPalette();
+  baseSketch(svg,`<line x1="46" y1="102" x2="96" y2="102" stroke="${p.bond}" stroke-width="3" stroke-linecap="round"/><line x1="132" y1="102" x2="184" y2="102" stroke="${p.bond}" stroke-width="3" stroke-linecap="round"/><line x1="118" y1="94" x2="156" y2="72" stroke="${p.oxygen}" stroke-width="2.4" stroke-linecap="round"/><line x1="124" y1="100" x2="162" y2="78" stroke="${p.oxygen}" stroke-width="2.4" stroke-linecap="round"/>${drawNode({x:28,y:102,r:18,label:'CH3',fill:p.atom,stroke:p.atomStroke,textColor:p.text,fontSize:10})}${drawNode({x:114,y:102,r:16,label:'CO',fill:p.atom,stroke:p.accent,textColor:p.text,fontSize:10})}${drawNode({x:176,y:70,r:14,label:'O',fill:p.atom,stroke:p.oxygen,textColor:p.oxygen,fontSize:11})}${drawNode({x:202,y:102,r:18,label:'CH3',fill:p.atom,stroke:p.atomStroke,textColor:p.text,fontSize:10})}`);
+}
+
+function drawAceticAcidSketch(svg){
+  const p=moleculeSketchPalette();
+  baseSketch(svg,`<line x1="46" y1="102" x2="98" y2="102" stroke="${p.bond}" stroke-width="3" stroke-linecap="round"/><line x1="130" y1="102" x2="174" y2="102" stroke="${p.bond}" stroke-width="3" stroke-linecap="round"/><line x1="116" y1="94" x2="154" y2="70" stroke="${p.oxygen}" stroke-width="2.3" stroke-linecap="round"/><line x1="122" y1="100" x2="160" y2="76" stroke="${p.oxygen}" stroke-width="2.3" stroke-linecap="round"/>${drawNode({x:28,y:102,r:18,label:'CH3',fill:p.atom,stroke:p.atomStroke,textColor:p.text,fontSize:10})}${drawNode({x:114,y:102,r:16,label:'C',fill:p.atom,stroke:p.accent,textColor:p.text,fontSize:11})}${drawNode({x:170,y:70,r:14,label:'O',fill:p.atom,stroke:p.oxygen,textColor:p.oxygen,fontSize:11})}${drawNode({x:196,y:102,r:16,label:'OH',fill:p.atom,stroke:p.oxygen,textColor:p.oxygen,fontSize:10})}`);
+}
+
+function drawTolueneSketch(svg){
+  const p=moleculeSketchPalette();
+  const cx=122,cy=96,r=38;
+  const points=[];
+  for(let i=0;i<6;i+=1){
+    const angle=(Math.PI/3*i)-Math.PI/6;
+    points.push([cx+r*Math.cos(angle),cy+r*Math.sin(angle)]);
   }
-  image.hidden=false;
-  image.alt=`2D structure of ${compound.name} from PubChem`;
-  image.onload=()=>{
-    image.hidden=false;
-    if(fallback)fallback.hidden=true;
-  };
-  image.onerror=()=>{
-    image.hidden=true;
-    if(fallback)fallback.hidden=false;
-  };
-  image.src=buildPubChemImageUrl(compound.cid);
+  const attach=points[5];
+  baseSketch(svg,`<polygon points="${points.map(point=>point.join(',')).join(' ')}" fill="none" stroke="${p.accent}" stroke-width="2.4"/><circle cx="${cx}" cy="${cy}" r="21" fill="none" stroke="${p.accent}" stroke-width="1.8" opacity=".5"/><line x1="${attach[0]}" y1="${attach[1]}" x2="${attach[0]-34}" y2="${attach[1]+10}" stroke="${p.bond}" stroke-width="2.8" stroke-linecap="round"/>${drawNode({x:attach[0]-54,y:attach[1]+16,r:16,label:'CH3',fill:p.atom,stroke:p.atomStroke,textColor:p.text,fontSize:9})}`);
+}
+
+function drawGlucoseSketch(svg){
+  const p=moleculeSketchPalette();
+  baseSketch(svg,`<line x1="52" y1="98" x2="178" y2="98" stroke="${p.bond}" stroke-width="2.8" stroke-linecap="round"/><line x1="84" y1="98" x2="84" y2="70" stroke="${p.oxygen}" stroke-width="1.8"/><line x1="116" y1="98" x2="116" y2="64" stroke="${p.oxygen}" stroke-width="1.8"/><line x1="148" y1="98" x2="148" y2="70" stroke="${p.oxygen}" stroke-width="1.8"/>${drawNode({x:38,y:98,r:15,label:'CHO',fill:p.atom,stroke:p.accent,textColor:p.text,fontSize:8})}${drawNode({x:84,y:58,r:12,label:'OH',fill:p.atom,stroke:p.oxygen,textColor:p.oxygen,fontSize:8})}${drawNode({x:116,y:52,r:12,label:'OH',fill:p.atom,stroke:p.oxygen,textColor:p.oxygen,fontSize:8})}${drawNode({x:148,y:58,r:12,label:'OH',fill:p.atom,stroke:p.oxygen,textColor:p.oxygen,fontSize:8})}${drawNode({x:194,y:98,r:16,label:'CH2OH',fill:p.atom,stroke:p.atomStroke,textColor:p.text,fontSize:7})}`);
 }
 
 function drawMol(name){
@@ -151,7 +196,7 @@ function drawMol(name){
   void wrap.offsetWidth;
   wrap.classList.add('is-switching');
   currentMol=compound.id;
-  setCompoundImage(compound);
+  compound.draw?.(document.getElementById('molSvg'));
   document.getElementById('molName').textContent=compound.name;
   document.getElementById('molFormula').textContent=compound.formula;
   document.getElementById('moleculeInfo').textContent=compound.info;
@@ -163,8 +208,8 @@ function drawMol(name){
   if(cidLabel)cidLabel.textContent=`PubChem CID ${compound.cid}`;
   const sourceLink=document.getElementById('moleculeSourceLink');
   if(sourceLink){
-    sourceLink.href=`https://pubchem.ncbi.nlm.nih.gov/compound/${compound.cid}`;
-    sourceLink.textContent='Open on PubChem';
+    sourceLink.href=compound.wikiUrl;
+    sourceLink.textContent='Open on Wikipedia';
   }
   clearTimeout(drawMol.fxTimer);
   drawMol.fxTimer=setTimeout(()=>wrap.classList.remove('is-switching'),520);
