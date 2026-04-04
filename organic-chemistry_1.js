@@ -2119,6 +2119,7 @@ function renderQuizAssessmentPanel(){
   if(!panel)return;
   const assessment=normalizeQuizAssessment(state.quizAssessment);
   const journey=getQuizJourneyState();
+  panel.hidden=false;
   if(activeQuizSession&&activeQuizSession.status==='active'){
     panel.innerHTML=`<strong>${esc(activeQuizSession.type)} in progress</strong><div>The timer is running, OrganoBot chat is locked, and plan generation stays blocked until this quiz is submitted or expires.</div><div class="quiz-assessment-meta"><span class="quiz-assessment-chip">${esc(activeQuizSession.category)}</span><span class="quiz-assessment-chip">${esc(activeQuizSession.difficulty)}</span><span class="quiz-assessment-chip">Stage ${esc(activeQuizSession.stage)}</span></div>`;
     return;
@@ -2128,7 +2129,8 @@ function renderQuizAssessmentPanel(){
     return;
   }
   if(journey.evaluation.status==='legacy-exempt'){
-    panel.innerHTML=`<strong>Legacy quiz progress preserved</strong><div>An older quiz path skipped the original evaluation, so the guided journey continues from the progressive stage without breaking that learner history.</div><div class="quiz-assessment-meta"><span class="quiz-assessment-chip">Migrated from older flow</span>${journey.evaluation.skippedAt?`<span class="quiz-assessment-chip">${esc(prettyDate(journey.evaluation.skippedAt))}</span>`:''}</div>`;
+    panel.innerHTML='';
+    panel.hidden=true;
     return;
   }
   panel.innerHTML='<strong>No learner placement yet</strong><div>Start with the Evaluating Exam to personalize the guided path, unlock progressive quizzes, and improve how OrganoBot generates adaptive questions for you.</div>';
@@ -2152,8 +2154,15 @@ function buildStageStatus(stage){
 
 function renderQuizAchievements(){
   const grid=document.getElementById('quizBadgesGrid');
+  const panel=grid?.closest('.quiz-badges-panel');
   if(!grid)return;
-  grid.innerHTML=(state.achievements||[]).map(item=>`<article class="quiz-badge-card ${item.unlocked?'':'is-locked'}" data-badge-tone="${esc(item.badgeType)}"><div class="quiz-badge-top"><span class="quiz-badge-level">${esc(item.level)}</span><span class="quiz-badge-status ${item.unlocked?'is-earned':'is-locked'}">${item.unlocked?'Earned':'Locked'}</span></div><strong>${esc(item.title)}</strong><div class="quiz-badge-copy">${esc(item.badgeType.charAt(0).toUpperCase()+item.badgeType.slice(1))} badge</div><div class="quiz-badge-date">${item.earnedAt?`Earned ${esc(prettyDate(item.earnedAt))}`:'Finish this level successfully to unlock it.'}</div></article>`).join('');
+  const earnedAchievements=(state.achievements||[]).filter(item=>item?.unlocked&&item?.earnedAt);
+  if(panel)panel.hidden=!earnedAchievements.length;
+  if(!earnedAchievements.length){
+    grid.innerHTML='';
+    return;
+  }
+  grid.innerHTML=earnedAchievements.map(item=>`<article class="quiz-badge-card" data-badge-tone="${esc(item.badgeType)}"><div class="quiz-badge-top"><span class="quiz-badge-level">${esc(item.level)}</span><span class="quiz-badge-status is-earned">Earned</span></div><strong>${esc(item.title)}</strong><div class="quiz-badge-copy">${esc(item.badgeType.charAt(0).toUpperCase()+item.badgeType.slice(1))} badge</div><div class="quiz-badge-date">Earned ${esc(prettyDate(item.earnedAt))}</div></article>`).join('');
 }
 
 function renderQuizJourney(){

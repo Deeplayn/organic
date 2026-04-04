@@ -860,6 +860,67 @@
     ].map(([label,value])=>`<div><strong>${escapeHtml(label)}</strong><div>${escapeHtml(value)}</div></div>`).join('');
   }
 
+  function formatAchievementDate(value){
+    const target=new Date(value);
+    if(Number.isNaN(target.getTime()))return 'Recently unlocked';
+    return target.toLocaleDateString(undefined,{month:'long',day:'numeric',year:'numeric'});
+  }
+
+  function badgeToneLabel(value=''){
+    const toneLabels={
+      bronze:'Bronze',
+      silver:'Silver',
+      gold:'Gold',
+      diamond:'Diamond',
+      rainbow:'Rainbow'
+    };
+    return toneLabels[String(value||'').toLowerCase()]||'Course';
+  }
+
+  function badgeMonogram(level=''){
+    const normalized=String(level||'').trim();
+    if(!normalized)return'OC';
+    if(normalized.length<=3)return normalized.toUpperCase();
+    return normalized.slice(0,2).toUpperCase();
+  }
+
+  function getEarnedAchievements(mainState=readMainState()){
+    const normalized=QuizJourney?.normalizeMainState?.(mainState)||readMainState();
+    return(Array.isArray(normalized.achievements)?normalized.achievements:[])
+      .filter(item=>item?.unlocked&&item?.earnedAt)
+      .sort((a,b)=>new Date(b.earnedAt)-new Date(a.earnedAt));
+  }
+
+  function renderAccountAchievements(mainState=readMainState()){
+    const shelf=$('accountAchievementShelf');
+    const grid=$('accountAchievementGrid');
+    if(!shelf||!grid)return;
+    const normalized=QuizJourney?.normalizeMainState?.(mainState)||readMainState();
+    const earned=getEarnedAchievements(normalized);
+    const profileComplete=isProfileComplete();
+    shelf.hidden=!authState.user||!profileComplete||!earned.length;
+    if(!earned.length){
+      grid.innerHTML='';
+      setText('accountAchievementLead','Your earned course badges will appear here.');
+      return;
+    }
+    const latest=earned[0];
+    const journey=normalized.quizJourney||{};
+    const completionDate=journey.final?.completedAt||latest.earnedAt;
+    const completionSummary=`Course completed on ${formatAchievementDate(completionDate)}.`;
+    setText(
+      'accountAchievementLead',
+      `${completionSummary} ${earned.length===1?'Your new badge is now part of your profile.':`${earned.length} earned badges are now showcased on your profile.`}`
+    );
+    grid.innerHTML=earned.map((item,index)=>{
+      const badgeType=badgeToneLabel(item.badgeType);
+      const level=String(item.level||'Course').trim()||'Course';
+      const latestFlag=index===0?'<span class="achievement-ribbon">Newest unlock</span>':'';
+      const learnerLine=journey.final?.learnerLevel||journey.evaluation?.learnerLevel;
+      return`<article class="account-achievement-card ${index===0?'is-featured':''}" data-badge-tone="${escapeHtml(item.badgeType)}"><div class="achievement-card-top"><div class="achievement-medal" aria-hidden="true"><span>${escapeHtml(badgeMonogram(level))}</span></div>${latestFlag}</div><div class="achievement-kicker">${escapeHtml(badgeType)} badge</div><strong>${escapeHtml(item.title||`${badgeType} ${level} Completion`)}</strong><p>${escapeHtml(`Completed a guided chemistry course and unlocked the ${badgeType.toLowerCase()} badge${learnerLine?` as a ${learnerLine} learner`:''}.`)}</p><div class="achievement-chip-row"><span>${escapeHtml(level)} level</span><span>${escapeHtml(formatAchievementDate(item.earnedAt))}</span></div><div class="achievement-date">Achievement recorded on your profile</div></article>`;
+    }).join('');
+  }
+
   function updateLockedUI(){
     const locked=!isAuthenticated();
     document.querySelectorAll('[data-auth-required]').forEach(node=>{
@@ -907,6 +968,7 @@
       renderAvatarNode('accountAvatarLarge',{url:user.avatarUrl,label:user.displayName||user.email});
       renderAvatarNode('headerAuthAvatar',{url:user.avatarUrl,label:user.displayName||user.email});
       renderAccountProfile(authState.profile);
+      renderAccountAchievements(readMainState());
       populateProfileForm(authState.profile);
     }else{
       renderAvatarNode('headerAuthAvatar',{label:'OrganoChem'});
@@ -914,6 +976,7 @@
       profileEditorOpen=false;
       setHtml('accountMeta','');
       setHtml('accountProfile','');
+      renderAccountAchievements(DEFAULT_MAIN_STATE);
       setText('accountIdentityCopy','Your synced OrganoChem account details live here.');
       populateProfileForm(null);
     }
@@ -1303,7 +1366,13 @@
     });
     document.querySelectorAll('[data-auth-mode]').forEach(button=>button.addEventListener('click',()=>setAuthMode(button.dataset.authMode)));
     document.querySelectorAll('[data-provider]').forEach(button=>button.addEventListener('click',handleProviderChoice));
-    window.addEventListener('organo:state-changed',event=>queueSync(event.detail?.key||'state'));
+    window.addEventListener('organo:state-changed',event=>{
+      queueSync(event.detail?.key||'state');
+      renderAccountAchievements(readMainState());
+    });
+    window.addEventListener('organo:hydrate-main-state',event=>{
+      renderAccountAchievements(event.detail||readMainState());
+    });
     window.addEventListener('organo:theme-changed',event=>{
       queueSync('theme');
       if(event.detail?.userInitiated===false)return;
