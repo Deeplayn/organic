@@ -20,6 +20,24 @@ const PLANNER_TIMELINE_DEFAULTS={
   stepDays:1,
   defaultDays:28
 };
+let plannerTimelineFrame=0;
+
+function setPlannerSliderProgress(slider,courseDays){
+  if(!slider)return;
+  const progress=((courseDays-PLANNER_TIMELINE_DEFAULTS.minDays)/Math.max(1,PLANNER_TIMELINE_DEFAULTS.maxDays-PLANNER_TIMELINE_DEFAULTS.minDays))*100;
+  const boundedProgress=Math.max(0,Math.min(100,progress));
+  slider.style.setProperty('--planner-progress',`${boundedProgress}%`);
+  slider.setAttribute('aria-valuenow',String(courseDays));
+  slider.setAttribute('aria-valuetext',`${courseDays} days`);
+}
+
+function queuePlannerTimelineUI(){
+  if(plannerTimelineFrame)return;
+  plannerTimelineFrame=window.requestAnimationFrame(()=>{
+    plannerTimelineFrame=0;
+    syncPlannerTimelineUI();
+  });
+}
 
 function togglePanel(){document.getElementById('themePanel').classList.toggle('open');}
 function closePanel(){document.getElementById('themePanel').classList.remove('open');}
@@ -32,116 +50,124 @@ function setTheme(theme,btn,options={}){
   localStorage.setItem(THEME,theme);
   closePanel();
   window.dispatchEvent(new CustomEvent('organo:theme-changed',{detail:{theme,userInitiated:options.userInitiated!==false}}));
-  setTimeout(()=>drawMol(currentMol,null),50);
+  setTimeout(()=>drawMol(currentMol),50);
 }
 const savedTheme=localStorage.getItem(THEME);
 if(savedTheme&&LABELS[savedTheme])setTheme(savedTheme,document.querySelector(`.t-opt[onclick*="${savedTheme}"]`),{userInitiated:false});
 
-const HERO_MOLECULE_SET_SIZE=4;
-const HERO_MOLECULE_SET_KEY='oc-hero-molecule-set-v1';
-let currentMol='ethanol',heroRotationTimer=null,heroRotationPausedUntil=0,heroMoleculeLineup=[];
-const mols={
-  ethanol:{name:'Ethanol',formula:'C2H5OH',info:'A compact primary alcohol used as a solvent and a foundational oxidation example in organic chemistry.',insight:'Hydroxyl groups raise polarity and hydrogen bonding.',prompt:'Compare ethanol oxidation to aldehydes and acids.',draw(s){const[a,a2,td,t,c,gd]=[cv('--accent'),cv('--accent2'),cv('--text-dim'),cv('--text'),cv('--card'),cv('--green-dim')];s.innerHTML=`<line x1="50" y1="100" x2="120" y2="100" stroke="${a}" stroke-width="3" stroke-linecap="round"/><line x1="120" y1="100" x2="190" y2="100" stroke="${a}" stroke-width="3" stroke-linecap="round"/><line x1="190" y1="100" x2="215" y2="78" stroke="${a2}" stroke-width="2.5" stroke-linecap="round"/><circle cx="50" cy="100" r="18" fill="${c}" stroke="${td}" stroke-width="1.5"/><text x="50" y="100" text-anchor="middle" dominant-baseline="central" fill="${t}" font-family="monospace" font-size="12">CH3</text><circle cx="155" cy="100" r="18" fill="${c}" stroke="${td}" stroke-width="1.5"/><text x="155" y="100" text-anchor="middle" dominant-baseline="central" fill="${t}" font-family="monospace" font-size="12">CH2</text><circle cx="215" cy="73" r="16" fill="${c}" stroke="${a2}" stroke-width="1.5"/><text x="215" y="73" text-anchor="middle" dominant-baseline="central" fill="${a2}" font-family="monospace" font-size="11">OH</text><text x="130" y="132" text-anchor="middle" fill="${gd}" font-family="monospace" font-size="9">hydroxyl group</text>`;}},
-  benzene:{name:'Benzene',formula:'C6H6',info:'A classic aromatic ring whose stability and substitution chemistry anchor much of organic reactivity.',insight:'Aromatic stabilization comes from a delocalized 6 pi system.',prompt:'Practice ortho/para versus meta directing effects.',draw(s){const[a3,td]=[cv('--accent3'),cv('--text-dim')],cx=130,cy=100,r=55,pts=[];for(let i=0;i<6;i++){const a=Math.PI/3*i-Math.PI/6;pts.push([cx+r*Math.cos(a),cy+r*Math.sin(a)]);}s.innerHTML=`<polygon points="${pts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="${a3}" stroke-width="2.5"/><circle cx="${cx}" cy="${cy}" r="32" fill="none" stroke="${a3}" stroke-width="2" stroke-dasharray="6 4" opacity=".6"/>${pts.map((p,i)=>{const ang=Math.PI/3*i-Math.PI/6,hx=cx+(r+22)*Math.cos(ang),hy=cy+(r+22)*Math.sin(ang);return`<line x1="${p[0]}" y1="${p[1]}" x2="${hx}" y2="${hy}" stroke="${td}" stroke-width="1.5"/><text x="${hx}" y="${hy}" text-anchor="middle" dominant-baseline="central" fill="${td}" font-family="monospace" font-size="10">H</text>`;}).join('')}<text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central" fill="${a3}" font-family="monospace" font-size="9" opacity=".8">pi cloud</text>`;}},
-  glucose:{name:'Glucose',formula:'C6H12O6',info:'A highly functionalized sugar that helps students connect stereochemistry, carbonyl chemistry, and cyclic forms.',insight:'Multiple alcohols make glucose highly polar and reactive.',prompt:'Contrast open-chain and cyclic forms.',draw(s){const[a,a2,a3,td,c]=[cv('--accent'),cv('--accent2'),cv('--accent3'),cv('--text-dim'),cv('--card')];s.innerHTML=`<line x1="50" y1="100" x2="210" y2="100" stroke="${a}" stroke-width="2.5" stroke-linecap="round"/><circle cx="50" cy="100" r="16" fill="${c}" stroke="${a2}" stroke-width="1.5"/><text x="50" y="100" text-anchor="middle" dominant-baseline="central" fill="${a2}" font-family="monospace" font-size="9">CHO</text>${[90,130,170].map(x=>`<circle cx="${x}" cy="80" r="13" fill="${c}" stroke="${a3}" stroke-width="1.5"/><text x="${x}" y="80" text-anchor="middle" dominant-baseline="central" fill="${a3}" font-family="monospace" font-size="8">OH</text><line x1="${x}" y1="100" x2="${x}" y2="80" stroke="${a3}" stroke-width="1.5"/>`).join('')}<circle cx="210" cy="100" r="16" fill="${c}" stroke="${a}" stroke-width="1.5"/><text x="210" y="100" text-anchor="middle" dominant-baseline="central" fill="${a}" font-family="monospace" font-size="8">CH2OH</text><text x="130" y="145" text-anchor="middle" fill="${td}" font-family="monospace" font-size="9">open-chain form</text>`;}},
-  aspirin:{name:'Aspirin',formula:'C9H8O4',info:'A mixed-function aromatic drug scaffold that ties ester chemistry, acidity, and medicinal relevance together.',insight:'Aromatic, ester, and acid groups combine in one drug scaffold.',prompt:'Review how acetyl transfer changes reactivity.',draw(s){const[a,a2,a3,td,c]=[cv('--accent'),cv('--accent2'),cv('--accent3'),cv('--text-dim'),cv('--card')],cx=80,cy=100,r=45,pts=[];for(let i=0;i<6;i++){const ang=Math.PI/3*i-Math.PI/6;pts.push([cx+r*Math.cos(ang),cy+r*Math.sin(ang)]);}s.innerHTML=`<polygon points="${pts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="${a3}" stroke-width="2"/><line x1="${pts[0][0]}" y1="${pts[0][1]}" x2="${pts[0][0]+45}" y2="${pts[0][1]-10}" stroke="${a2}" stroke-width="2"/><circle cx="${pts[0][0]+45}" cy="${pts[0][1]-10}" r="16" fill="${c}" stroke="${a2}" stroke-width="1.5"/><text x="${pts[0][0]+45}" y="${pts[0][1]-10}" text-anchor="middle" dominant-baseline="central" fill="${a2}" font-family="monospace" font-size="8">COOH</text><line x1="${pts[2][0]}" y1="${pts[2][1]}" x2="${pts[2][0]+30}" y2="${pts[2][1]+30}" stroke="${a}" stroke-width="2"/><circle cx="${pts[2][0]+30}" cy="${pts[2][1]+30}" r="18" fill="${c}" stroke="${a}" stroke-width="1.5"/><text x="${pts[2][0]+30}" y="${pts[2][1]+30}" text-anchor="middle" dominant-baseline="central" fill="${a}" font-family="monospace" font-size="8">OCOCH3</text><text x="80" y="165" text-anchor="middle" fill="${td}" font-family="monospace" font-size="9">acetylsalicylic acid</text>`;}},
-  acetone:{name:'Acetone',formula:'C3H6O',info:'A compact ketone that makes carbonyl geometry and nucleophilic addition easier to visualize.',insight:'The carbonyl carbon is electrophilic and strongly shaped by the polarized C=O bond.',prompt:'Compare ketone reactivity with aldehydes in nucleophilic addition.',draw(s){const[a,a2,td,t,c]=[cv('--accent'),cv('--accent2'),cv('--text-dim'),cv('--text'),cv('--card')];s.innerHTML=`<circle cx="55" cy="100" r="18" fill="${c}" stroke="${td}" stroke-width="1.5"/><text x="55" y="100" text-anchor="middle" dominant-baseline="central" fill="${t}" font-family="monospace" font-size="11">CH3</text><line x1="73" y1="100" x2="120" y2="100" stroke="${a}" stroke-width="3" stroke-linecap="round"/><line x1="120" y1="100" x2="168" y2="100" stroke="${a}" stroke-width="3" stroke-linecap="round"/><line x1="123" y1="94" x2="165" y2="72" stroke="${a2}" stroke-width="2.4" stroke-linecap="round"/><line x1="129" y1="100" x2="171" y2="78" stroke="${a2}" stroke-width="2.4" stroke-linecap="round"/><circle cx="205" cy="100" r="18" fill="${c}" stroke="${td}" stroke-width="1.5"/><text x="205" y="100" text-anchor="middle" dominant-baseline="central" fill="${t}" font-family="monospace" font-size="11">CH3</text><circle cx="178" cy="75" r="15" fill="${c}" stroke="${a2}" stroke-width="1.5"/><text x="178" y="75" text-anchor="middle" dominant-baseline="central" fill="${a2}" font-family="monospace" font-size="11">O</text><text x="130" y="145" text-anchor="middle" fill="${td}" font-family="monospace" font-size="9">ketone carbonyl</text>`;}},
-  aceticacid:{name:'Acetic Acid',formula:'CH3COOH',info:'A small carboxylic acid that connects acidity, resonance, and common acyl chemistry in one structure.',insight:'The carboxyl group balances acidity with resonance stabilization.',prompt:'Track why carboxylic acids are more acidic than alcohols.',draw(s){const[a,a2,td,t,c]=[cv('--accent'),cv('--accent2'),cv('--text-dim'),cv('--text'),cv('--card')];s.innerHTML=`<circle cx="58" cy="100" r="18" fill="${c}" stroke="${td}" stroke-width="1.5"/><text x="58" y="100" text-anchor="middle" dominant-baseline="central" fill="${t}" font-family="monospace" font-size="11">CH3</text><line x1="76" y1="100" x2="124" y2="100" stroke="${a}" stroke-width="3" stroke-linecap="round"/><line x1="127" y1="95" x2="168" y2="72" stroke="${a2}" stroke-width="2.3" stroke-linecap="round"/><line x1="133" y1="101" x2="174" y2="78" stroke="${a2}" stroke-width="2.3" stroke-linecap="round"/><line x1="130" y1="100" x2="182" y2="100" stroke="${a}" stroke-width="3" stroke-linecap="round"/><circle cx="180" cy="75" r="14" fill="${c}" stroke="${a2}" stroke-width="1.5"/><text x="180" y="75" text-anchor="middle" dominant-baseline="central" fill="${a2}" font-family="monospace" font-size="10">O</text><circle cx="212" cy="100" r="16" fill="${c}" stroke="${a}" stroke-width="1.5"/><text x="212" y="100" text-anchor="middle" dominant-baseline="central" fill="${a}" font-family="monospace" font-size="10">OH</text><text x="134" y="145" text-anchor="middle" fill="${td}" font-family="monospace" font-size="9">carboxyl group</text>`;}},
-  aniline:{name:'Aniline',formula:'C6H5NH2',info:'An aromatic amine that is perfect for discussing resonance donation and electrophilic substitution behavior.',insight:'The amine lone pair can donate into the ring and strongly change reactivity.',prompt:'Connect aniline to ortho/para directing effects in aromatic substitution.',draw(s){const[a,a2,td,c]=[cv('--accent3'),cv('--accent'),cv('--text-dim'),cv('--card')],cx=96,cy=100,r=42,pts=[];for(let i=0;i<6;i++){const ang=Math.PI/3*i-Math.PI/6;pts.push([cx+r*Math.cos(ang),cy+r*Math.sin(ang)]);}const attach=pts[0];s.innerHTML=`<polygon points="${pts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="${a}" stroke-width="2.3"/><line x1="${attach[0]}" y1="${attach[1]}" x2="${attach[0]+40}" y2="${attach[1]-6}" stroke="${a2}" stroke-width="2.4"/><circle cx="${attach[0]+64}" cy="${attach[1]-10}" r="18" fill="${c}" stroke="${a2}" stroke-width="1.5"/><text x="${attach[0]+64}" y="${attach[1]-10}" text-anchor="middle" dominant-baseline="central" fill="${a2}" font-family="monospace" font-size="10">NH2</text><text x="96" y="162" text-anchor="middle" fill="${td}" font-family="monospace" font-size="9">aromatic amine</text>`;}},
-  cyclohexane:{name:'Cyclohexane',formula:'C6H12',info:'A flexible saturated ring that helps learners think about conformation instead of aromaticity.',insight:'Cyclohexane stability is mostly a story about chair conformations and strain minimization.',prompt:'Compare the chair form to the aromatic flatness of benzene.',draw(s){const[a,td]=[cv('--accent2'),cv('--text-dim')],pts=[[60,110],[105,80],[160,90],[200,120],[155,150],[95,145]];s.innerHTML=`<polygon points="${pts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="${a}" stroke-width="3" stroke-linejoin="round"/><text x="130" y="176" text-anchor="middle" fill="${td}" font-family="monospace" font-size="9">chair-like ring sketch</text>`;}},
-  acetaldehyde:{name:'Acetaldehyde',formula:'CH3CHO',info:'A small aldehyde that makes carbonyl electrophilicity and oxidation patterns easy to compare.',insight:'Aldehydes are usually more reactive than ketones because steric and donating effects are lower.',prompt:'Compare aldehyde and ketone reactivity using nucleophilic addition examples.',draw(s){const[a,a2,td,t,c]=[cv('--accent'),cv('--accent2'),cv('--text-dim'),cv('--text'),cv('--card')];s.innerHTML=`<circle cx="62" cy="100" r="18" fill="${c}" stroke="${td}" stroke-width="1.5"/><text x="62" y="100" text-anchor="middle" dominant-baseline="central" fill="${t}" font-family="monospace" font-size="11">CH3</text><line x1="80" y1="100" x2="125" y2="100" stroke="${a}" stroke-width="3" stroke-linecap="round"/><line x1="129" y1="95" x2="170" y2="72" stroke="${a2}" stroke-width="2.3" stroke-linecap="round"/><line x1="135" y1="101" x2="176" y2="78" stroke="${a2}" stroke-width="2.3" stroke-linecap="round"/><circle cx="182" cy="75" r="14" fill="${c}" stroke="${a2}" stroke-width="1.5"/><text x="182" y="75" text-anchor="middle" dominant-baseline="central" fill="${a2}" font-family="monospace" font-size="10">O</text><circle cx="198" cy="100" r="12" fill="${c}" stroke="${td}" stroke-width="1.5"/><text x="198" y="100" text-anchor="middle" dominant-baseline="central" fill="${t}" font-family="monospace" font-size="10">H</text><text x="132" y="145" text-anchor="middle" fill="${td}" font-family="monospace" font-size="9">aldehyde carbonyl</text>`;}},
-  ethylacetate:{name:'Ethyl Acetate',formula:'C4H8O2',info:'A common ester that ties together carbonyl chemistry, resonance, and hydrolysis pathways.',insight:'Esters are resonance-stabilized yet still reactive enough for hydrolysis and transesterification.',prompt:'Review why esters react differently from acids, aldehydes, and ketones.',draw(s){const[a,a2,td,t,c]=[cv('--accent'),cv('--accent3'),cv('--text-dim'),cv('--text'),cv('--card')];s.innerHTML=`<circle cx="34" cy="100" r="16" fill="${c}" stroke="${td}" stroke-width="1.5"/><text x="34" y="100" text-anchor="middle" dominant-baseline="central" fill="${t}" font-family="monospace" font-size="9">CH3</text><line x1="50" y1="100" x2="88" y2="100" stroke="${a}" stroke-width="3" stroke-linecap="round"/><line x1="92" y1="96" x2="126" y2="74" stroke="${a2}" stroke-width="2.3" stroke-linecap="round"/><line x1="98" y1="102" x2="132" y2="80" stroke="${a2}" stroke-width="2.3" stroke-linecap="round"/><circle cx="144" cy="76" r="14" fill="${c}" stroke="${a2}" stroke-width="1.5"/><text x="144" y="76" text-anchor="middle" dominant-baseline="central" fill="${a2}" font-family="monospace" font-size="10">O</text><line x1="88" y1="100" x2="140" y2="100" stroke="${a}" stroke-width="3" stroke-linecap="round"/><circle cx="160" cy="100" r="14" fill="${c}" stroke="${a}" stroke-width="1.5"/><text x="160" y="100" text-anchor="middle" dominant-baseline="central" fill="${a}" font-family="monospace" font-size="10">O</text><line x1="174" y1="100" x2="204" y2="100" stroke="${a}" stroke-width="3" stroke-linecap="round"/><circle cx="224" cy="100" r="16" fill="${c}" stroke="${td}" stroke-width="1.5"/><text x="224" y="100" text-anchor="middle" dominant-baseline="central" fill="${t}" font-family="monospace" font-size="9">CH2</text>`;}},
-  toluene:{name:'Toluene',formula:'C7H8',info:'An aromatic ring with an alkyl substituent that is useful for discussing activation and directing effects.',insight:'An alkyl group donates weakly and pushes substitution toward ortho and para positions.',prompt:'Use toluene to compare activating and deactivating aromatic substituents.',draw(s){const[a,a2,td,c]=[cv('--accent3'),cv('--accent2'),cv('--text-dim'),cv('--card')],cx=98,cy=100,r=42,pts=[];for(let i=0;i<6;i++){const ang=Math.PI/3*i-Math.PI/6;pts.push([cx+r*Math.cos(ang),cy+r*Math.sin(ang)]);}const attach=pts[5];s.innerHTML=`<polygon points="${pts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="${a}" stroke-width="2.3"/><line x1="${attach[0]}" y1="${attach[1]}" x2="${attach[0]-38}" y2="${attach[1]+10}" stroke="${a2}" stroke-width="2.4"/><circle cx="${attach[0]-56}" cy="${attach[1]+14}" r="16" fill="${c}" stroke="${a2}" stroke-width="1.5"/><text x="${attach[0]-56}" y="${attach[1]+14}" text-anchor="middle" dominant-baseline="central" fill="${a2}" font-family="monospace" font-size="9">CH3</text><text x="98" y="162" text-anchor="middle" fill="${td}" font-family="monospace" font-size="9">alkyl-substituted arene</text>`;}}
-};
-function shuffleList(list){
-  const copy=[...list];
-  for(let index=copy.length-1;index>0;index-=1){
-    const swapIndex=Math.floor(Math.random()*(index+1));
-    [copy[index],copy[swapIndex]]=[copy[swapIndex],copy[index]];
+const PUBCHEM_IMAGE_BASE='https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid';
+const todaysCompounds=[
+  {
+    id:'ethanol',
+    cid:702,
+    name:'Ethanol',
+    formula:'C2H6O',
+    info:'A light alcohol used across solvents, sanitizers, fuels, and chemical processing.',
+    benefit:'Its value comes from serving several markets at once, from industrial solvents to disinfectant products and fuel blending.',
+    industry:'PubChem lists ethanol as a major compound entry, and it remains commercially important in manufacturing, lab work, and energy-related formulations.'
+  },
+  {
+    id:'acetone',
+    cid:180,
+    name:'Acetone',
+    formula:'C3H6O',
+    info:'A fast-evaporating ketone widely used as both a solvent and a chemical intermediate.',
+    benefit:'PubChem notes acetone is used to make plastics, fibers, drugs, and other chemicals, which makes it economically useful far beyond simple cleaning applications.',
+    industry:'Its ability to dissolve many materials quickly keeps it important in coatings, laboratories, and large-scale chemical production.'
+  },
+  {
+    id:'acetic-acid',
+    cid:176,
+    name:'Acetic Acid',
+    formula:'C2H4O2',
+    info:'A simple carboxylic acid that sits at the center of many industrial and food-related processes.',
+    benefit:'PubChem notes acetic acid is used to make other chemicals, support petroleum production, and function as a food additive, so one compound supports several value chains.',
+    industry:'It matters commercially as a feedstock for synthesis and as a practical ingredient in preservation and process chemistry.'
+  },
+  {
+    id:'toluene',
+    cid:1140,
+    name:'Toluene',
+    formula:'C7H8',
+    info:'An aromatic solvent widely used in paints, adhesives, fuels, and chemical manufacturing.',
+    benefit:'Its commercial value comes from strong solvent performance plus its role in coatings, thinners, rubber, and fuel blending workflows.',
+    industry:'PubChem identifies it as an important compound entry, and industry uses it wherever fast evaporation and solvency are useful.'
+  },
+  {
+    id:'d-glucose',
+    cid:5793,
+    name:'D-Glucose',
+    formula:'C6H12O6',
+    info:'A foundational sugar used in food systems, biology, fermentation, and chemical manufacturing.',
+    benefit:'PubChem connects glucose to confectionery, infant foods, brewing, medicine, fuel ethanol, and sorbitol production, which gives it broad economic reach.',
+    industry:'It is valuable because the same molecule supports nutrition products, fermentation processes, and downstream industrial chemistry.'
   }
-  return copy;
+];
+let currentMol=todaysCompounds[0]?.id||'ethanol';
+
+function buildPubChemImageUrl(cid){
+  return `${PUBCHEM_IMAGE_BASE}/${cid}/PNG?image_size=large`;
 }
-function pickRandomItems(list,count){
-  return shuffleList(list).slice(0,Math.min(count,list.length));
+
+function dayOfYear(date=new Date()){
+  const start=new Date(date.getFullYear(),0,0);
+  const diff=date-start;
+  const oneDay=1000*60*60*24;
+  return Math.floor(diff/oneDay);
 }
-function readPreviousHeroLineup(){
-  try{
-    const parsed=JSON.parse(localStorage.getItem(HERO_MOLECULE_SET_KEY)||'[]');
-    return Array.isArray(parsed)?parsed.filter(name=>mols[name]):[];
-  }catch{
-    return[];
+
+function pickTodaysCompound(date=new Date()){
+  if(!todaysCompounds.length)return null;
+  const index=(Math.max(1,dayOfYear(date))-1)%todaysCompounds.length;
+  return todaysCompounds[index];
+}
+
+function setCompoundImage(compound){
+  const image=document.getElementById('molImage');
+  const fallback=document.getElementById('molImageFallback');
+  if(!image||!compound)return;
+  if(fallback){
+    fallback.hidden=true;
+    fallback.textContent=`PubChem structure preview unavailable for ${compound.name}.`;
   }
+  image.hidden=false;
+  image.alt=`2D structure of ${compound.name} from PubChem`;
+  image.onload=()=>{
+    image.hidden=false;
+    if(fallback)fallback.hidden=true;
+  };
+  image.onerror=()=>{
+    image.hidden=true;
+    if(fallback)fallback.hidden=false;
+  };
+  image.src=buildPubChemImageUrl(compound.cid);
 }
-function lineupOverlap(a,b){
-  const set=new Set(b);
-  return a.reduce((count,name)=>count+(set.has(name)?1:0),0);
-}
-function pickHeroMoleculeLineup(){
-  const names=Object.keys(mols);
-  if(names.length<=HERO_MOLECULE_SET_SIZE)return names;
-  const previous=readPreviousHeroLineup();
-  let bestLineup=pickRandomItems(names,HERO_MOLECULE_SET_SIZE);
-  let bestOverlap=lineupOverlap(bestLineup,previous);
-  for(let attempt=0;attempt<36&&bestOverlap>0;attempt+=1){
-    const candidate=pickRandomItems(names,HERO_MOLECULE_SET_SIZE);
-    const overlap=lineupOverlap(candidate,previous);
-    if(overlap<bestOverlap){
-      bestLineup=candidate;
-      bestOverlap=overlap;
-    }
-  }
-  localStorage.setItem(HERO_MOLECULE_SET_KEY,JSON.stringify(bestLineup));
-  return bestLineup;
-}
-function renderHeroMoleculeButtons(){
-  const row=document.getElementById('heroMoleculeButtons');
-  if(!row)return;
-  row.innerHTML=heroMoleculeLineup.map(name=>`<button class="rxn-btn ${name===currentMol?'active':''}" type="button" data-mol="${esc(name)}">${esc(mols[name].name)}</button>`).join('');
-  row.querySelectorAll('[data-mol]').forEach(button=>button.addEventListener('click',()=>drawMol(button.dataset.mol||'',button,{manual:true})));
-}
-function pruneHeroMoleculeCaptions(svg){
-  if(!svg)return;
-  [...svg.querySelectorAll('text')].forEach(node=>{
-    const y=Number(node.getAttribute('y'));
-    if(Number.isFinite(y)&&y>=130){
-      node.remove();
-    }
-  });
-}
-function drawMol(name,btn,options={}){
-  const mol=mols[name];
+
+function drawMol(name){
+  const compound=todaysCompounds.find(item=>item.id===name)||pickTodaysCompound();
   const wrap=document.getElementById('heroMol');
-  if(!mol||!wrap)return;
-  if(options.manual)heroRotationPausedUntil=Date.now()+20000;
+  if(!compound||!wrap)return;
   wrap.classList.remove('is-switching');
   void wrap.offsetWidth;
   wrap.classList.add('is-switching');
-  currentMol=name;
-  const svg=document.getElementById('molSvg');
-  mol.draw(svg);
-  pruneHeroMoleculeCaptions(svg);
-  document.getElementById('molName').textContent=mol.name;
-  document.getElementById('molFormula').textContent=mol.formula;
-  document.getElementById('moleculeInfo').textContent=mol.info;
-  document.getElementById('moleculeInsight').textContent=mol.insight;
-  document.getElementById('moleculeStudyPrompt').textContent=mol.prompt;
-  document.querySelectorAll('#heroMol .rxn-btn').forEach(b=>b.classList.remove('active'));
-  const activeBtn=btn||document.querySelector(`#heroMol .rxn-btn[data-mol="${name}"]`);
-  if(activeBtn)activeBtn.classList.add('active');
+  currentMol=compound.id;
+  setCompoundImage(compound);
+  document.getElementById('molName').textContent=compound.name;
+  document.getElementById('molFormula').textContent=compound.formula;
+  document.getElementById('moleculeInfo').textContent=compound.info;
+  document.getElementById('moleculeBenefit').textContent=compound.benefit;
+  document.getElementById('moleculeIndustry').textContent=compound.industry;
+  const dateLabel=document.getElementById('moleculeDate');
+  if(dateLabel)dateLabel.textContent=`Featured for ${today()}`;
+  const cidLabel=document.getElementById('moleculeCid');
+  if(cidLabel)cidLabel.textContent=`PubChem CID ${compound.cid}`;
+  const sourceLink=document.getElementById('moleculeSourceLink');
+  if(sourceLink){
+    sourceLink.href=`https://pubchem.ncbi.nlm.nih.gov/compound/${compound.cid}`;
+    sourceLink.textContent='Open on PubChem';
+  }
   clearTimeout(drawMol.fxTimer);
   drawMol.fxTimer=setTimeout(()=>wrap.classList.remove('is-switching'),520);
-}
-
-function startHeroRotation(){
-  const names=heroMoleculeLineup.length?heroMoleculeLineup:[...Object.keys(mols)];
-  if(names.length<2)return;
-  clearInterval(heroRotationTimer);
-  heroRotationTimer=setInterval(()=>{
-    if(Date.now()<heroRotationPausedUntil)return;
-    const currentIndex=Math.max(0,names.indexOf(currentMol));
-    const nextName=names[(currentIndex+1)%names.length];
-    drawMol(nextName,null,{manual:false});
-  },6500);
 }
 
 const topics=[
@@ -520,6 +546,10 @@ function derivePlannerTimeline(days){
 }
 
 function syncPlannerTimelineUI(){
+  if(plannerTimelineFrame){
+    window.cancelAnimationFrame(plannerTimelineFrame);
+    plannerTimelineFrame=0;
+  }
   const slider=document.getElementById('plannerCourseDays');
   const daysInput=document.getElementById('courseDays');
   const weeksInput=document.getElementById('courseWeeks');
@@ -527,7 +557,7 @@ function syncPlannerTimelineUI(){
   if(!slider||!daysInput||!weeksInput||!minutesSelect)return;
   const timeline=derivePlannerTimeline(slider.value||daysInput.value||PLANNER_TIMELINE_DEFAULTS.defaultDays);
   slider.value=String(timeline.courseDays);
-  slider.style.setProperty('--planner-progress',`${(timeline.courseDays-PLANNER_TIMELINE_DEFAULTS.minDays)/Math.max(1,PLANNER_TIMELINE_DEFAULTS.maxDays-PLANNER_TIMELINE_DEFAULTS.minDays)*100}%`);
+  setPlannerSliderProgress(slider,timeline.courseDays);
   daysInput.value=String(timeline.courseDays);
   weeksInput.value=String(timeline.courseWeeks);
   minutesSelect.value=String(timeline.sessionMinutes);
@@ -567,8 +597,17 @@ function syncPlannerSetupUI(){
 function bindPlannerSetupUI(){
   const slider=document.getElementById('plannerCourseDays');
   if(slider&&!slider.dataset.bound){
-    slider.addEventListener('input',syncPlannerTimelineUI);
-    slider.addEventListener('change',syncPlannerTimelineUI);
+    const releaseSlider=()=>{
+      slider.classList.remove('is-dragging');
+      syncPlannerTimelineUI();
+    };
+    slider.addEventListener('input',queuePlannerTimelineUI,{passive:true});
+    slider.addEventListener('change',releaseSlider);
+    slider.addEventListener('pointerdown',()=>slider.classList.add('is-dragging'));
+    slider.addEventListener('pointerup',releaseSlider);
+    slider.addEventListener('pointercancel',releaseSlider);
+    slider.addEventListener('blur',()=>slider.classList.remove('is-dragging'));
+    window.addEventListener('pointerup',()=>slider.classList.remove('is-dragging'));
     slider.dataset.bound='true';
   }
   const focusSelect=document.getElementById('studyFocus');
@@ -1743,10 +1782,6 @@ renderMission();
 renderQuizHistory();
 renderQuizAssessmentPanel();
 renderReference();
-heroMoleculeLineup=pickHeroMoleculeLineup();
-currentMol=heroMoleculeLineup[0]||Object.keys(mols)[0];
-renderHeroMoleculeButtons();
-const initialMol=heroMoleculeLineup[Math.floor(Math.random()*heroMoleculeLineup.length)]||currentMol;
-drawMol(initialMol,document.querySelector(`#heroMol .rxn-btn[data-mol="${initialMol}"]`));
-startHeroRotation();
+currentMol=pickTodaysCompound()?.id||currentMol;
+drawMol(currentMol);
 setupQuiz();

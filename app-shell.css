@@ -938,25 +938,93 @@ body.has-global-loader .global-loader{
   position:relative;
   overflow:hidden;
   text-align:center;
+  background:
+    radial-gradient(circle at top right,color-mix(in srgb,var(--accent2) 16%,transparent),transparent 34%),
+    radial-gradient(circle at bottom left,color-mix(in srgb,var(--accent3) 14%,transparent),transparent 36%),
+    linear-gradient(180deg,color-mix(in srgb,var(--card) 96%,transparent),color-mix(in srgb,var(--surface-2) 92%,transparent));
+  border:1px solid var(--border);
+  box-shadow:var(--shadow);
 }
-.molecule-canvas #molSvg{
-  width:min(100%,260px);
+.mol-heading{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:12px;
+  text-align:left;
+}
+.compound-source-link{
+  color:var(--accent2);
+  font-size:.82rem;
+  text-decoration:none;
+}
+.compound-source-link:hover{text-decoration:underline;}
+.compound-date{
+  margin-top:8px;
+  text-align:left;
+  color:var(--text-dim);
+  font-size:.92rem;
+}
+.compound-visual{
+  position:relative;
+  display:grid;
+  place-items:center;
+  min-height:280px;
+  margin-top:18px;
+  padding:24px 18px 54px;
+  border-radius:26px;
+  border:1px solid color-mix(in srgb,var(--border) 90%,transparent);
+  background:
+    radial-gradient(circle at center,color-mix(in srgb,var(--accent) 6%,transparent),transparent 48%),
+    linear-gradient(180deg,color-mix(in srgb,var(--surface) 88%,transparent),color-mix(in srgb,var(--bg) 78%,transparent));
+}
+.molecule-canvas #molImage{
+  width:min(100%,280px);
   height:auto;
+  object-fit:contain;
+  filter:drop-shadow(0 12px 26px rgba(0,0,0,.2));
 }
-.molecule-canvas #molSvg,
+.compound-image-fallback{
+  padding:18px;
+  border-radius:18px;
+  border:1px dashed color-mix(in srgb,var(--border) 92%,transparent);
+  color:var(--text-dim);
+}
+.compound-cid{
+  position:absolute;
+  left:16px;
+  right:16px;
+  bottom:14px;
+  display:inline-flex;
+  justify-content:center;
+  padding:8px 12px;
+  border-radius:999px;
+  border:1px solid color-mix(in srgb,var(--border) 92%,transparent);
+  background:color-mix(in srgb,var(--surface) 84%,transparent);
+  color:var(--text-dim);
+  font-family:var(--font-mono);
+  font-size:.72rem;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.molecule-canvas .compound-visual,
+.molecule-canvas #molImage,
 .molecule-canvas .mol-name,
 .molecule-canvas .mol-formula,
 .molecule-canvas .mol-copy,
 .molecule-canvas .molecule-notes,
-.molecule-canvas .pill-row{
+.molecule-canvas .mol-heading,
+.molecule-canvas .compound-date{
   transition:transform .5s cubic-bezier(.22,1,.36,1),opacity .5s ease,filter .5s ease;
   will-change:transform,opacity,filter;
 }
-.molecule-canvas.is-switching #molSvg{
+.molecule-canvas.is-switching .compound-visual,
+.molecule-canvas.is-switching #molImage{
   transform:translateY(14px) scale(.92) rotateX(12deg);
   opacity:.18;
   filter:blur(8px) saturate(1.25);
 }
+.molecule-canvas.is-switching .mol-heading,
+.molecule-canvas.is-switching .compound-date,
 .molecule-canvas.is-switching .mol-name,
 .molecule-canvas.is-switching .mol-formula,
 .molecule-canvas.is-switching .mol-copy,
@@ -965,10 +1033,6 @@ body.has-global-loader .global-loader{
   opacity:.28;
   filter:blur(6px);
 }
-.molecule-canvas.is-switching .pill-row{
-  transform:translateY(6px);
-  opacity:.55;
-}
 .mol-label,.molecule-note-label,.field span{
   font-family:var(--font-mono);
   font-size:.68rem;
@@ -976,7 +1040,7 @@ body.has-global-loader .global-loader{
   letter-spacing:.1em;
   color:var(--text-dim);
 }
-.mol-name{margin-top:14px;font-family:var(--font-display);font-size:1.4rem;color:var(--text-bright);}
+.mol-name{margin-top:18px;font-family:var(--font-display);font-size:1.55rem;color:var(--text-bright);}
 .mol-formula{margin-top:6px;color:var(--accent);font-family:var(--font-mono);}
 .molecule-notes{display:grid;gap:10px;margin-top:16px;}
 .molecule-note,.goal-item,.pitfall-item,.check-item,.weak-item,.plan-item,.saved-item,.history-item,.score-chip,.note-item,.stack-card,.highlight-card,.prep-card,.equation-card{
@@ -1122,6 +1186,27 @@ body.has-global-loader .global-loader{
 }
 .planner-intensity-slider{
   --planner-progress:100%;
+  --planner-track-fill:linear-gradient(90deg,
+    color-mix(in srgb,var(--accent3) 88%,white 12%) 0%,
+    color-mix(in srgb,var(--accent) 35%,var(--accent3)) 38%,
+    color-mix(in srgb,var(--accent2) 30%,var(--accent)) 72%,
+    color-mix(in srgb,var(--danger) 40%,var(--accent2)) 100%);
+  --planner-track-grid:linear-gradient(90deg,
+    transparent calc(25% - 1px),
+    color-mix(in srgb,var(--border) 76%,transparent) calc(25% - 1px),
+    color-mix(in srgb,var(--border) 76%,transparent) calc(25% + 1px),
+    transparent calc(25% + 1px),
+    transparent calc(50% - 1px),
+    color-mix(in srgb,var(--border) 76%,transparent) calc(50% - 1px),
+    color-mix(in srgb,var(--border) 76%,transparent) calc(50% + 1px),
+    transparent calc(50% + 1px),
+    transparent calc(75% - 1px),
+    color-mix(in srgb,var(--border) 76%,transparent) calc(75% - 1px),
+    color-mix(in srgb,var(--border) 76%,transparent) calc(75% + 1px),
+    transparent calc(75% + 1px));
+  --planner-track-base:linear-gradient(180deg,
+    color-mix(in srgb,var(--surface) 92%,rgba(255,255,255,.04)) 0%,
+    color-mix(in srgb,var(--bg) 72%,var(--surface) 28%) 100%);
   appearance:none;
   width:100%;
   height:46px;
@@ -1130,111 +1215,101 @@ body.has-global-loader .global-loader{
   border-radius:999px;
   border:1px solid color-mix(in srgb,var(--border) 78%,transparent);
   background:
-    linear-gradient(90deg,
-      color-mix(in srgb,var(--accent3) 88%,white 12%) 0%,
-      color-mix(in srgb,var(--accent) 35%,var(--accent3)) 38%,
-      color-mix(in srgb,var(--accent2) 30%,var(--accent)) 72%,
-      color-mix(in srgb,var(--danger) 40%,var(--accent2)) 100%) 0/var(--planner-progress) 100% no-repeat,
-    linear-gradient(90deg,
-      transparent calc(25% - 1px),
-      color-mix(in srgb,var(--border) 76%,transparent) calc(25% - 1px),
-      color-mix(in srgb,var(--border) 76%,transparent) calc(25% + 1px),
-      transparent calc(25% + 1px),
-      transparent calc(50% - 1px),
-      color-mix(in srgb,var(--border) 76%,transparent) calc(50% - 1px),
-      color-mix(in srgb,var(--border) 76%,transparent) calc(50% + 1px),
-      transparent calc(50% + 1px),
-      transparent calc(75% - 1px),
-      color-mix(in srgb,var(--border) 76%,transparent) calc(75% - 1px),
-      color-mix(in srgb,var(--border) 76%,transparent) calc(75% + 1px),
-      transparent calc(75% + 1px)) center/100% 100% no-repeat,
-    color-mix(in srgb,var(--bg) 68%,var(--surface) 32%);
+    var(--planner-track-fill) 0/var(--planner-progress) 100% no-repeat,
+    var(--planner-track-grid) center/100% 100% no-repeat,
+    var(--planner-track-base);
   position:relative;
   outline:none;
-  box-shadow:inset 0 0 0 10px color-mix(in srgb,var(--bg) 40%,transparent);
-  transition:background-size .18s ease,box-shadow .18s ease;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.1),
+    inset 0 0 0 10px color-mix(in srgb,var(--bg) 40%,transparent);
+  cursor:grab;
+  touch-action:none;
+  -webkit-tap-highlight-color:transparent;
+  will-change:box-shadow,transform;
+  transition:border-color .18s ease,box-shadow .18s ease,transform .18s ease;
+}
+.planner-intensity-slider:hover,
+.planner-intensity-slider:focus-visible{
+  border-color:color-mix(in srgb,var(--accent2) 28%,var(--border));
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.14),
+    inset 0 0 0 10px color-mix(in srgb,var(--bg) 34%,transparent),
+    0 0 0 6px color-mix(in srgb,var(--accent2) 10%,transparent);
+}
+.planner-intensity-slider:active,
+.planner-intensity-slider.is-dragging{
+  cursor:grabbing;
+  transform:translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.16),
+    inset 0 0 0 10px color-mix(in srgb,var(--bg) 30%,transparent),
+    0 14px 34px rgba(0,0,0,.14);
 }
 .planner-intensity-slider::-webkit-slider-runnable-track{
   height:46px;
   border-radius:999px;
   background:
-    linear-gradient(90deg,
-      color-mix(in srgb,var(--accent3) 88%,white 12%) 0%,
-      color-mix(in srgb,var(--accent) 35%,var(--accent3)) 38%,
-      color-mix(in srgb,var(--accent2) 30%,var(--accent)) 72%,
-      color-mix(in srgb,var(--danger) 40%,var(--accent2)) 100%) 0/var(--planner-progress) 100% no-repeat,
-    linear-gradient(90deg,
-      transparent calc(25% - 1px),
-      color-mix(in srgb,var(--border) 76%,transparent) calc(25% - 1px),
-      color-mix(in srgb,var(--border) 76%,transparent) calc(25% + 1px),
-      transparent calc(25% + 1px),
-      transparent calc(50% - 1px),
-      color-mix(in srgb,var(--border) 76%,transparent) calc(50% - 1px),
-      color-mix(in srgb,var(--border) 76%,transparent) calc(50% + 1px),
-      transparent calc(50% + 1px),
-      transparent calc(75% - 1px),
-      color-mix(in srgb,var(--border) 76%,transparent) calc(75% - 1px),
-      color-mix(in srgb,var(--border) 76%,transparent) calc(75% + 1px),
-      transparent calc(75% + 1px)) center/100% 100% no-repeat,
-    color-mix(in srgb,var(--bg) 68%,var(--surface) 32%);
+    var(--planner-track-fill) 0/var(--planner-progress) 100% no-repeat,
+    var(--planner-track-grid) center/100% 100% no-repeat,
+    var(--planner-track-base);
 }
 .planner-intensity-slider::-webkit-slider-thumb{
   appearance:none;
-  width:26px;
-  height:26px;
-  margin-top:10px;
+  width:28px;
+  height:28px;
+  margin-top:9px;
   border-radius:50%;
-  border:4px solid rgba(255,255,255,.82);
-  background:color-mix(in srgb,var(--surface-2) 94%,white 6%);
+  border:3px solid rgba(255,255,255,.84);
+  background:
+    radial-gradient(circle at 30% 30%,rgba(255,255,255,.88),rgba(255,255,255,.16) 34%,transparent 35%),
+    color-mix(in srgb,var(--surface-2) 94%,white 6%);
   box-shadow:
-    0 0 0 7px color-mix(in srgb,var(--accent2) 18%,transparent),
-    0 10px 24px rgba(0,0,0,.28);
-  transition:transform .18s ease,box-shadow .18s ease;
+    0 0 0 7px color-mix(in srgb,var(--accent2) 16%,transparent),
+    0 10px 24px rgba(0,0,0,.24);
+  will-change:transform,box-shadow;
+  transition:transform .16s ease,box-shadow .16s ease;
 }
 .planner-intensity-slider::-moz-range-track{
   height:46px;
   border-radius:999px;
   border:none;
   background:
-    linear-gradient(90deg,
-      color-mix(in srgb,var(--accent3) 88%,white 12%) 0%,
-      color-mix(in srgb,var(--accent) 35%,var(--accent3)) 38%,
-      color-mix(in srgb,var(--accent2) 30%,var(--accent)) 72%,
-      color-mix(in srgb,var(--danger) 40%,var(--accent2)) 100%) 0/var(--planner-progress) 100% no-repeat,
-    linear-gradient(90deg,
-      transparent calc(25% - 1px),
-      color-mix(in srgb,var(--border) 76%,transparent) calc(25% - 1px),
-      color-mix(in srgb,var(--border) 76%,transparent) calc(25% + 1px),
-      transparent calc(25% + 1px),
-      transparent calc(50% - 1px),
-      color-mix(in srgb,var(--border) 76%,transparent) calc(50% - 1px),
-      color-mix(in srgb,var(--border) 76%,transparent) calc(50% + 1px),
-      transparent calc(50% + 1px),
-      transparent calc(75% - 1px),
-      color-mix(in srgb,var(--border) 76%,transparent) calc(75% - 1px),
-      color-mix(in srgb,var(--border) 76%,transparent) calc(75% + 1px),
-      transparent calc(75% + 1px)) center/100% 100% no-repeat,
-    color-mix(in srgb,var(--bg) 68%,var(--surface) 32%);
+    var(--planner-track-fill) 0/var(--planner-progress) 100% no-repeat,
+    var(--planner-track-grid) center/100% 100% no-repeat,
+    var(--planner-track-base);
 }
 .planner-intensity-slider::-moz-range-thumb{
-  width:26px;
-  height:26px;
+  width:28px;
+  height:28px;
   border-radius:50%;
-  border:4px solid rgba(255,255,255,.82);
-  background:color-mix(in srgb,var(--surface-2) 94%,white 6%);
+  border:3px solid rgba(255,255,255,.84);
+  background:
+    radial-gradient(circle at 30% 30%,rgba(255,255,255,.88),rgba(255,255,255,.16) 34%,transparent 35%),
+    color-mix(in srgb,var(--surface-2) 94%,white 6%);
   box-shadow:
-    0 0 0 7px color-mix(in srgb,var(--accent2) 18%,transparent),
-    0 10px 24px rgba(0,0,0,.28);
-  transition:transform .18s ease,box-shadow .18s ease;
+    0 0 0 7px color-mix(in srgb,var(--accent2) 16%,transparent),
+    0 10px 24px rgba(0,0,0,.24);
+  will-change:transform,box-shadow;
+  transition:transform .16s ease,box-shadow .16s ease;
 }
 .planner-intensity-slider:hover::-webkit-slider-thumb,
 .planner-intensity-slider:focus-visible::-webkit-slider-thumb,
 .planner-intensity-slider:hover::-moz-range-thumb,
 .planner-intensity-slider:focus-visible::-moz-range-thumb{
-  transform:scale(1.04);
+  transform:scale(1.06);
   box-shadow:
-    0 0 0 10px color-mix(in srgb,var(--accent2) 20%,transparent),
-    0 12px 28px rgba(0,0,0,.3);
+    0 0 0 10px color-mix(in srgb,var(--accent2) 18%,transparent),
+    0 14px 30px rgba(0,0,0,.26);
+}
+.planner-intensity-slider.is-dragging::-webkit-slider-thumb,
+.planner-intensity-slider.is-dragging::-moz-range-thumb,
+.planner-intensity-slider:active::-webkit-slider-thumb,
+.planner-intensity-slider:active::-moz-range-thumb{
+  transform:scale(1.1);
+  box-shadow:
+    0 0 0 12px color-mix(in srgb,var(--accent2) 22%,transparent),
+    0 16px 34px rgba(0,0,0,.28);
 }
 .planner-intensity-scale{
   display:grid;

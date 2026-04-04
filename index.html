@@ -159,22 +159,29 @@
         </div>
 
         <div class="molecule-canvas" id="heroMol">
-          <div class="mol-label">Featured Molecule</div>
-          <svg id="molSvg" viewBox="0 0 260 200" width="260" height="200" xmlns="http://www.w3.org/2000/svg"></svg>
+          <div class="mol-heading">
+            <div class="mol-label">Today's Compound</div>
+            <a class="compound-source-link" id="moleculeSourceLink" href="https://pubchem.ncbi.nlm.nih.gov/compound/702" target="_blank" rel="noreferrer">Open on PubChem</a>
+          </div>
+          <div class="compound-date" id="moleculeDate">Featured today</div>
+          <div class="compound-visual">
+            <img id="molImage" src="https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/702/PNG?image_size=large" alt="2D structure of Ethanol from PubChem" loading="lazy">
+            <div class="compound-image-fallback" id="molImageFallback" hidden>PubChem structure preview unavailable.</div>
+            <div class="compound-cid" id="moleculeCid">PubChem CID 702</div>
+          </div>
           <div class="mol-name" id="molName">Ethanol</div>
-          <div class="mol-formula" id="molFormula">C2H5OH</div>
-          <div class="mol-copy" id="moleculeInfo">A compact primary alcohol used as a solvent and a foundational oxidation example.</div>
+          <div class="mol-formula" id="molFormula">C2H6O</div>
+          <div class="mol-copy" id="moleculeInfo">A light alcohol used across solvents, sanitizers, fuels, and chemical processing.</div>
           <div class="molecule-notes">
             <div class="molecule-note">
-              <span class="molecule-note-label">Functional highlight</span>
-              <div id="moleculeInsight">Hydroxyl groups increase polarity and enable hydrogen bonding.</div>
+              <span class="molecule-note-label">Economic benefit</span>
+              <div id="moleculeBenefit">Because the same compound can serve fuel blending, cleaning products, and solvent demand, it creates value across several industrial markets.</div>
             </div>
             <div class="molecule-note">
-              <span class="molecule-note-label">Study angle</span>
-              <div id="moleculeStudyPrompt">Compare ethanol oxidation products to aldehydes and carboxylic acids.</div>
+              <span class="molecule-note-label">Industry snapshot</span>
+              <div id="moleculeIndustry">PubChem identifies ethanol as a major compound entry; industry relies on it in solvent systems, disinfectant formulations, and fuel-related applications.</div>
             </div>
           </div>
-          <div class="pill-row" id="heroMoleculeButtons"></div>
         </div>
       </section>
 
