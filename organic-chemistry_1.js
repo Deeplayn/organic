@@ -1,4 +1,4 @@
-const LABELS={'lab-noir':'Lab Noir','cyberpunk':'Cyberpunk','academic-ink':'Academic Ink','deep-space':'Deep Space','copper-reactor':'Copper Reactor','forest-glass':'Forest Glass','lab-white':'Lab White','neon-day':'Neon Day','ivory':'Ivory Academic','clean-slate':'Clean Slate','paper-spectrum':'Paper Spectrum','solar-lab':'Solar Lab'};
+const LABELS=window.OrganoThemeLabels||{};
 const STORE='oc-state-v2',THEME='oc-theme';
 const QuizJourney=window.OrganoQuizJourney||null;
 const baseState=QuizJourney?.normalizeMainState?.({})||{topicStatus:{},savedReactions:[],quizHistory:[],studyPlans:[],quizAssessment:null,quizJourney:null,achievements:[]};
@@ -43,7 +43,7 @@ function closePanel(){document.getElementById('themePanel').classList.remove('op
 document.addEventListener('click',e=>{if(!e.target.closest('.theme-switcher'))closePanel();});
 function setTheme(theme,btn,options={}){
   document.body.setAttribute('data-theme',theme);
-  document.getElementById('themeLabel').textContent=LABELS[theme];
+  document.getElementById('themeLabel').textContent=LABELS[theme]||theme;
   document.querySelectorAll('.t-opt').forEach(b=>b.classList.remove('active'));
   if(btn)btn.classList.add('active');
   localStorage.setItem(THEME,theme);
@@ -52,7 +52,7 @@ function setTheme(theme,btn,options={}){
   setTimeout(()=>drawMol(currentMol),50);
 }
 const savedTheme=localStorage.getItem(THEME);
-if(savedTheme&&LABELS[savedTheme])setTheme(savedTheme,document.querySelector(`.t-opt[onclick*="${savedTheme}"]`),{userInitiated:false});
+if(savedTheme)setTheme(savedTheme,document.querySelector(`.t-opt[data-theme-choice="${savedTheme}"]`),{userInitiated:false});
 
 const todaysCompounds=[
   {

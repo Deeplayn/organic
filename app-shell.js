@@ -6,20 +6,51 @@
   const POST_SIGNIN_NOTICE_KEY='oc-post-signin-notice-v1';
   const QuizJourney=window.OrganoQuizJourney||null;
   const NOTIFICATION_LIMIT=24;
-  const THEME_LABELS={
-    'lab-noir':'Lab Noir',
-    'cyberpunk':'Cyberpunk',
-    'academic-ink':'Academic Ink',
-    'deep-space':'Deep Space',
-    'copper-reactor':'Copper Reactor',
-    'forest-glass':'Forest Glass',
-    'lab-white':'Lab White',
-    'neon-day':'Neon Day',
-    'ivory':'Ivory Academic',
-    'clean-slate':'Clean Slate',
-    'paper-spectrum':'Paper Spectrum',
-    'solar-lab':'Solar Lab'
-  };
+  const THEME_CATALOG=[
+    {id:'lab-noir',label:'Lab Noir',mode:'dark',swatch:'#9fd97a'},
+    {id:'cyberpunk',label:'Cyberpunk',mode:'dark',swatch:'#00f5ff'},
+    {id:'academic-ink',label:'Academic Ink',mode:'dark',swatch:'#c9a84c'},
+    {id:'deep-space',label:'Deep Space',mode:'dark',swatch:'#7b9cff'},
+    {id:'copper-reactor',label:'Copper Reactor',mode:'dark',swatch:'#f08c4a'},
+    {id:'forest-glass',label:'Forest Glass',mode:'dark',swatch:'#6acb8f'},
+    {id:'midnight-orchid',label:'Midnight Orchid',mode:'dark',swatch:'#c084fc'},
+    {id:'ember-carbon',label:'Ember Carbon',mode:'dark',swatch:'#f97316'},
+    {id:'aurora-grid',label:'Aurora Grid',mode:'dark',swatch:'#2dd4bf'},
+    {id:'velvet-plasma',label:'Velvet Plasma',mode:'dark',swatch:'#ec4899'},
+    {id:'obsidian-bloom',label:'Obsidian Bloom',mode:'dark',swatch:'#14b8a6'},
+    {id:'ocean-circuit',label:'Ocean Circuit',mode:'dark',swatch:'#38bdf8'},
+    {id:'graphite-gold',label:'Graphite Gold',mode:'dark',swatch:'#d4a017'},
+    {id:'ruby-vault',label:'Ruby Vault',mode:'dark',swatch:'#f43f5e'},
+    {id:'storm-signal',label:'Storm Signal',mode:'dark',swatch:'#60a5fa'},
+    {id:'moonlit-mint',label:'Moonlit Mint',mode:'dark',swatch:'#5eead4'},
+    {id:'basalt-ember',label:'Basalt Ember',mode:'dark',swatch:'#fb923c'},
+    {id:'polar-night',label:'Polar Night',mode:'dark',swatch:'#93c5fd'},
+    {id:'plum-reactor',label:'Plum Reactor',mode:'dark',swatch:'#d8b4fe'},
+    {id:'rainforest-night',label:'Rainforest Night',mode:'dark',swatch:'#4ade80'},
+    {id:'lab-white',label:'Lab White',mode:'light',swatch:'#3a8a28'},
+    {id:'neon-day',label:'Neon Day',mode:'light',swatch:'#4400cc'},
+    {id:'ivory',label:'Ivory Academic',mode:'light',swatch:'#8b4513'},
+    {id:'clean-slate',label:'Clean Slate',mode:'light',swatch:'#0ea5e9'},
+    {id:'paper-spectrum',label:'Paper Spectrum',mode:'light',swatch:'#b34d3a'},
+    {id:'solar-lab',label:'Solar Lab',mode:'light',swatch:'#f5a623'},
+    {id:'mint-notebook',label:'Mint Notebook',mode:'light',swatch:'#1f9d72'},
+    {id:'rose-porcelain',label:'Rose Porcelain',mode:'light',swatch:'#d9466f'},
+    {id:'sky-ledger',label:'Sky Ledger',mode:'light',swatch:'#2563eb'},
+    {id:'peach-fizz',label:'Peach Fizz',mode:'light',swatch:'#f97316'},
+    {id:'sage-paper',label:'Sage Paper',mode:'light',swatch:'#6b8e23'},
+    {id:'arctic-glow',label:'Arctic Glow',mode:'light',swatch:'#06b6d4'},
+    {id:'amber-notes',label:'Amber Notes',mode:'light',swatch:'#d97706'},
+    {id:'lilac-frost',label:'Lilac Frost',mode:'light',swatch:'#7c3aed'},
+    {id:'coral-lab',label:'Coral Lab',mode:'light',swatch:'#ea580c'},
+    {id:'glacier-ink',label:'Glacier Ink',mode:'light',swatch:'#0f766e'},
+    {id:'sand-grid',label:'Sand Grid',mode:'light',swatch:'#a16207'},
+    {id:'aqua-foil',label:'Aqua Foil',mode:'light',swatch:'#0f766e'},
+    {id:'blossom-code',label:'Blossom Code',mode:'light',swatch:'#c02673'},
+    {id:'citrus-wash',label:'Citrus Wash',mode:'light',swatch:'#ca8a04'}
+  ];
+  const THEME_LABELS=Object.fromEntries(THEME_CATALOG.map(theme=>[theme.id,theme.label]));
+  window.OrganoThemeCatalog=THEME_CATALOG;
+  window.OrganoThemeLabels=THEME_LABELS;
   const PANEL_MAP={
     dashboard:'dashboard',
     topics:'dashboard',
@@ -64,6 +95,43 @@
       .replaceAll('>','&gt;')
       .replaceAll('"','&quot;')
       .replaceAll("'",'&#39;');
+  }
+  function syncThemePanelSelection(theme){
+    document.querySelectorAll('.t-opt[data-theme-choice]').forEach(button=>{
+      button.classList.toggle('active',button.dataset.themeChoice===theme);
+    });
+  }
+  function applyThemeWithoutWorkspace(theme,button){
+    document.body.setAttribute('data-theme',theme);
+    localStorage.setItem(THEME_KEY,theme);
+    const themeLabel=$('themeLabel');
+    if(themeLabel)themeLabel.textContent=THEME_LABELS[theme]||theme;
+    syncThemePanelSelection(theme);
+    if(button)button.classList.add('active');
+    $('themePanel')?.classList.remove('open');
+  }
+  function renderThemePanel(){
+    const panel=$('themePanel');
+    if(!panel)return;
+    const renderGroup=(label,mode)=>[
+      `<div class="tg-label">${escapeHtml(label)}</div>`,
+      ...THEME_CATALOG
+        .filter(theme=>theme.mode===mode)
+        .map(theme=>`<button class="t-opt" type="button" data-theme-choice="${escapeHtml(theme.id)}"><span class="t-dot" style="background:${theme.swatch}"></span>${escapeHtml(theme.label)}</button>`)
+    ].join('');
+    panel.innerHTML=`${renderGroup('Dark Themes','dark')}<div class="t-sep"></div>${renderGroup('Light Themes','light')}`;
+    panel.querySelectorAll('.t-opt[data-theme-choice]').forEach(button=>{
+      button.addEventListener('click',()=>{
+        const theme=button.dataset.themeChoice||'';
+        if(!theme)return;
+        if(typeof window.setTheme==='function'){
+          window.setTheme(theme,button);
+          return;
+        }
+        applyThemeWithoutWorkspace(theme,button);
+      });
+    });
+    syncThemePanelSelection(document.body.getAttribute('data-theme')||localStorage.getItem(THEME_KEY)||'lab-noir');
   }
   function safeParse(raw,fallback){
     try{return raw?JSON.parse(raw):fallback;}catch{return fallback;}
@@ -703,6 +771,7 @@
     document.body.setAttribute('data-theme',savedTheme);
     const themeLabel=$('themeLabel');
     if(themeLabel)themeLabel.textContent=THEME_LABELS[savedTheme]||savedTheme;
+    syncThemePanelSelection(savedTheme);
   }
   function setActivePanel(hash,{replace=false}={}){
     const route=resolvePanel(hash);
@@ -796,14 +865,11 @@
 
   function applyThemeLocally(theme){
     if(typeof window.setTheme==='function'){
-      const button=document.querySelector(`.t-opt[onclick*="${theme}"]`);
+      const button=document.querySelector(`.t-opt[data-theme-choice="${theme}"]`);
       window.setTheme(theme,button||null);
       return;
     }
-    document.body.setAttribute('data-theme',theme);
-    localStorage.setItem(THEME_KEY,theme);
-    const themeLabel=$('themeLabel');
-    if(themeLabel)themeLabel.textContent=THEME_LABELS[theme]||theme;
+    applyThemeWithoutWorkspace(theme,document.querySelector(`.t-opt[data-theme-choice="${theme}"]`));
   }
 
   function hydrateFromRemote(payload){
@@ -1411,6 +1477,7 @@
     setActivePanel
   };
 
+  renderThemePanel();
   applyStoredThemePreference();
   mountNotificationCenter();
   bindUI();
