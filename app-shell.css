@@ -970,12 +970,8 @@ body.has-global-loader .global-loader{
   place-items:center;
   min-height:280px;
   margin-top:18px;
-  padding:24px 18px 54px;
-  border-radius:26px;
-  border:1px solid color-mix(in srgb,var(--border) 90%,transparent);
-  background:
-    radial-gradient(circle at center,color-mix(in srgb,var(--accent) 6%,transparent),transparent 48%),
-    linear-gradient(180deg,color-mix(in srgb,var(--surface) 88%,transparent),color-mix(in srgb,var(--bg) 78%,transparent));
+  padding:10px 0 44px;
+  background:transparent;
 }
 .molecule-canvas #molImage{
   width:min(100%,280px);
