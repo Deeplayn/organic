@@ -202,6 +202,14 @@ function normalizeDateOnly(value) {
   return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : text.slice(0, 10);
 }
 
+function currentDateOnly(dateValue = new Date()) {
+  return normalizeDateOnly(dateValue) || new Date().toISOString().slice(0, 10);
+}
+
+function isValidDailySerial(value) {
+  return /^[0-9]{6}$/.test(String(value || '').trim());
+}
+
 function sanitizeUser(row) {
   if (!row) return null;
   return {
@@ -248,7 +256,7 @@ async function clearSession(sessionId) {
 }
 
 async function reserveDailyUserSerial(client, dateValue = new Date()) {
-  const serialDate = normalizeDateOnly(dateValue) || new Date().toISOString().slice(0, 10);
+  const serialDate = currentDateOnly(dateValue);
   const result = await client.query(
     `INSERT INTO user_daily_serial_counters (serial_date, last_value, updated_at)
      VALUES ($1::date, 1, NOW())
@@ -269,6 +277,34 @@ async function reserveDailyUserSerial(client, dateValue = new Date()) {
   };
 }
 
+async function ensureUserDailySerialCurrent(client, row, dateValue = new Date()) {
+  if (!row?.id) return row || null;
+  const targetDate = currentDateOnly(dateValue);
+  const currentDate = normalizeDateOnly(row.daily_serial_date);
+  const currentSerial = String(row.daily_serial || '').trim();
+
+  if (currentDate === targetDate && isValidDailySerial(currentSerial)) {
+    return row;
+  }
+
+  const nextSerial = await reserveDailyUserSerial(client, targetDate);
+  const refreshed = await client.query(
+    `UPDATE users
+     SET daily_serial_date = $2::date,
+         daily_serial = $3,
+         updated_at = NOW()
+     WHERE id = $1
+     RETURNING ${USER_SELECT_COLUMNS}`,
+    [row.id, nextSerial.dailySerialDate, nextSerial.dailySerial]
+  );
+
+  return refreshed.rows[0] || {
+    ...row,
+    daily_serial_date: nextSerial.dailySerialDate,
+    daily_serial: nextSerial.dailySerial
+  };
+}
+
 async function purgeExpiredSessions() {
   await ensureSchema();
   await getPool().query('DELETE FROM sessions WHERE expires_at <= NOW()');
@@ -280,32 +316,44 @@ async function getSessionUser(req) {
   const sessionId = cookies[COOKIE_NAME];
   if (!sessionId) return null;
 
-  const result = await getPool().query(
-    `SELECT users.id,
-            users.account_serial,
-            users.daily_serial_date,
-            users.daily_serial,
-            users.email,
-            users.display_name,
-            users.theme,
-            users.age,
-            users.gender,
-            users.country,
-            users.learner_type,
-            users.academic_year,
-            users.curriculum_track,
-            users.avatar_url
-     FROM sessions
-     JOIN users ON users.id = sessions.user_id
-     WHERE sessions.id = $1 AND sessions.expires_at > NOW()
-     LIMIT 1`,
-    [sessionId]
-  );
+  const client = await getPool().connect();
+  try {
+    await client.query('BEGIN');
+    const result = await client.query(
+      `SELECT users.id,
+              users.account_serial,
+              users.daily_serial_date,
+              users.daily_serial,
+              users.email,
+              users.display_name,
+              users.theme,
+              users.age,
+              users.gender,
+              users.country,
+              users.learner_type,
+              users.academic_year,
+              users.curriculum_track,
+              users.avatar_url
+       FROM sessions
+       JOIN users ON users.id = sessions.user_id
+       WHERE sessions.id = $1 AND sessions.expires_at > NOW()
+       LIMIT 1
+       FOR UPDATE OF users`,
+      [sessionId]
+    );
+    const row = result.rows[0] ? await ensureUserDailySerialCurrent(client, result.rows[0]) : null;
+    await client.query('COMMIT');
 
-  return {
-    sessionId,
-    user: sanitizeUser(result.rows[0] || null)
-  };
+    return {
+      sessionId,
+      user: sanitizeUser(row)
+    };
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 function base64urlEncode(value) {
@@ -412,8 +460,10 @@ module.exports = {
   buildExpiredSessionCookie,
   buildExpiredCookie,
   USER_SELECT_COLUMNS,
+  currentDateOnly,
   sanitizeUser,
   reserveDailyUserSerial,
+  ensureUserDailySerialCurrent,
   createSession,
   clearSession,
   getSessionUser,

@@ -148,19 +148,35 @@ async function ensureSchema() {
     SET account_serial = nextval('user_account_serial_seq')
     WHERE account_serial IS NULL;
 
-    WITH ranked_daily_serials AS (
+    WITH existing_daily_serial_max AS (
       SELECT
-        id,
-        (created_at AT TIME ZONE 'UTC')::date AS serial_date,
+        daily_serial_date AS serial_date,
+        MAX(daily_serial::INTEGER) AS existing_max
+      FROM users
+      WHERE daily_serial_date IS NOT NULL
+        AND daily_serial ~ '^[0-9]{6}$'
+      GROUP BY daily_serial_date
+    ),
+    ranked_daily_serials AS (
+      SELECT
+        users.id,
+        (users.created_at AT TIME ZONE 'UTC')::date AS serial_date,
         LPAD(
-          ROW_NUMBER() OVER (
-            PARTITION BY (created_at AT TIME ZONE 'UTC')::date
-            ORDER BY created_at, id
+          (
+            ROW_NUMBER() OVER (
+              PARTITION BY (users.created_at AT TIME ZONE 'UTC')::date
+              ORDER BY users.created_at, users.id
+            ) + COALESCE(existing_daily_serial_max.existing_max, 0)
           )::text,
           6,
           '0'
         ) AS serial_value
       FROM users
+      LEFT JOIN existing_daily_serial_max
+        ON existing_daily_serial_max.serial_date = (users.created_at AT TIME ZONE 'UTC')::date
+      WHERE users.daily_serial_date IS NULL
+         OR users.daily_serial IS NULL
+         OR users.daily_serial !~ '^[0-9]{6}$'
     )
     UPDATE users
     SET daily_serial_date = ranked_daily_serials.serial_date,
@@ -179,7 +195,7 @@ async function ensureSchema() {
       AND daily_serial ~ '^[0-9]{6}$'
     GROUP BY daily_serial_date
     ON CONFLICT (serial_date)
-    DO UPDATE SET last_value = EXCLUDED.last_value, updated_at = NOW();
+    DO UPDATE SET last_value = GREATEST(user_daily_serial_counters.last_value, EXCLUDED.last_value), updated_at = NOW();
 
     CREATE UNIQUE INDEX IF NOT EXISTS users_account_serial_idx ON users(account_serial);
     CREATE UNIQUE INDEX IF NOT EXISTS users_daily_serial_per_day_idx ON users(daily_serial_date, daily_serial);

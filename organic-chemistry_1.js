@@ -38,12 +38,13 @@ function readPlannerCourseDays(value){
   return clampCourseDays(value);
 }
 
-function togglePanel(){document.getElementById('themePanel').classList.toggle('open');}
-function closePanel(){document.getElementById('themePanel').classList.remove('open');}
+function togglePanel(){document.getElementById('themePanel')?.classList.toggle('open');}
+function closePanel(){document.getElementById('themePanel')?.classList.remove('open');}
 document.addEventListener('click',e=>{if(!e.target.closest('.theme-switcher'))closePanel();});
 function setTheme(theme,btn,options={}){
   document.body.setAttribute('data-theme',theme);
-  document.getElementById('themeLabel').textContent=LABELS[theme]||theme;
+  const themeLabel=document.getElementById('themeLabel');
+  if(themeLabel)themeLabel.textContent=LABELS[theme]||theme;
   document.querySelectorAll('.t-opt').forEach(b=>b.classList.remove('active'));
   if(btn)btn.classList.add('active');
   localStorage.setItem(THEME,theme);

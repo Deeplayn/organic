@@ -2439,6 +2439,15 @@ body.has-global-loader .global-loader{
   grid-template-columns:repeat(2,minmax(0,1fr));
   margin-top:0;
 }
+.theme-settings-shell{
+  display:flex;
+  align-items:flex-start;
+  justify-content:flex-start;
+  margin-top:18px;
+}
+.account-theme-switcher{
+  width:min(100%,320px);
+}
 .account-achievement-shelf{
   position:relative;
   margin-top:22px;

@@ -15,7 +15,8 @@ const {
   readOAuthState,
   buildExpiredOAuthStateCookie,
   USER_SELECT_COLUMNS,
-  reserveDailyUserSerial
+  reserveDailyUserSerial,
+  ensureUserDailySerialCurrent
 } = require('./_auth');
 const { getPool, ensureSchema } = require('./_db');
 
@@ -264,8 +265,9 @@ async function findOrCreateOAuthUser(provider, profile) {
       [provider, String(profile.providerUserId)]
     );
     if (identityResult.rows[0]) {
+      const currentUser = await ensureUserDailySerialCurrent(client, identityResult.rows[0]);
       await client.query('COMMIT');
-      return sanitizeUser(identityResult.rows[0]);
+      return sanitizeUser(currentUser);
     }
 
     let userRow;
@@ -278,7 +280,7 @@ async function findOrCreateOAuthUser(provider, profile) {
     );
 
     if (existingUser.rows[0]) {
-      userRow = existingUser.rows[0];
+      userRow = await ensureUserDailySerialCurrent(client, existingUser.rows[0]);
     } else {
       const userId = createId('user');
       const displayName = validateDisplayName(profile.displayName) ? profile.displayName.trim() : email.split('@')[0];

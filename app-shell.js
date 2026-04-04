@@ -101,6 +101,17 @@
       button.classList.toggle('active',button.dataset.themeChoice===theme);
     });
   }
+  function toggleThemePanel(){
+    $('themePanel')?.classList.toggle('open');
+  }
+  function closeThemePanel(){
+    $('themePanel')?.classList.remove('open');
+  }
+  window.togglePanel=toggleThemePanel;
+  window.closePanel=closeThemePanel;
+  document.addEventListener('click',event=>{
+    if(!event.target.closest('.theme-switcher'))closeThemePanel();
+  });
   function applyThemeWithoutWorkspace(theme,button){
     document.body.setAttribute('data-theme',theme);
     localStorage.setItem(THEME_KEY,theme);
@@ -108,7 +119,7 @@
     if(themeLabel)themeLabel.textContent=THEME_LABELS[theme]||theme;
     syncThemePanelSelection(theme);
     if(button)button.classList.add('active');
-    $('themePanel')?.classList.remove('open');
+    closeThemePanel();
   }
   function renderThemePanel(){
     const panel=$('themePanel');
@@ -1024,8 +1035,10 @@
     const authFormCard=$('authFormCard');
     if(authFormCard)authFormCard.hidden=Boolean(user);
     const accountCard=$('accountCard');
+    const themeSettingsCard=$('themeSettingsCard');
     if(accountCard)accountCard.hidden=!user||!profileComplete;
     if(profileCard)profileCard.hidden=!showProfileEditor;
+    if(themeSettingsCard)themeSettingsCard.hidden=!user;
     updateProfileEditorLabels(profileComplete);
     if(user){
       setText('accountName',user.displayName||'OrganoChem Account');

@@ -15,6 +15,7 @@ const {
   buildSessionCookie,
   sanitizeUser,
   createSession,
+  ensureUserDailySerialCurrent,
   USER_SELECT_COLUMNS
 } = require('../_auth');
 
@@ -81,11 +82,24 @@ module.exports = async (req, res) => {
       return;
     }
 
-    const session = await createSession(req, row.id);
+    const client = await getPool().connect();
+    let currentRow = row;
+    try {
+      await client.query('BEGIN');
+      currentRow = await ensureUserDailySerialCurrent(client, row);
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw error;
+    } finally {
+      client.release();
+    }
+
+    const session = await createSession(req, currentRow.id);
     res.setHeader('Set-Cookie', buildSessionCookie(req, session.sessionId, session.expiresAt));
     sendJson(res, 200, {
       ok: true,
-      user: sanitizeUser(row)
+      user: sanitizeUser(currentRow)
     });
   } catch (error) {
     sendJson(res, 500, { error: { message: error.message || 'Login failed.' } });
