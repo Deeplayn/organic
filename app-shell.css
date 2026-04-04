@@ -991,23 +991,6 @@ body.has-global-loader .global-loader{
   overflow:visible;
   filter:drop-shadow(0 12px 26px rgba(0,0,0,.22));
 }
-.compound-cid{
-  position:absolute;
-  left:16px;
-  right:16px;
-  bottom:14px;
-  display:inline-flex;
-  justify-content:center;
-  padding:8px 12px;
-  border-radius:999px;
-  border:1px solid color-mix(in srgb,var(--border) 92%,transparent);
-  background:color-mix(in srgb,var(--surface) 84%,transparent);
-  color:var(--text-dim);
-  font-family:var(--font-mono);
-  font-size:.72rem;
-  letter-spacing:.08em;
-  text-transform:uppercase;
-}
 .molecule-canvas .compound-visual,
 .molecule-canvas #molSvg,
 .molecule-canvas .mol-name,

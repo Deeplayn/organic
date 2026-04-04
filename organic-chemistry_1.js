@@ -20,7 +20,6 @@ const PLANNER_TIMELINE_DEFAULTS={
   stepDays:1,
   defaultDays:28
 };
-let plannerTimelineFrame=0;
 
 function setPlannerSliderProgress(slider,courseDays){
   if(!slider)return;
@@ -31,12 +30,26 @@ function setPlannerSliderProgress(slider,courseDays){
   slider.setAttribute('aria-valuetext',`${courseDays} days`);
 }
 
-function queuePlannerTimelineUI(){
-  if(plannerTimelineFrame)return;
-  plannerTimelineFrame=window.requestAnimationFrame(()=>{
-    plannerTimelineFrame=0;
-    syncPlannerTimelineUI();
-  });
+function getPlannerSliderMetrics(slider){
+  const min=Number(slider?.min||PLANNER_TIMELINE_DEFAULTS.minDays);
+  const max=Number(slider?.max||PLANNER_TIMELINE_DEFAULTS.maxDays);
+  const step=Math.max(1,Number(slider?.step||PLANNER_TIMELINE_DEFAULTS.stepDays));
+  return{min,max,step};
+}
+
+function readPlannerCourseDays(value){
+  return clampCourseDays(value);
+}
+
+function getPlannerCourseDaysFromPointer(slider,clientX){
+  if(!slider)return PLANNER_TIMELINE_DEFAULTS.defaultDays;
+  const rect=slider.getBoundingClientRect();
+  if(!rect.width)return readPlannerCourseDays(slider.value);
+  const {min,max,step}=getPlannerSliderMetrics(slider);
+  const ratio=Math.max(0,Math.min(1,(clientX-rect.left)/rect.width));
+  const raw=min+(ratio*(max-min));
+  const stepped=min+(Math.round((raw-min)/step)*step);
+  return readPlannerCourseDays(stepped);
 }
 
 function togglePanel(){document.getElementById('themePanel').classList.toggle('open');}
@@ -204,8 +217,6 @@ function drawMol(name){
   document.getElementById('moleculeIndustry').textContent=compound.industry;
   const dateLabel=document.getElementById('moleculeDate');
   if(dateLabel)dateLabel.textContent=`Featured for ${today()}`;
-  const cidLabel=document.getElementById('moleculeCid');
-  if(cidLabel)cidLabel.textContent=`PubChem CID ${compound.cid}`;
   const sourceLink=document.getElementById('moleculeSourceLink');
   if(sourceLink){
     sourceLink.href=compound.wikiUrl;
@@ -590,17 +601,16 @@ function derivePlannerTimeline(days){
   };
 }
 
-function syncPlannerTimelineUI(){
-  if(plannerTimelineFrame){
-    window.cancelAnimationFrame(plannerTimelineFrame);
-    plannerTimelineFrame=0;
-  }
+function syncPlannerTimelineUI(sourceDays){
   const slider=document.getElementById('plannerCourseDays');
   const daysInput=document.getElementById('courseDays');
   const weeksInput=document.getElementById('courseWeeks');
   const minutesSelect=document.getElementById('sessionMinutes');
   if(!slider||!daysInput||!weeksInput||!minutesSelect)return;
-  const timeline=derivePlannerTimeline(slider.value||daysInput.value||PLANNER_TIMELINE_DEFAULTS.defaultDays);
+  const courseDays=readPlannerCourseDays(
+    sourceDays??slider.value??daysInput.value??PLANNER_TIMELINE_DEFAULTS.defaultDays
+  );
+  const timeline=derivePlannerTimeline(courseDays);
   slider.value=String(timeline.courseDays);
   setPlannerSliderProgress(slider,timeline.courseDays);
   daysInput.value=String(timeline.courseDays);
@@ -640,14 +650,37 @@ function syncPlannerSetupUI(){
 function bindPlannerSetupUI(){
   const slider=document.getElementById('plannerCourseDays');
   if(slider&&!slider.dataset.bound){
+    let activePointerId=null;
     const releaseSlider=()=>{
+      activePointerId=null;
       slider.classList.remove('is-dragging');
       syncPlannerTimelineUI();
     };
-    slider.addEventListener('input',queuePlannerTimelineUI,{passive:true});
+    const updateFromPointer=event=>{
+      const nextDays=getPlannerCourseDaysFromPointer(slider,event.clientX);
+      if(String(nextDays)!==slider.value){
+        slider.value=String(nextDays);
+      }
+      syncPlannerTimelineUI(nextDays);
+    };
+    slider.addEventListener('input',()=>syncPlannerTimelineUI(slider.value));
     slider.addEventListener('change',releaseSlider);
-    slider.addEventListener('pointerdown',()=>slider.classList.add('is-dragging'));
-    slider.addEventListener('pointerup',releaseSlider);
+    slider.addEventListener('pointerdown',event=>{
+      activePointerId=event.pointerId;
+      slider.classList.add('is-dragging');
+      slider.setPointerCapture?.(event.pointerId);
+      updateFromPointer(event);
+    });
+    slider.addEventListener('pointermove',event=>{
+      if(activePointerId!==event.pointerId)return;
+      updateFromPointer(event);
+    });
+    slider.addEventListener('pointerup',event=>{
+      if(activePointerId===event.pointerId){
+        slider.releasePointerCapture?.(event.pointerId);
+      }
+      releaseSlider();
+    });
     slider.addEventListener('pointercancel',releaseSlider);
     slider.addEventListener('blur',()=>slider.classList.remove('is-dragging'));
     window.addEventListener('pointerup',()=>slider.classList.remove('is-dragging'));
