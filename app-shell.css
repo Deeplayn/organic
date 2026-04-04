@@ -541,6 +541,18 @@ body.has-global-loader .global-loader{
   background:var(--surface);
   color:var(--text);
 }
+.theme-icon{
+  width:18px;
+  height:18px;
+  flex-shrink:0;
+  border-radius:50%;
+  border:1px solid color-mix(in srgb,var(--accent) 38%,var(--border));
+  background:
+    radial-gradient(circle at 32% 32%,color-mix(in srgb,var(--text-bright) 90%,transparent) 0 18%,transparent 22%),
+    radial-gradient(circle at 68% 68%,color-mix(in srgb,var(--accent2) 78%,transparent) 0 22%,transparent 26%),
+    linear-gradient(135deg,color-mix(in srgb,var(--accent) 86%,white 14%),color-mix(in srgb,var(--accent3) 72%,var(--accent)));
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 8%,transparent);
+}
 .theme-btn:hover{border-color:var(--accent);color:var(--accent);}
 .theme-panel{
   position:absolute;

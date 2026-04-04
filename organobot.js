@@ -2,7 +2,7 @@
 const AI=window.OrganoAI;
 const BOT_STORE_KEY=AI?.ORGANOBOT_HISTORY_KEY||'oc-organobot-history-v1';
 const canUseBotFeature=message=>window.OrganoApp?.assertFeatureAccess(message)??true;
-const BOT_DISPLAY_NAME='OrganoQuizo Bot';
+const BOT_DISPLAY_NAME='OrganoBot';
 
 function botNow(){
   return new Date().toISOString();
@@ -30,7 +30,7 @@ function saveBotStore(){
 function createGreetingMessage(){
   return{
     role:'assistant',
-    content:'OrganoQuizo Bot is ready for chemistry and adaptive quiz help. Ask about mechanisms, spectroscopy, aromaticity, synthesis logic, compound behavior, or ask for a study-plan-based quiz.',
+    content:'OrganoBot is ready for chemistry and adaptive quiz help. Ask about mechanisms, spectroscopy, aromaticity, synthesis logic, compound behavior, or ask for a study-plan-based quiz.',
     createdAt:botNow()
   };
 }

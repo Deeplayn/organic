@@ -13,7 +13,7 @@ const prettyDate=v=>new Date(v).toLocaleDateString(undefined,{month:'short',day:
 const today=()=>new Date().toLocaleDateString(undefined,{month:'short',day:'numeric'});
 const AI=window.OrganoAI;
 const canUseAccountFeature=message=>window.OrganoApp?.assertFeatureAccess(message)??true;
-const ORGANOQUIZO_BOT_NAME='OrganoQuizo Bot';
+const ORGANOQUIZO_BOT_NAME='OrganoBot';
 const PLANNER_TIMELINE_DEFAULTS={
   minDays:7,
   maxDays:28,
@@ -404,12 +404,12 @@ function renderPlannerCurriculumSummary(){
   const node=document.getElementById('plannerCurriculumSummary');
   if(!node)return;
   if(!window.OrganoApp?.isAuthenticated?.()){
-    node.textContent='Sign in and complete your profile to attach a curriculum track to the planner and OrganoQuizo Bot.';
+    node.textContent='Sign in and complete your profile to attach a curriculum track to the planner and OrganoBot.';
     return;
   }
   const profile=getSignedInProfile();
   if(!profile.curriculumTrack){
-    node.textContent='No curriculum is attached to this account yet. Complete your profile to let the planner and OrganoQuizo Bot adapt to your assigned track.';
+    node.textContent='No curriculum is attached to this account yet. Complete your profile to let the planner and OrganoBot adapt to your assigned track.';
     return;
   }
   const entry=getAssignedCurriculumEntry();
@@ -417,7 +417,7 @@ function renderPlannerCurriculumSummary(){
     node.textContent=`Curriculum "${profile.curriculumTrack}" is saved on your account, but it is not present in the loaded curriculum library.`;
     return;
   }
-  node.textContent=`Planner and OrganoQuizo Bot are using ${entry.title}${profile.academicYear?` for ${profile.academicYear}`:''}. ${entry.topics.length} curriculum topics will be used to bias roadmap priorities, study guidance, and explanations.`;
+  node.textContent=`Planner and OrganoBot are using ${entry.title}${profile.academicYear?` for ${profile.academicYear}`:''}. ${entry.topics.length} curriculum topics will be used to bias roadmap priorities, study guidance, and explanations.`;
 }
 
 function openLessonTopic(slug){
@@ -1068,7 +1068,7 @@ function buildOfflineStudyPlan(){
   AI?.savePlannerCache?.(plan);
   savePlanHistory(plan,input);
   setPlannerError('');
-  setPlannerStatus('Offline quick plan ready. Use the built-in AI whenever you want a richer roadmap or OrganoQuizo Bot chat.');
+  setPlannerStatus('Offline quick plan ready. Use the built-in AI whenever you want a richer roadmap or OrganoBot chat.');
   renderStats();
   renderStudyPlan(plan);
   renderMission();
@@ -1121,13 +1121,13 @@ async function buildStudyPlan(){
 
 function resetPlannerData(){
   if(!canUseAccountFeature('Sign in to manage planner history and stored progress.'))return;
-  if(!confirm('Reset planner data? This clears study plans, cached roadmap data, and quiz history, but keeps your theme, topic marks, saved reactions, material studio state, and OrganoQuizo Bot chats.'))return;
+  if(!confirm('Reset planner data? This clears study plans, cached roadmap data, and quiz history, but keeps your theme, topic marks, saved reactions, material studio state, and OrganoBot chats.'))return;
   state.quizHistory=[];
   state.studyPlans=[];
   saveState();
   AI?.clearPlannerCache?.();
   setPlannerError('');
-  setPlannerStatus('Planner data cleared. Your theme, topic status, saved reactions, material studio state, and OrganoQuizo Bot chats were preserved.');
+  setPlannerStatus('Planner data cleared. Your theme, topic status, saved reactions, material studio state, and OrganoBot chats were preserved.');
   renderStats();
   renderStudyPlan();
   renderWeakAreas();
@@ -1411,7 +1411,7 @@ function buildAdaptiveQuizRequest({selectedCategory,selectedDifficulty,selectedL
 }
 
 async function buildAdaptiveQuizSet(request){
-  if(!AI?.requestAdaptiveQuiz)throw new Error('OrganoQuizo Bot is unavailable.');
+  if(!AI?.requestAdaptiveQuiz)throw new Error('OrganoBot is unavailable.');
   showQuizBuildState(
     `${ORGANOQUIZO_BOT_NAME} is building your quiz...`,
     'Generating adaptive questions from your study plan, learner level, and weak areas.'

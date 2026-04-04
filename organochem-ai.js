@@ -21,7 +21,7 @@
   };
 
   const CHEMISTRY_CHAT_SYSTEM_PROMPT=[
-    'You are OrganoQuizo Bot, a chemistry-focused assistant with strong expertise in organic chemistry.',
+    'You are OrganoBot, a chemistry-focused assistant with strong expertise in organic chemistry.',
     'Answer only chemistry-related questions and politely redirect unrelated questions back to chemistry.',
     'Treat shorthand, fragments, formulas, reaction arrows, spectra values, and messy spelling or grammar as valid chemistry input when context suggests chemistry.',
     'Use the current message plus recent conversation history to infer likely chemistry intent before asking for clarification.',
@@ -46,7 +46,7 @@
   ].join(' ');
 
   const QUIZ_GENERATOR_SYSTEM_PROMPT=[
-    'You are OrganoQuizo Bot, the shared adaptive organic chemistry quiz generator inside this app.',
+    'You are OrganoBot, the shared adaptive organic chemistry quiz generator inside this app.',
     'Generate multiple-choice questions that follow the learner study plan, current quiz mode, learner level, weak areas, and recent quiz performance.',
     'When a study plan is provided, prioritize its roadmap topics, next-session blocks, and priority areas instead of generating generic questions.',
     'Return valid JSON only with no markdown fences and no extra commentary.',
@@ -462,7 +462,7 @@
     try{
       return JSON.parse(content);
     }catch{
-      throw new Error('OrganoQuizo Bot returned invalid quiz JSON.');
+      throw new Error('OrganoBot returned invalid quiz JSON.');
     }
   }
 
