@@ -3,28 +3,27 @@
   const AI_PLANNER_KEY='oc-ai-planner-v1';
   const ORGANOBOT_HISTORY_KEY='oc-organobot-history-v1';
   const AI_PROXY_URL='/api/chat';
-  const AI_SHARED_SCRIPT_URL='https://js.puter.com/v2/';
-  const DEFAULT_AI_MODEL='x-ai/grok-4.20-beta';
+  const DEFAULT_AI_MODEL='gemini-1.5-flash';
   const AI_PROVIDER_PRESETS={
     builtIn:{
       id:'builtIn',
-      label:'Shared Grok AI',
-      provider:'Puter + server fallback',
-      summary:'Shared chemistry assistant and roadmap planner powered by Grok.',
+      label:'Shared Gemini AI',
+      provider:'Secure server route',
+      summary:'Shared chemistry assistant and roadmap planner powered by Gemini.',
       model:DEFAULT_AI_MODEL
     }
   };
   const DEFAULT_AI_SETTINGS={
-    apiKey:'',
-    baseUrl:'',
     model:DEFAULT_AI_MODEL
   };
 
   const CHEMISTRY_CHAT_SYSTEM_PROMPT=[
-    'You are ORGANOBOT, a chemistry-focused assistant with strong expertise in organic chemistry.',
+    'You are OrganoBot, a chemistry-focused assistant with strong expertise in organic chemistry.',
     'Answer only chemistry-related questions and politely redirect unrelated questions back to chemistry.',
     'Treat shorthand, fragments, formulas, reaction arrows, spectra values, and messy spelling or grammar as valid chemistry input when context suggests chemistry.',
     'Use the current message plus recent conversation history to infer likely chemistry intent before asking for clarification.',
+    'When learner curriculum and academic year are provided, use them as the primary study reference for scope, sequencing, terminology, and difficulty.',
+    'When a saved study plan is provided, use it to align quiz help, revision guidance, and generated question ideas.',
     'Format answers for an in-browser chat so they are easy to scan: use short sections, bullets, and clean spacing.',
     'Avoid dense wall-of-text formatting, and when comparing topics prefer bullets or a compact markdown table with one row per point.',
     'Be accurate, explain step-by-step when helpful, and admit uncertainty when appropriate.',
@@ -34,10 +33,26 @@
   const PLANNER_SYSTEM_PROMPT=[
     'You are OrganoChem Planner, an expert organic chemistry study-planning assistant.',
     'Create a beginner-to-master roadmap and a next-session plan based on the learner profile and browser progress snapshot.',
+    'When a curriculum track and academic year are provided, align the roadmap, next session, topic depth, and exam checkpoints to that curriculum reference instead of giving a generic plan.',
+    'Treat input.courseDays, input.courseWeeks, input.sessionMinutes, input.plannedQuizzes, input.plannedMajorExams, and input.recommendedQuizzesPerWeek as the pacing anchors for the plan.',
+    'Spread major exams across the roadmap with the final major exam near the end of the course.',
     'Return valid JSON only with no markdown fences and no extra commentary.',
     'Keep the roadmap realistic, motivating, and specific to organic chemistry.',
     'The nextSession.blocks minutes must sum exactly to nextSession.totalMinutes.',
     'Use only the requested keys and keep every field populated.'
+  ].join(' ');
+
+  const QUIZ_GENERATOR_SYSTEM_PROMPT=[
+    'You are OrganoBot, the shared adaptive organic chemistry quiz generator inside this app.',
+    'Generate multiple-choice questions that follow the learner study plan, current quiz mode, learner level, weak areas, and recent quiz performance.',
+    'When a study plan is provided, prioritize its roadmap topics, next-session blocks, and priority areas instead of generating generic questions.',
+    'Return valid JSON only with no markdown fences and no extra commentary.',
+    'Every question must have exactly 4 answer choices, exactly 1 correct answer index from 0 to 3, and a short explanation.',
+    'The explanation must briefly say why the correct choice is right and why the other choices do not fit.',
+    'Keep distractors plausible, avoid duplicate options, avoid trick wording, and keep the chemistry accurate.',
+    'Respect the requested question count and quiz mode, and vary difficulty progressively when the mode suggests a progression.',
+    'Use only these categories when labeling questions: Functional Groups, Reaction Mechanisms, IUPAC Naming, Stereochemistry, Aromatic Chemistry, Spectroscopy.',
+    'Use only these difficulty labels: Beginner, Intermediate, Advanced, Scholar.'
   ].join(' ');
 
   function escapeHtml(value){
@@ -69,12 +84,12 @@
   }
 
   function buildAISettingsFromPreset(id='builtIn',partial={}){
+    const preset=getAIProviderPreset(id);
     return{
       ...readAISettings(),
+      ...preset,
       ...partial,
-      apiKey:'',
-      baseUrl:'',
-      model:DEFAULT_AI_MODEL
+      model:String(partial.model||preset.model||DEFAULT_AI_MODEL).trim()||DEFAULT_AI_MODEL
     };
   }
 
@@ -83,19 +98,16 @@
     return{
       ...DEFAULT_AI_SETTINGS,
       ...saved,
-      apiKey:'',
-      baseUrl:'',
-      model:DEFAULT_AI_MODEL
+      model:String(saved.model||DEFAULT_AI_MODEL).trim()||DEFAULT_AI_MODEL
     };
   }
 
   function saveAISettings(partial={}){
+    const current=readAISettings();
     const next={
-      ...readAISettings(),
+      ...current,
       ...partial,
-      apiKey:'',
-      baseUrl:'',
-      model:DEFAULT_AI_MODEL
+      model:String(partial.model||current.model||DEFAULT_AI_MODEL).trim()||DEFAULT_AI_MODEL
     };
     return writeStorageJson(AI_SETTINGS_KEY,next);
   }
@@ -142,13 +154,32 @@
 
   function normalizeAIError(error){
     if(!error)return'Unknown AI error.';
-    if(typeof error==='string')return error;
-    if(typeof error?.error?.message==='string')return error.error.message;
-    if(typeof error?.message==='string')return error.message;
-    return'Unknown AI error.';
+    const rawMessage=typeof error==='string'
+      ?error
+      :typeof error?.error?.message==='string'
+        ?error.error.message
+        :typeof error?.message==='string'
+          ?error.message
+          :'Unknown AI error.';
+    const message=String(rawMessage).trim()||'Unknown AI error.';
+    if(message.includes('GEMINI_API_KEY is not configured on the server')){
+      return 'The AI server is not configured yet. Add your Gemini key to GEMINI_API_KEY in .env or .env.local, then restart the server.';
+    }
+    if(message.includes('The Gemini proxy could not reach the upstream service')){
+      return 'The AI server reached its proxy route, but the upstream Gemini service did not respond. Try again in a moment.';
+    }
+    if(message.includes('The shared Gemini AI service could not be reached')){
+      return 'The AI server could not be reached. Make sure your local dev server is running and try again.';
+    }
+    if(message.includes('The shared Gemini AI service returned invalid JSON')){
+      return 'The AI service responded, but the app could not parse the JSON it returned. Try again in a moment.';
+    }
+    return message;
   }
 
   function extractProxyMessageContent(response){
+    const direct=normalizeContent(response?.text);
+    if(direct)return direct;
     const message=response?.choices?.[0]?.message;
     const content=normalizeContent(message?.content);
     if(content)return content;
@@ -162,68 +193,8 @@
     })).filter(message=>message.role&&message.content);
   }
 
-  function resolveModelForTransport(model,transport){
-    const raw=String(model||'').trim()||DEFAULT_AI_MODEL;
-    if(transport==='puter'){
-      if(raw==='grok-4')return DEFAULT_AI_MODEL;
-      return raw;
-    }
-    if(raw.startsWith('x-ai/'))return'grok-4';
-    return raw||'grok-4';
-  }
-
-  function extractPuterMessageContent(response){
-    const content=normalizeContent(response?.message?.content);
-    if(content)return content;
-    if(typeof response?.message==='string')return response.message;
-    if(typeof response?.text==='string')return response.text;
-    if(typeof response==='string')return response;
-    return '';
-  }
-
-  function hasPuterChat(){
-    return Boolean(window.puter?.ai?.chat);
-  }
-
-  let puterLoadPromise=null;
-
-  function loadPuterSdk(){
-    if(hasPuterChat())return Promise.resolve(window.puter);
-    if(typeof document==='undefined')return Promise.reject(new Error('Shared Grok AI can only load in the browser.'));
-    if(puterLoadPromise)return puterLoadPromise;
-
-    puterLoadPromise=new Promise((resolve,reject)=>{
-      const finalize=()=>{
-        if(hasPuterChat()){
-          resolve(window.puter);
-          return;
-        }
-        reject(new Error('The Puter SDK loaded, but Grok chat is unavailable.'));
-      };
-
-      const handleError=()=>reject(new Error('The Puter SDK could not be loaded.'));
-      let script=document.querySelector('script[data-puter-sdk]');
-
-      if(!script){
-        script=document.createElement('script');
-        script.src=AI_SHARED_SCRIPT_URL;
-        script.async=true;
-        script.dataset.puterSdk='true';
-        document.head.appendChild(script);
-      }
-
-      script.addEventListener('load',finalize,{once:true});
-      script.addEventListener('error',handleError,{once:true});
-
-      window.setTimeout(()=>{
-        if(hasPuterChat())finalize();
-      },250);
-    }).catch(error=>{
-      puterLoadPromise=null;
-      throw error;
-    });
-
-    return puterLoadPromise;
+  function resolveModelName(model){
+    return String(model||DEFAULT_AI_MODEL).trim()||DEFAULT_AI_MODEL;
   }
 
   async function readServerProxyStatus(){
@@ -254,46 +225,16 @@
   }
 
   async function readHostedProxyStatus(force=false){
-    try{
-      await loadPuterSdk();
-      if(hasPuterChat()){
-        return{
-          available:true,
-          configured:true,
-          url:AI_SHARED_SCRIPT_URL,
-          reason:'puter-ready',
-          signedIn:true,
-          provider:'puter'
-        };
-      }
-    }catch{}
     return readServerProxyStatus();
   }
 
-  async function createPuterChatCompletion({messages,temperature=.4}){
-    await loadPuterSdk();
-    const settings=readAISettings();
-    const response=await window.puter.ai.chat(normalizeRequestMessages(messages),false,{
-      model:resolveModelForTransport(settings.model,'puter'),
-      temperature
-    });
-    const content=extractPuterMessageContent(response);
-    if(!content.trim())throw new Error('Shared Grok AI returned an empty response.');
-    return{
-      content:stripCodeFences(content),
-      reasoningDetails:null,
-      payload:response,
-      settings,
-      provider:'puter'
-    };
-  }
-
-  async function createProxyChatCompletion({messages,temperature=.4}){
+  async function createProxyChatCompletion({messages,jsonMode=false,temperature=.4}){
     const settings=readAISettings();
     const payload={
-      model:resolveModelForTransport(settings.model,'server'),
+      model:resolveModelName(settings.model),
       messages:normalizeRequestMessages(messages),
-      temperature
+      temperature,
+      responseMimeType:jsonMode?'application/json':'text/plain'
     };
 
     let response;
@@ -307,18 +248,18 @@
         body:JSON.stringify(payload)
       });
     }catch{
-      throw new Error('The shared Grok AI service could not be reached. Check your server connection and try again.');
+      throw new Error('The shared Gemini AI service could not be reached. Check your server connection and try again.');
     }
 
     const rawText=await response.text();
     const parsed=safeParseJson(rawText);
 
     if(!response.ok){
-      throw new Error(normalizeAIError(parsed||rawText||'The shared Grok AI request failed.'));
+      throw new Error(normalizeAIError(parsed||rawText||'The shared Gemini AI request failed.'));
     }
 
     const content=extractProxyMessageContent(parsed);
-    if(!content.trim())throw new Error('The shared Grok AI service returned an empty response.');
+    if(!content.trim())throw new Error('The shared Gemini AI service returned an empty response.');
     return{
       content:stripCodeFences(content),
       reasoningDetails:null,
@@ -328,22 +269,13 @@
     };
   }
 
-  function shouldTryServerFallback(error){
-    const message=normalizeAIError(error).toLowerCase();
-    return !message.includes('user cancelled')&&!message.includes('canceled');
-  }
-
   async function createChatCompletion({messages,jsonMode=false,temperature=.4,reasoningEnabled=false}){
-    try{
-      return await createPuterChatCompletion({messages,jsonMode,temperature,reasoningEnabled});
-    }catch(puterError){
-      if(!shouldTryServerFallback(puterError))throw puterError;
-      try{
-        return await createProxyChatCompletion({messages,jsonMode,temperature,reasoningEnabled});
-      }catch(proxyError){
-        throw new Error(`${normalizeAIError(puterError)} ${normalizeAIError(proxyError)}`.trim());
-      }
-    }
+    return createProxyChatCompletion({
+      messages,
+      jsonMode,
+      temperature,
+      reasoningEnabled
+    });
   }
 
   function buildPlannerMessages({input,progress}){
@@ -384,6 +316,50 @@
       return JSON.parse(content);
     }catch{
       throw new Error('The AI planner returned invalid JSON.');
+    }
+  }
+
+  function buildAdaptiveQuizMessages({input,progress}){
+    return[
+      {role:'system',content:QUIZ_GENERATOR_SYSTEM_PROMPT},
+      {role:'user',content:[
+        'Build an adaptive organic chemistry quiz.',
+        'Return valid JSON only.',
+        '',
+        'Quiz contract:',
+        JSON.stringify({
+          title:'string',
+          strategy:'string',
+          questions:[{
+            q:'string',
+            opts:['string','string','string','string'],
+            ans:1,
+            exp:'string',
+            cat:'Functional Groups',
+            diff:'Intermediate'
+          }],
+          blockLabels:[{start:1,end:3,label:'string'}]
+        }),
+        '',
+        'Quiz request:',
+        JSON.stringify(input),
+        '',
+        'Learner progress and study context:',
+        JSON.stringify(progress)
+      ].join('\n')}
+    ];
+  }
+
+  async function requestAdaptiveQuiz({input,progress}){
+    const {content}=await createChatCompletion({
+      messages:buildAdaptiveQuizMessages({input,progress}),
+      jsonMode:true,
+      temperature:.55
+    });
+    try{
+      return JSON.parse(content);
+    }catch{
+      throw new Error('OrganoBot returned invalid quiz JSON.');
     }
   }
 
@@ -456,12 +432,12 @@
     AI_PLANNER_KEY,
     ORGANOBOT_HISTORY_KEY,
     AI_PROXY_URL,
-    AI_SHARED_SCRIPT_URL,
     DEFAULT_AI_MODEL,
     AI_PROVIDER_PRESETS,
     DEFAULT_AI_SETTINGS,
     CHEMISTRY_CHAT_SYSTEM_PROMPT,
     PLANNER_SYSTEM_PROMPT,
+    QUIZ_GENERATOR_SYSTEM_PROMPT,
     escapeHtml,
     readStorageJson,
     writeStorageJson,
@@ -476,6 +452,7 @@
     readHostedProxyStatus,
     createChatCompletion,
     requestPlannerRoadmap,
+    requestAdaptiveQuiz,
     formatAssistantHtml
   };
 })();

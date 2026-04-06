@@ -10,6 +10,78 @@ const {
   validateProxyPayload
 } = require('./_security');
 
+function resolveGeminiApiKey() {
+  return String(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '').trim();
+}
+
+function safeParseJson(text) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+function buildGeminiPayload(payload) {
+  const systemParts = payload.messages
+    .filter(message => message.role === 'system')
+    .map(message => message.content.trim())
+    .filter(Boolean);
+
+  const contents = [];
+
+  for (const message of payload.messages) {
+    if (message.role === 'system') continue;
+    const role = message.role === 'assistant' ? 'model' : 'user';
+    const previous = contents[contents.length - 1];
+
+    if (previous && previous.role === role) {
+      previous.parts.push({ text: message.content });
+      continue;
+    }
+
+    contents.push({
+      role,
+      parts: [{ text: message.content }]
+    });
+  }
+
+  if (!contents.length) {
+    contents.push({
+      role: 'user',
+      parts: [{ text: 'Respond to the latest system instructions.' }]
+    });
+  }
+
+  const request = {
+    contents,
+    generationConfig: {
+      temperature: payload.temperature
+    }
+  };
+
+  if (systemParts.length) {
+    request.systemInstruction = {
+      parts: [{ text: systemParts.join('\n\n') }]
+    };
+  }
+
+  if (payload.responseMimeType) {
+    request.generationConfig.responseMimeType = payload.responseMimeType;
+  }
+
+  return request;
+}
+
+function extractGeminiText(payload) {
+  const parts = payload?.candidates?.[0]?.content?.parts;
+  if (!Array.isArray(parts)) return '';
+  return parts
+    .map(part => typeof part?.text === 'string' ? part.text : '')
+    .join('')
+    .trim();
+}
+
 module.exports = async (req, res) => {
   const cors = buildCorsContext(req);
   applySecurityHeaders(req, res, cors.corsOrigin);
@@ -28,7 +100,7 @@ module.exports = async (req, res) => {
   if (req.method === 'GET') {
     sendJson(res, 200, {
       ok: true,
-      configured: Boolean(process.env.XAI_API_KEY)
+      configured: Boolean(resolveGeminiApiKey())
     });
     return;
   }
@@ -50,8 +122,9 @@ module.exports = async (req, res) => {
     return;
   }
 
-  if (!process.env.XAI_API_KEY) {
-    sendJson(res, 500, { error: { message: 'XAI_API_KEY is not configured on the server.' } });
+  const apiKey = resolveGeminiApiKey();
+  if (!apiKey) {
+    sendJson(res, 500, { error: { message: 'GEMINI_API_KEY is not configured on the server.' } });
     return;
   }
 
@@ -63,20 +136,38 @@ module.exports = async (req, res) => {
     return;
   }
 
+  const model = encodeURIComponent(validation.payload.model);
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+
   try {
-    const upstream = await fetch('https://api.x.ai/v1/chat/completions', {
+    const upstream = await fetch(url, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.XAI_API_KEY}`
+        'Content-Type': 'application/json'
       },
-      body: JSON.stringify(validation.payload)
+      body: JSON.stringify(buildGeminiPayload(validation.payload))
     });
 
-    const text = await upstream.text();
-    res.setHeader('Content-Type', 'application/json; charset=utf-8');
-    res.status(upstream.status).send(text);
+    const rawText = await upstream.text();
+    const parsed = safeParseJson(rawText);
+
+    if (!upstream.ok) {
+      sendJson(res, upstream.status, parsed || { error: { message: 'Gemini upstream request failed.' } });
+      return;
+    }
+
+    const text = extractGeminiText(parsed);
+    if (!text) {
+      sendJson(res, 502, { error: { message: 'The Gemini proxy returned an empty response.' } });
+      return;
+    }
+
+    sendJson(res, 200, {
+      text,
+      model: validation.payload.model,
+      provider: 'gemini'
+    });
   } catch {
-    sendJson(res, 502, { error: { message: 'The xAI proxy could not reach the upstream service.' } });
+    sendJson(res, 502, { error: { message: 'The Gemini proxy could not reach the upstream service.' } });
   }
 };

@@ -3,20 +3,17 @@
   const AI_PLANNER_KEY='oc-ai-planner-v1';
   const ORGANOBOT_HISTORY_KEY='oc-organobot-history-v1';
   const AI_PROXY_URL='/api/chat';
-  const AI_SHARED_SCRIPT_URL='https://js.puter.com/v2/';
-  const DEFAULT_AI_MODEL='x-ai/grok-4.20';
+  const DEFAULT_AI_MODEL='gemini-1.5-flash';
   const AI_PROVIDER_PRESETS={
     builtIn:{
       id:'builtIn',
-      label:'Shared Grok AI',
-      provider:'Puter + server fallback',
-      summary:'Shared chemistry assistant and roadmap planner powered by Grok.',
+      label:'Shared Gemini AI',
+      provider:'Secure server route',
+      summary:'Shared chemistry assistant and roadmap planner powered by Gemini.',
       model:DEFAULT_AI_MODEL
     }
   };
   const DEFAULT_AI_SETTINGS={
-    apiKey:'',
-    baseUrl:'',
     model:DEFAULT_AI_MODEL
   };
 
@@ -87,12 +84,12 @@
   }
 
   function buildAISettingsFromPreset(id='builtIn',partial={}){
+    const preset=getAIProviderPreset(id);
     return{
       ...readAISettings(),
+      ...preset,
       ...partial,
-      apiKey:'',
-      baseUrl:'',
-      model:DEFAULT_AI_MODEL
+      model:String(partial.model||preset.model||DEFAULT_AI_MODEL).trim()||DEFAULT_AI_MODEL
     };
   }
 
@@ -101,19 +98,16 @@
     return{
       ...DEFAULT_AI_SETTINGS,
       ...saved,
-      apiKey:'',
-      baseUrl:'',
-      model:DEFAULT_AI_MODEL
+      model:String(saved.model||DEFAULT_AI_MODEL).trim()||DEFAULT_AI_MODEL
     };
   }
 
   function saveAISettings(partial={}){
+    const current=readAISettings();
     const next={
-      ...readAISettings(),
+      ...current,
       ...partial,
-      apiKey:'',
-      baseUrl:'',
-      model:DEFAULT_AI_MODEL
+      model:String(partial.model||current.model||DEFAULT_AI_MODEL).trim()||DEFAULT_AI_MODEL
     };
     return writeStorageJson(AI_SETTINGS_KEY,next);
   }
@@ -168,22 +162,24 @@
           ?error.message
           :'Unknown AI error.';
     const message=String(rawMessage).trim()||'Unknown AI error.';
-    if(message.includes('XAI_API_KEY is not configured on the server')){
-      return 'The AI server is not configured yet. Add your xAI key to XAI_API_KEY in .env or .env.local, then restart the server.';
+    if(message.includes('GEMINI_API_KEY is not configured on the server')){
+      return 'The AI server is not configured yet. Add your Gemini key to GEMINI_API_KEY in .env or .env.local, then restart the server.';
     }
-    if(message.includes('The xAI proxy could not reach the upstream service')){
-      return 'The AI server reached its proxy route, but the upstream xAI service did not respond. Try again in a moment.';
+    if(message.includes('The Gemini proxy could not reach the upstream service')){
+      return 'The AI server reached its proxy route, but the upstream Gemini service did not respond. Try again in a moment.';
     }
-    if(message.includes('The shared Grok AI service could not be reached')){
+    if(message.includes('The shared Gemini AI service could not be reached')){
       return 'The AI server could not be reached. Make sure your local dev server is running and try again.';
     }
-    if(message.includes('The Puter SDK could not be loaded')){
-      return 'The browser could not load the Puter AI fallback. The app will need the server route to be configured instead.';
+    if(message.includes('The shared Gemini AI service returned invalid JSON')){
+      return 'The AI service responded, but the app could not parse the JSON it returned. Try again in a moment.';
     }
     return message;
   }
 
   function extractProxyMessageContent(response){
+    const direct=normalizeContent(response?.text);
+    if(direct)return direct;
     const message=response?.choices?.[0]?.message;
     const content=normalizeContent(message?.content);
     if(content)return content;
@@ -197,68 +193,8 @@
     })).filter(message=>message.role&&message.content);
   }
 
-  function resolveModelForTransport(model,transport){
-    const raw=String(model||'').trim()||DEFAULT_AI_MODEL;
-    if(transport==='puter'){
-      if(raw==='grok-4')return DEFAULT_AI_MODEL;
-      return raw;
-    }
-    if(raw.startsWith('x-ai/'))return'grok-4';
-    return raw||'grok-4';
-  }
-
-  function extractPuterMessageContent(response){
-    const content=normalizeContent(response?.message?.content);
-    if(content)return content;
-    if(typeof response?.message==='string')return response.message;
-    if(typeof response?.text==='string')return response.text;
-    if(typeof response==='string')return response;
-    return '';
-  }
-
-  function hasPuterChat(){
-    return Boolean(window.puter?.ai?.chat);
-  }
-
-  let puterLoadPromise=null;
-
-  function loadPuterSdk(){
-    if(hasPuterChat())return Promise.resolve(window.puter);
-    if(typeof document==='undefined')return Promise.reject(new Error('Shared Grok AI can only load in the browser.'));
-    if(puterLoadPromise)return puterLoadPromise;
-
-    puterLoadPromise=new Promise((resolve,reject)=>{
-      const finalize=()=>{
-        if(hasPuterChat()){
-          resolve(window.puter);
-          return;
-        }
-        reject(new Error('The Puter SDK loaded, but Grok chat is unavailable.'));
-      };
-
-      const handleError=()=>reject(new Error('The Puter SDK could not be loaded.'));
-      let script=document.querySelector('script[data-puter-sdk]');
-
-      if(!script){
-        script=document.createElement('script');
-        script.src=AI_SHARED_SCRIPT_URL;
-        script.async=true;
-        script.dataset.puterSdk='true';
-        document.head.appendChild(script);
-      }
-
-      script.addEventListener('load',finalize,{once:true});
-      script.addEventListener('error',handleError,{once:true});
-
-      window.setTimeout(()=>{
-        if(hasPuterChat())finalize();
-      },250);
-    }).catch(error=>{
-      puterLoadPromise=null;
-      throw error;
-    });
-
-    return puterLoadPromise;
+  function resolveModelName(model){
+    return String(model||DEFAULT_AI_MODEL).trim()||DEFAULT_AI_MODEL;
   }
 
   async function readServerProxyStatus(){
@@ -289,46 +225,16 @@
   }
 
   async function readHostedProxyStatus(force=false){
-    try{
-      await loadPuterSdk();
-      if(hasPuterChat()){
-        return{
-          available:true,
-          configured:true,
-          url:AI_SHARED_SCRIPT_URL,
-          reason:'puter-ready',
-          signedIn:true,
-          provider:'puter'
-        };
-      }
-    }catch{}
     return readServerProxyStatus();
   }
 
-  async function createPuterChatCompletion({messages,temperature=.4}){
-    await loadPuterSdk();
-    const settings=readAISettings();
-    const response=await window.puter.ai.chat(normalizeRequestMessages(messages),false,{
-      model:resolveModelForTransport(settings.model,'puter'),
-      temperature
-    });
-    const content=extractPuterMessageContent(response);
-    if(!content.trim())throw new Error('Shared Grok AI returned an empty response.');
-    return{
-      content:stripCodeFences(content),
-      reasoningDetails:null,
-      payload:response,
-      settings,
-      provider:'puter'
-    };
-  }
-
-  async function createProxyChatCompletion({messages,temperature=.4}){
+  async function createProxyChatCompletion({messages,jsonMode=false,temperature=.4}){
     const settings=readAISettings();
     const payload={
-      model:resolveModelForTransport(settings.model,'server'),
+      model:resolveModelName(settings.model),
       messages:normalizeRequestMessages(messages),
-      temperature
+      temperature,
+      responseMimeType:jsonMode?'application/json':'text/plain'
     };
 
     let response;
@@ -342,18 +248,18 @@
         body:JSON.stringify(payload)
       });
     }catch{
-      throw new Error('The shared Grok AI service could not be reached. Check your server connection and try again.');
+      throw new Error('The shared Gemini AI service could not be reached. Check your server connection and try again.');
     }
 
     const rawText=await response.text();
     const parsed=safeParseJson(rawText);
 
     if(!response.ok){
-      throw new Error(normalizeAIError(parsed||rawText||'The shared Grok AI request failed.'));
+      throw new Error(normalizeAIError(parsed||rawText||'The shared Gemini AI request failed.'));
     }
 
     const content=extractProxyMessageContent(parsed);
-    if(!content.trim())throw new Error('The shared Grok AI service returned an empty response.');
+    if(!content.trim())throw new Error('The shared Gemini AI service returned an empty response.');
     return{
       content:stripCodeFences(content),
       reasoningDetails:null,
@@ -363,22 +269,13 @@
     };
   }
 
-  function shouldTryServerFallback(error){
-    const message=normalizeAIError(error).toLowerCase();
-    return !message.includes('user cancelled')&&!message.includes('canceled');
-  }
-
   async function createChatCompletion({messages,jsonMode=false,temperature=.4,reasoningEnabled=false}){
-    try{
-      return await createPuterChatCompletion({messages,jsonMode,temperature,reasoningEnabled});
-    }catch(puterError){
-      if(!shouldTryServerFallback(puterError))throw puterError;
-      try{
-        return await createProxyChatCompletion({messages,jsonMode,temperature,reasoningEnabled});
-      }catch(proxyError){
-        throw new Error(`${normalizeAIError(puterError)} ${normalizeAIError(proxyError)}`.trim());
-      }
-    }
+    return createProxyChatCompletion({
+      messages,
+      jsonMode,
+      temperature,
+      reasoningEnabled
+    });
   }
 
   function buildPlannerMessages({input,progress}){
@@ -535,7 +432,6 @@
     AI_PLANNER_KEY,
     ORGANOBOT_HISTORY_KEY,
     AI_PROXY_URL,
-    AI_SHARED_SCRIPT_URL,
     DEFAULT_AI_MODEL,
     AI_PROVIDER_PRESETS,
     DEFAULT_AI_SETTINGS,

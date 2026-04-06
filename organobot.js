@@ -206,19 +206,19 @@ async function refreshBotActivationState(){
     return;
   }
   if(!AI){
-    setBotStatus('Shared Grok AI is unavailable right now.');
+    setBotStatus('Shared Gemini AI is unavailable right now.');
     return;
   }
   const client=await AI.readHostedProxyStatus();
   if(client.available&&client.configured){
-    setBotStatus(`Shared Grok AI is ready through ${client.provider==='puter'?'Puter':'the server route'}. ${BOT_DISPLAY_NAME} can answer chemistry questions and build adaptive quizzes.`);
+    setBotStatus(`Shared Gemini AI is ready through the server route. ${BOT_DISPLAY_NAME} can answer chemistry questions and build adaptive quizzes.`);
     return;
   }
   if(client.available&&!client.configured){
-    setBotStatus('Shared Grok AI is not configured on the server yet.');
+    setBotStatus('Shared Gemini AI is not configured on the server yet.');
     return;
   }
-  setBotStatus('Shared Grok AI is unavailable right now. Check Puter or the server connection and try again.');
+  setBotStatus('Shared Gemini AI is unavailable right now. Check the server connection and try again.');
 }
 
 function addMessage(role,content,meta={}){

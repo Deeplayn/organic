@@ -284,7 +284,6 @@
             <div class="planner-journey-guard" id="plannerJourneyGuard" hidden></div>
             <div class="planner-toolbar">
               <button class="btn btn-primary" type="button" onclick="buildStudyPlan()" data-auth-required data-auth-message="Sign in to save AI roadmaps and planner history.">Generate AI Roadmap</button>
-              <button class="btn btn-secondary" type="button" onclick="buildOfflineStudyPlan()" data-auth-required data-auth-message="Sign in to save offline study plans and planner history.">Use Offline Quick Plan</button>
               <button class="btn btn-secondary danger-btn" type="button" onclick="resetPlannerData()" data-auth-required data-auth-message="Sign in to manage planner history and stored progress.">Reset Planner Data</button>
             </div>
             <div class="planner-status" id="plannerStatus" role="status" aria-live="polite" hidden></div>
@@ -584,7 +583,7 @@
           </div>
           <div class="hero-line">
             <span class="hero-label">Shared AI</span>
-            <span class="hero-value">Uses the same shared Grok route as the roadmap planner</span>
+            <span class="hero-value">Uses the same shared Gemini route as the roadmap planner</span>
           </div>
           <div class="hero-line">
             <span class="hero-label">Best for</span>
@@ -607,8 +606,8 @@
 
           <div class="sidebar-card">
             <div class="card-eyebrow">AI Status</div>
-            <h3>Shared Grok AI</h3>
-            <p class="sidebar-note">OrganoBot uses the same shared Grok layer as the planner, with Puter as the first route and the server proxy as fallback. It also powers the adaptive quiz partition.</p>
+            <h3>Shared Gemini AI</h3>
+            <p class="sidebar-note">OrganoBot uses the same shared Gemini server route as the planner. It also powers the adaptive quiz partition.</p>
           </div>
         </aside>
 
@@ -618,7 +617,7 @@
               <div class="card-eyebrow">Live Chemistry Chat</div>
               <h3 id="sessionTitle">New chemistry chat</h3>
             </div>
-            <div class="chat-status" id="botStatus" role="status" aria-live="polite">Checking shared Grok AI availability for OrganoBot...</div>
+            <div class="chat-status" id="botStatus" role="status" aria-live="polite">Checking shared Gemini AI availability for OrganoBot...</div>
           </div>
 
           <div class="chat-log" id="chatLog" aria-live="polite"></div>
@@ -644,7 +643,6 @@
 </footer>
 
 <script src="https://3dmol.org/build/3Dmol-min.js"></script>
-<script src="https://js.puter.com/v2/" data-puter-sdk></script>
 <script src="organochem-ai.js"></script>
 <script src="curriculum-data.js"></script>
 <script src="quiz-journey.js"></script>

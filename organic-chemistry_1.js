@@ -922,59 +922,15 @@ function normalizePlanObject(raw,input,source='ai'){
   };
 }
 
-function buildOfflineStudyPlanObject(input){
-  const weak=weakCats();
-  const weakTopics=weak.slice(0,2).map(item=>item.cat);
-  const reviewTopics=Object.entries(state.topicStatus)
-    .filter(([,value])=>value==='review')
-    .map(([id])=>topics.find(topic=>topic.id===id)?.title)
-    .filter(Boolean);
-  const curriculumPriority=Array.isArray(input.curriculum?.priorityTopics)?input.curriculum.priorityTopics:[];
-  const emphasis=[...curriculumPriority,input.focusArea==='all'?weakTopics[0]||curriculumPriority[0]||'Functional Groups':input.focusArea,...reviewTopics,...weakTopics].filter(Boolean);
-  const priorityTopics=[...new Set(emphasis.concat(chemistryCategories()))].slice(0,5);
-  const recommendedPerWeek=Math.max(1,Math.min(5,input.recommendedQuizzesPerWeek+(input.startingLevel==='Advanced'&&input.courseDays<=14?1:0)));
-  const examMilestones=buildDefaultExamMilestones({...input,plannedMajorExams:input.plannedMajorExams},priorityTopics,input.focusArea==='all'?'Balanced review':input.focusArea);
-  const roadmap=normalizeRoadmapEntries(Array.from({length:Math.max(1,input.courseWeeks)},(_,index)=>({
-    week:index+1,
-    goal:index===0?`Establish a stable base in ${priorityTopics[0]||'organic chemistry fundamentals'}.`:index===Math.max(1,input.courseWeeks)-1?'Consolidate toward a mastery checkpoint.':`Extend the plan into ${priorityTopics[(index+1)%priorityTopics.length]||'applied examples'}.`,
-    topics:priorityTopics.slice(index,index+2).length?priorityTopics.slice(index,index+2):[priorityTopics[index%priorityTopics.length]||'Functional Groups'],
-    quizzes:recommendedPerWeek,
-    majorExam:examMilestones.some(item=>item.week===index+1),
-    notes:index===0?'Start with recognition, naming, and pattern recall before pushing speed.':'Mix one retrieval block with one worked-example block every 7 days.'
-  })),input);
-  return normalizePlanObject({
-    summary:`This offline roadmap uses your ${input.startingLevel.toLowerCase()} starting level, ${input.courseDays}-day course timeline, saved weak areas,${input.curriculum?.track?` and ${input.curriculum.track}${input.curriculum?.academicYear?` (${input.curriculum.academicYear})`:''}`:' and your current topic data'} to keep progress moving toward mastery.`,
-    learnerProfile:{startingLevel:input.startingLevel,targetLevel:'Master',pace:`${input.sessionMinutes}-minute sessions with ${recommendedPerWeek} quizzes every 7 days across ${input.courseDays} days`},
-    roadmap,
-    nextSession:{
-      title:`Offline focus session: ${input.focusArea==='all'?'balanced review':input.focusArea}`,
-      totalMinutes:input.sessionMinutes,
-      blocks:[]
-    },
-    quizStrategy:{
-      recommendedPerWeek,
-      reason:`Your current history suggests ${recommendedPerWeek} quizzes every 7 days is enough to reinforce weak spots without crowding out concept review.`
-    },
-    examMilestones,
-    priorityTopics,
-    advice:[
-      input.curriculum?.track?`Keep ${input.curriculum.track}${input.curriculum?.academicYear?` for ${input.curriculum.academicYear}`:''} in view by revisiting ${curriculumPriority.slice(0,2).join(' and ')||'its core topics'} every 7 days.`:'',
-      weakTopics.length?`Front-load ${weakTopics.join(' and ')} because they are currently your weakest quiz categories.`:'Front-load recognition-heavy topics before switching into mechanism drills.',
-      input.completedQuizzes>=8?'Use completed quizzes as revision checkpoints, not just score reports.':'Build quiz volume steadily so recall becomes routine.',
-      input.completedMajorExams?`You have already taken ${input.completedMajorExams} major exam${input.completedMajorExams>1?'s':''}, so shift more time toward error correction and synthesis.`:`This ${input.courseDays}-day plan includes ${input.plannedMajorExams} major exam${input.plannedMajorExams>1?'s':''}, so use them as full-course synthesis checkpoints.`
-    ]
-  },input,'offline');
-}
-
 function renderLegacyPlan(plan){
   const box=document.getElementById('studyPlan');
-  box.innerHTML=plan?.tasks?.length?plan.tasks.map((task,index)=>`<div class="plan-item"><strong>${esc(task.title)} - ${task.min} min</strong><div>${esc(task.copy)}</div>${task.meta?`<div class="plan-meta">${esc(task.meta)}</div>`:''}${task.quizPreset?`<div class="plan-actions"><button class="btn btn-secondary plan-action" type="button" onclick="startPlanQuiz('${esc(task.quizPreset.category)}',${task.quizPreset.length},'${esc(task.quizPreset.difficulty)}')">${esc(task.actionLabel||'Start planned quiz')}</button></div>`:''}</div>`).join(''):'<div class="plan-empty">No plan generated yet. Generate an AI roadmap or use the offline quick plan.</div>';
+  box.innerHTML=plan?.tasks?.length?plan.tasks.map((task,index)=>`<div class="plan-item"><strong>${esc(task.title)} - ${task.min} min</strong><div>${esc(task.copy)}</div>${task.meta?`<div class="plan-meta">${esc(task.meta)}</div>`:''}${task.quizPreset?`<div class="plan-actions"><button class="btn btn-secondary plan-action" type="button" onclick="startPlanQuiz('${esc(task.quizPreset.category)}',${task.quizPreset.length},'${esc(task.quizPreset.difficulty)}')">${esc(task.actionLabel||'Start planned quiz')}</button></div>`:''}</div>`).join(''):'<div class="plan-empty">No plan generated yet. Generate an AI roadmap to get started.</div>';
 }
 
 function renderStudyPlan(plan=getLatestStoredPlan()){
   const box=document.getElementById('studyPlan');
   if(!plan){
-    box.innerHTML='<div class="plan-empty"><strong>No roadmap generated yet.</strong><div>Generate a day-based roadmap and next session with the built-in AI, or use the offline quick plan.</div></div>';
+    box.innerHTML='<div class="plan-empty"><strong>No roadmap generated yet.</strong><div>Generate a day-based roadmap and next session with the built-in AI.</div></div>';
     return;
   }
   if(plan.tasks)return renderLegacyPlan(plan);
@@ -1030,34 +986,13 @@ function renderStudyPlan(plan=getLatestStoredPlan()){
   </div>`;
 }
 
-function buildOfflineStudyPlan(){
-  if(!canUseAccountFeature('Sign in to save offline study plans and planner history.'))return;
-  if(!ensurePlanGenerationAllowed())return;
-  const input=readPlannerInputs();
-  const plan=buildOfflineStudyPlanObject(input);
-  AI?.savePlannerCache?.(plan);
-  savePlanHistory(plan,input);
-  setPlannerError('');
-  setPlannerStatus('Offline quick plan ready. Use the built-in AI whenever you want a richer roadmap or OrganoBot chat.');
-  renderStats();
-  renderStudyPlan(plan);
-  renderMission();
-  window.OrganoApp?.notify?.({
-    title:'Offline roadmap ready',
-    body:`Your ${input.courseDays}-day roadmap is ready with a ${input.sessionMinutes}-minute ${input.focusArea==='all'?'balanced review':input.focusArea} session.`,
-    kind:'success',
-    actionHref:'#dashboard',
-    actionLabel:'Review roadmap'
-  });
-}
-
 async function buildStudyPlan(){
   if(!canUseAccountFeature('Sign in to save AI roadmaps and planner history.'))return;
   if(!ensurePlanGenerationAllowed())return;
   const input=readPlannerInputs();
   if(!AI){
     setPlannerError('The built-in AI module did not load, so the AI roadmap is unavailable.');
-    setPlannerStatus('Use the offline quick plan while the built-in AI is unavailable.');
+    setPlannerStatus('The built-in AI is unavailable right now.');
     return;
   }
   setPlannerError('');
@@ -1084,7 +1019,7 @@ async function buildStudyPlan(){
     });
   }catch(error){
     setPlannerStatus('The AI roadmap could not be generated.');
-    setPlannerError(`${AI.normalizeAIError(error)} You can still use the offline quick plan below.`);
+    setPlannerError(AI.normalizeAIError(error));
   }finally{
     window.OrganoApp?.hideLoader?.();
   }

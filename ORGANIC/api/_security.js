@@ -139,6 +139,14 @@ function validateProxyPayload(body) {
     temperature
   };
 
+  if (body.responseMimeType !== undefined) {
+    const responseMimeType = String(body.responseMimeType || '').trim();
+    if (!['text/plain', 'application/json'].includes(responseMimeType)) {
+      return { ok: false, message: 'Unsupported response MIME type.' };
+    }
+    payload.responseMimeType = responseMimeType;
+  }
+
   return {
     ok: true,
     payload
