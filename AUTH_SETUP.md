@@ -69,6 +69,21 @@ In Microsoft Entra ID or Azure Portal, register a web application for this app a
 - Your local `.env` must include `AUTH_STATE_SECRET`, `MICROSOFT_CLIENT_ID`, and `MICROSOFT_CLIENT_SECRET`.
   Without them, the app will refuse to start Microsoft OAuth.
 
+## GitHub OAuth app checklist
+
+In GitHub Developer Settings, create an `OAuth App` for this project and make sure:
+
+- The authorization callback URL is exactly:
+  `http://localhost:3000/api/auth/oauth/callback?provider=github`
+  for local development, and
+  `https://your-domain.com/api/auth/oauth/callback?provider=github`
+  for production.
+- You copy the app's `Client ID` and generated `Client Secret` into:
+  `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET`.
+- Your local `.env` must include `AUTH_STATE_SECRET`, `GITHUB_CLIENT_ID`, and `GITHUB_CLIENT_SECRET`.
+  Without them, the app will refuse to start GitHub OAuth.
+- The app requests `read:user` and `user:email` so it can fetch a verified email address for account linking.
+
 ## Notes
 
 - Users created through OAuth are stored in `users` with `password_hash = NULL`.
