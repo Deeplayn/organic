@@ -3,7 +3,7 @@
   const AI_PLANNER_KEY='oc-ai-planner-v1';
   const ORGANOBOT_HISTORY_KEY='oc-organobot-history-v1';
   const AI_PROXY_URL='/api/chat';
-  const DEFAULT_AI_MODEL='gemini-1.5-flash';
+  const DEFAULT_AI_MODEL='gemini-2.0-flash';
   const AI_PROVIDER_PRESETS={
     builtIn:{
       id:'builtIn',
@@ -165,6 +165,9 @@
     if(message.includes('GEMINI_API_KEY is not configured on the server')){
       return 'The AI server is not configured yet. Add your Gemini key to GEMINI_API_KEY in .env or .env.local, then restart the server.';
     }
+    if(message.includes('RESOURCE_EXHAUSTED')||message.toLowerCase().includes('quota exceeded')){
+      return 'The Gemini key is being read, but that Google project currently has no usable quota. Enable Gemini API access and billing or use a different Gemini key, then try again.';
+    }
     if(message.includes('The Gemini proxy could not reach the upstream service')){
       return 'The AI server reached its proxy route, but the upstream Gemini service did not respond. Try again in a moment.';
     }
@@ -194,7 +197,9 @@
   }
 
   function resolveModelName(model){
-    return String(model||DEFAULT_AI_MODEL).trim()||DEFAULT_AI_MODEL;
+    const raw=String(model||DEFAULT_AI_MODEL).trim()||DEFAULT_AI_MODEL;
+    if(raw==='gemini-1.5-flash')return DEFAULT_AI_MODEL;
+    return raw;
   }
 
   async function readServerProxyStatus(){
