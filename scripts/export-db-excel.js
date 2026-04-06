@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { Client } = require('pg');
 const { ensureSchema, getPool } = require('../api/_db');
+const { refreshAllUserDailySerials } = require('../api/_auth');
 
 async function main() {
   const connectionString = String(process.env.EXPORT_DATABASE_URL || process.env.DATABASE_URL || '').trim();
@@ -21,6 +22,7 @@ async function main() {
   try {
     await ensureSchema();
     await client.connect();
+    const refreshSummary = await refreshDailySerialsForExport(client);
 
     const tables = await getPublicTables(client);
     if (!tables.length) {
@@ -37,6 +39,7 @@ async function main() {
 
     console.log(`Export complete: ${filePath}`);
     console.log(`Tables exported: ${tables.join(', ')}`);
+    console.log(`Daily serials refreshed for export date ${refreshSummary.dailySerialDate}: ${refreshSummary.updatedCount} user${refreshSummary.updatedCount === 1 ? '' : 's'}.`);
     for (const [tableName, count] of Object.entries(rowCounts)) {
       console.log(`${tableName}: ${count} row${count === 1 ? '' : 's'}`);
     }
@@ -47,6 +50,18 @@ async function main() {
     await client.end().catch(() => {});
     await getPool().end().catch(() => {});
     process.env.DATABASE_URL = originalDatabaseUrl;
+  }
+}
+
+async function refreshDailySerialsForExport(client) {
+  await client.query('BEGIN');
+  try {
+    const summary = await refreshAllUserDailySerials(client);
+    await client.query('COMMIT');
+    return summary;
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw error;
   }
 }
 

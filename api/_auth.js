@@ -351,6 +351,65 @@ async function ensureUserDailySerialCurrent(client, row, dateValue = new Date())
   };
 }
 
+async function refreshAllUserDailySerials(client, dateValue = new Date()) {
+  const serialDate = currentDateOnly(dateValue);
+  await client.query('SELECT pg_advisory_xact_lock(hashtext($1), 271830)', [serialDate]);
+
+  const usersResult = await client.query(
+    `SELECT id
+     FROM users
+     ORDER BY created_at, id
+     FOR UPDATE`
+  );
+
+  const userIds = usersResult.rows.map(row => row.id).filter(Boolean);
+  if (!userIds.length) {
+    return {
+      dailySerialDate: serialDate,
+      updatedCount: 0
+    };
+  }
+
+  await client.query(
+    `UPDATE users
+     SET daily_serial_date = NULL,
+         daily_serial = NULL,
+         updated_at = NOW()
+     WHERE id = ANY($1::text[])`,
+    [userIds]
+  );
+
+  const assigned = new Set();
+  for (const userId of userIds) {
+    let candidate = '';
+    for (let attempt = 0; attempt < 64; attempt += 1) {
+      const nextCandidate = String(crypto.randomInt(1, DAILY_SERIAL_MAX + 1)).padStart(6, '0');
+      if (assigned.has(nextCandidate)) continue;
+      assigned.add(nextCandidate);
+      candidate = nextCandidate;
+      break;
+    }
+
+    if (!candidate) {
+      throw new Error(`Could not allocate a unique daily serial while refreshing ${userIds.length} users.`);
+    }
+
+    await client.query(
+      `UPDATE users
+       SET daily_serial_date = $2::date,
+           daily_serial = $3,
+           updated_at = NOW()
+       WHERE id = $1`,
+      [userId, serialDate, candidate]
+    );
+  }
+
+  return {
+    dailySerialDate: serialDate,
+    updatedCount: userIds.length
+  };
+}
+
 async function purgeExpiredSessions() {
   await ensureSchema();
   await getPool().query('DELETE FROM sessions WHERE expires_at <= NOW()');
@@ -510,6 +569,7 @@ module.exports = {
   sanitizeUser,
   reserveDailyUserSerial,
   ensureUserDailySerialCurrent,
+  refreshAllUserDailySerials,
   createSession,
   clearSession,
   getSessionUser,
