@@ -121,6 +121,17 @@
     if(button)button.classList.add('active');
     closeThemePanel();
   }
+  function setWorkspaceTheme(theme,button,options={}){
+    const nextTheme=String(theme||'').trim();
+    if(!nextTheme)return;
+    applyThemeWithoutWorkspace(nextTheme,button);
+    if(authState.user){
+      authState.user={...authState.user,theme:nextTheme};
+    }
+    updateAuthUI();
+    window.dispatchEvent(new CustomEvent('organo:theme-changed',{detail:{theme:nextTheme,userInitiated:options.userInitiated!==false}}));
+  }
+  window.setTheme=setWorkspaceTheme;
   function renderThemePanel(){
     const panel=$('themePanel');
     if(!panel)return;
@@ -898,8 +909,13 @@
       localStorage.setItem(BOT_STATE_KEY,JSON.stringify(payload.botState));
       window.dispatchEvent(new CustomEvent('organo:hydrate-bot-state',{detail:payload.botState}));
     }
-    if(payload.theme){
-      applyThemeLocally(payload.theme);
+    const localTheme=localStorage.getItem(THEME_KEY);
+    const preferredTheme=localTheme||payload.theme;
+    if(preferredTheme){
+      applyThemeLocally(preferredTheme);
+      if(localTheme&&payload.theme&&localTheme!==payload.theme&&isAuthenticated()){
+        queueSync('theme-reconcile');
+      }
     }
   }
 
@@ -1021,6 +1037,7 @@
 
   function updateAuthUI(){
     const user=authState.user;
+    const activeTheme=localStorage.getItem(THEME_KEY)||user?.theme||'lab-noir';
     const profileComplete=isProfileComplete();
     const profileCard=$('profileOnboardingCard');
     const showProfileEditor=Boolean(user)&&(!profileComplete||profileEditorOpen);
@@ -1029,7 +1046,7 @@
     $('headerAuthButton')?.setAttribute('aria-label',user?'Open account':'User Login Button');
     setText('heroSessionState',user?`Signed in as ${user.displayName||user.email}`:'Preview access');
     setText('heroSessionCopy',user?(profileComplete?'Your progress, curriculum-aware roadmaps, theme, and chat history now sync through your account.':'Finish your first-time profile setup to complete your account and start syncing with your learner details attached.'):'Browse every panel freely, then sign in to unlock saved study state, planner history, and OrganoBot conversations.');
-    setText('authSessionSummary',user?(profileComplete?`Signed in as ${user.displayName||'Learner'} (${user.email}). Theme: ${user.theme||localStorage.getItem(THEME_KEY)||'lab-noir'}. Curriculum: ${authState.profile?.curriculumTrack||'Pending'}. Academic year: ${authState.profile?.academicYear||'Pending'}.`:`Signed in as ${user.displayName||'Learner'} (${user.email}). Complete the first-time profile questions below to finish your account setup.`):'You are not signed in. Choose a provider or use your OrganoChem account to start a session.');
+    setText('authSessionSummary',user?(profileComplete?`Signed in as ${user.displayName||'Learner'} (${user.email}). Theme: ${activeTheme}. Curriculum: ${authState.profile?.curriculumTrack||'Pending'}. Academic year: ${authState.profile?.academicYear||'Pending'}.`:`Signed in as ${user.displayName||'Learner'} (${user.email}). Complete the first-time profile questions below to finish your account setup.`):'You are not signed in. Choose a provider or use your OrganoChem account to start a session.');
     const logoutButton=$('logoutButton');
     if(logoutButton)logoutButton.style.display=user?'inline-flex':'none';
     const authFormCard=$('authFormCard');
@@ -1043,7 +1060,7 @@
     if(user){
       setText('accountName',user.displayName||'OrganoChem Account');
       setText('accountIdentityCopy',user.avatarUrl?'Your saved picture and learner setup are synced with your OrganoChem account.':'Add a profile picture and keep your learner setup synced across sessions.');
-      setHtml('accountMeta',`<div><strong>Email</strong><div>${escapeHtml(user.email)}</div></div><div><strong>Daily Serial</strong><div>${escapeHtml(user.dailySerial||'Pending')}</div></div><div><strong>Daily Serial Date</strong><div>${escapeHtml(user.dailySerialDate||'Pending')}</div></div><div><strong>Theme</strong><div>${escapeHtml(user.theme||localStorage.getItem(THEME_KEY)||'lab-noir')}</div></div>`);
+      setHtml('accountMeta',`<div><strong>Email</strong><div>${escapeHtml(user.email)}</div></div><div><strong>Daily Serial</strong><div>${escapeHtml(user.dailySerial||'Pending')}</div></div><div><strong>Daily Serial Date</strong><div>${escapeHtml(user.dailySerialDate||'Pending')}</div></div><div><strong>Theme</strong><div>${escapeHtml(activeTheme)}</div></div>`);
       renderAvatarNode('accountAvatarLarge',{url:user.avatarUrl,label:user.displayName||user.email});
       renderAvatarNode('headerAuthAvatar',{url:user.avatarUrl,label:user.displayName||user.email});
       renderAccountProfile(authState.profile);
