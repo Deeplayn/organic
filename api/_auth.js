@@ -257,24 +257,28 @@ async function clearSession(sessionId) {
 
 async function reserveDailyUserSerial(client, dateValue = new Date()) {
   const serialDate = currentDateOnly(dateValue);
-  const result = await client.query(
-    `INSERT INTO user_daily_serial_counters (serial_date, last_value, updated_at)
-     VALUES ($1::date, 1, NOW())
-     ON CONFLICT (serial_date)
-     DO UPDATE SET last_value = user_daily_serial_counters.last_value + 1, updated_at = NOW()
-     RETURNING last_value`,
-    [serialDate]
-  );
+  await client.query('SELECT pg_advisory_xact_lock(hashtext($1), 314159)', [serialDate]);
 
-  const nextValue = Number(result.rows[0]?.last_value);
-  if (!Number.isInteger(nextValue) || nextValue < 1 || nextValue > DAILY_SERIAL_MAX) {
-    throw new Error('Daily account serial limit reached for this date.');
+  for (let attempt = 0; attempt < 32; attempt += 1) {
+    const candidate = String(crypto.randomInt(1, DAILY_SERIAL_MAX + 1)).padStart(6, '0');
+    const existing = await client.query(
+      `SELECT 1
+       FROM users
+       WHERE daily_serial_date = $1::date
+         AND daily_serial = $2
+       LIMIT 1`,
+      [serialDate, candidate]
+    );
+
+    if (!existing.rowCount) {
+      return {
+        dailySerialDate: serialDate,
+        dailySerial: candidate
+      };
+    }
   }
 
-  return {
-    dailySerialDate: serialDate,
-    dailySerial: String(nextValue).padStart(6, '0')
-  };
+  throw new Error('Could not allocate a unique daily serial for this date.');
 }
 
 async function ensureUserDailySerialCurrent(client, row, dateValue = new Date()) {

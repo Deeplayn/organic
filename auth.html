@@ -71,8 +71,17 @@
         </ul>
       </div>
       <div class="hero-aside-card">
-        <span class="hero-card-label">Account Flow</span>
-        <div class="auth-session-summary">One wide card below lets learners choose a provider first, then switch between sign in and sign up for a website account.</div>
+        <span class="hero-card-label">Appearance</span>
+        <p class="panel-copy">Pick your workspace theme here and carry it into the rest of OrganoChem.</p>
+        <div class="theme-settings-shell">
+          <div class="theme-switcher account-theme-switcher">
+            <button class="theme-btn" type="button" onclick="togglePanel()">
+              <span class="theme-icon" aria-hidden="true"></span>
+              <span id="themeLabel">Lab Noir</span>
+            </button>
+            <div class="theme-panel" id="themePanel"></div>
+          </div>
+        </div>
       </div>
     </aside>
   </section>
@@ -322,25 +331,6 @@
         </label>
         <button class="button primary full-width field-span-2" type="submit" id="profileSaveButton">Save Profile and Continue</button>
       </form>
-    </article>
-
-    <article class="auth-card account-card auth-wide-account" id="themeSettingsCard" hidden>
-      <div class="auth-wide-top">
-        <div>
-          <p class="eyebrow">Appearance</p>
-          <h3>Choose your theme</h3>
-          <p class="panel-copy">Change the workspace theme from your profile page instead of the top navigation bar.</p>
-        </div>
-      </div>
-      <div class="theme-settings-shell">
-        <div class="theme-switcher account-theme-switcher">
-          <button class="theme-btn" type="button" onclick="togglePanel()">
-            <span class="theme-icon" aria-hidden="true"></span>
-            <span id="themeLabel">Lab Noir</span>
-          </button>
-          <div class="theme-panel" id="themePanel"></div>
-        </div>
-      </div>
     </article>
   </section>
 </main>
