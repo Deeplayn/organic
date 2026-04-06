@@ -10,8 +10,8 @@ const {
   validateProxyPayload
 } = require('./_security');
 
-function resolveGeminiApiKey() {
-  return String(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '').trim();
+function resolveGroqApiKey() {
+  return String(process.env.GROQ_API_KEY || '').trim();
 }
 
 function safeParseJson(text) {
@@ -22,74 +22,109 @@ function safeParseJson(text) {
   }
 }
 
-function normalizeGeminiModel(model) {
+function extractOpenAIText(payload) {
+  const content = payload?.choices?.[0]?.message?.content;
+  if (typeof content === 'string') {
+    return content.trim();
+  }
+
+  if (!Array.isArray(content)) {
+    return '';
+  }
+
+  return content
+    .map(part => {
+      if (typeof part === 'string') return part;
+      if (typeof part?.text === 'string') return part.text;
+      return '';
+    })
+    .join('')
+    .trim();
+}
+
+function normalizeGroqModel(model) {
   const raw = String(model || '').trim();
-  if (!raw) return 'gemini-2.0-flash';
-  if (raw === 'gemini-1.5-flash') return 'gemini-2.0-flash';
-  if (raw.startsWith('models/')) return normalizeGeminiModel(raw.slice(7));
-  if (raw.startsWith('x-ai/') || raw.toLowerCase().includes('grok')) return 'gemini-2.0-flash';
-  if (!/^gemini-[a-z0-9.-]+$/i.test(raw)) return 'gemini-2.0-flash';
+  if (!raw) return 'llama-3.3-70b-versatile';
+  if (raw.startsWith('groq/')) return normalizeGroqModel(raw.slice(5));
+  if (raw === 'llama3-70b-8192') return 'llama-3.3-70b-versatile';
   return raw;
 }
 
-function buildGeminiPayload(payload) {
-  const systemParts = payload.messages
-    .filter(message => message.role === 'system')
-    .map(message => message.content.trim())
-    .filter(Boolean);
-
-  const contents = [];
-
-  for (const message of payload.messages) {
-    if (message.role === 'system') continue;
-    const role = message.role === 'assistant' ? 'model' : 'user';
-    const previous = contents[contents.length - 1];
-
-    if (previous && previous.role === role) {
-      previous.parts.push({ text: message.content });
-      continue;
-    }
-
-    contents.push({
-      role,
-      parts: [{ text: message.content }]
-    });
-  }
-
-  if (!contents.length) {
-    contents.push({
-      role: 'user',
-      parts: [{ text: 'Respond to the latest system instructions.' }]
-    });
-  }
-
+function buildGroqPayload(payload) {
   const request = {
-    contents,
-    generationConfig: {
-      temperature: payload.temperature
-    }
+    model: normalizeGroqModel(payload.model),
+    messages: payload.messages.map(message => ({
+      role: message.role,
+      content: message.content
+    })),
+    temperature: payload.temperature
   };
 
-  if (systemParts.length) {
-    request.systemInstruction = {
-      parts: [{ text: systemParts.join('\n\n') }]
-    };
-  }
-
-  if (payload.responseMimeType) {
-    request.generationConfig.responseMimeType = payload.responseMimeType;
+  if (payload.responseMimeType === 'application/json') {
+    request.response_format = { type: 'json_object' };
   }
 
   return request;
 }
 
-function extractGeminiText(payload) {
-  const parts = payload?.candidates?.[0]?.content?.parts;
-  if (!Array.isArray(parts)) return '';
-  return parts
-    .map(part => typeof part?.text === 'string' ? part.text : '')
-    .join('')
-    .trim();
+async function sendGroqRequest(payload) {
+  const apiKey = resolveGroqApiKey();
+  if (!apiKey) {
+    return {
+      ok: false,
+      status: 500,
+      body: { error: { message: 'GROQ_API_KEY is not configured on the server.' } }
+    };
+  }
+
+  const normalizedModel = normalizeGroqModel(payload.model);
+
+  try {
+    const upstream = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(buildGroqPayload(payload))
+    });
+
+    const rawText = await upstream.text();
+    const parsed = safeParseJson(rawText);
+
+    if (!upstream.ok) {
+      return {
+        ok: false,
+        status: upstream.status,
+        body: parsed || { error: { message: 'Groq upstream request failed.' } }
+      };
+    }
+
+    const text = extractOpenAIText(parsed);
+    if (!text) {
+      return {
+        ok: false,
+        status: 502,
+        body: { error: { message: 'The Groq proxy returned an empty response.' } }
+      };
+    }
+
+    return {
+      ok: true,
+      status: 200,
+      body: {
+        text,
+        model: normalizedModel,
+        provider: 'groq'
+      }
+    };
+  } catch {
+    return {
+      ok: false,
+      status: 502,
+      body: { error: { message: 'The Groq proxy could not reach the upstream service.' } }
+    };
+  }
 }
 
 module.exports = async (req, res) => {
@@ -110,7 +145,12 @@ module.exports = async (req, res) => {
   if (req.method === 'GET') {
     sendJson(res, 200, {
       ok: true,
-      configured: Boolean(resolveGeminiApiKey())
+      configured: Boolean(resolveGroqApiKey()),
+      defaults: {
+        chat: 'llama-3.3-70b-versatile',
+        planner: 'llama-3.3-70b-versatile',
+        quiz: 'mixtral-8x7b-32768'
+      }
     });
     return;
   }
@@ -132,12 +172,6 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const apiKey = resolveGeminiApiKey();
-  if (!apiKey) {
-    sendJson(res, 500, { error: { message: 'GEMINI_API_KEY is not configured on the server.' } });
-    return;
-  }
-
   const body = parseJsonBody(req);
   const validation = validateProxyPayload(body);
 
@@ -146,39 +180,11 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const normalizedModel = normalizeGeminiModel(validation.payload.model);
-  const model = encodeURIComponent(normalizedModel);
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
-
-  try {
-    const upstream = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(buildGeminiPayload(validation.payload))
-    });
-
-    const rawText = await upstream.text();
-    const parsed = safeParseJson(rawText);
-
-    if (!upstream.ok) {
-      sendJson(res, upstream.status, parsed || { error: { message: 'Gemini upstream request failed.' } });
-      return;
-    }
-
-    const text = extractGeminiText(parsed);
-    if (!text) {
-      sendJson(res, 502, { error: { message: 'The Gemini proxy returned an empty response.' } });
-      return;
-    }
-
-    sendJson(res, 200, {
-      text,
-      model: normalizedModel,
-      provider: 'gemini'
-    });
-  } catch {
-    sendJson(res, 502, { error: { message: 'The Gemini proxy could not reach the upstream service.' } });
+  if (!resolveGroqApiKey()) {
+    sendJson(res, 500, { error: { message: 'GROQ_API_KEY is not configured on the server.' } });
+    return;
   }
+
+  const result = await sendGroqRequest(validation.payload);
+  sendJson(res, result.status, result.body);
 };

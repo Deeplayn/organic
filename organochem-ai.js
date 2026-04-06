@@ -3,18 +3,24 @@
   const AI_PLANNER_KEY='oc-ai-planner-v1';
   const ORGANOBOT_HISTORY_KEY='oc-organobot-history-v1';
   const AI_PROXY_URL='/api/chat';
-  const DEFAULT_AI_MODEL='gemini-1.5-flash';
+  const DEFAULT_CHAT_MODEL='llama-3.3-70b-versatile';
+  const DEFAULT_PLANNER_MODEL='llama-3.3-70b-versatile';
+  const DEFAULT_QUIZ_MODEL='mixtral-8x7b-32768';
   const AI_PROVIDER_PRESETS={
     builtIn:{
       id:'builtIn',
-      label:'Shared Gemini AI',
+      label:'Shared Groq AI',
       provider:'Secure server route',
-      summary:'Shared chemistry assistant and roadmap planner powered by Gemini.',
-      model:DEFAULT_AI_MODEL
+      summary:'Shared chemistry assistant, roadmap planner, and adaptive quiz stack powered by Groq.',
+      chatModel:DEFAULT_CHAT_MODEL,
+      plannerModel:DEFAULT_PLANNER_MODEL,
+      quizModel:DEFAULT_QUIZ_MODEL
     }
   };
   const DEFAULT_AI_SETTINGS={
-    model:DEFAULT_AI_MODEL
+    chatModel:DEFAULT_CHAT_MODEL,
+    plannerModel:DEFAULT_PLANNER_MODEL,
+    quizModel:DEFAULT_QUIZ_MODEL
   };
 
   const CHEMISTRY_CHAT_SYSTEM_PROMPT=[
@@ -83,13 +89,10 @@
     return{...preset};
   }
 
-  function normalizeStoredModel(model){
+  function normalizeStoredModel(model,fallback){
     const raw=String(model||'').trim();
-    if(!raw)return DEFAULT_AI_MODEL;
-    if(raw==='gemini-1.5-flash')return DEFAULT_AI_MODEL;
-    if(raw.startsWith('models/'))return normalizeStoredModel(raw.slice(7));
-    if(raw.startsWith('x-ai/')||raw.toLowerCase().includes('grok'))return DEFAULT_AI_MODEL;
-    if(!/^gemini-[a-z0-9.-]+$/i.test(raw))return DEFAULT_AI_MODEL;
+    if(!raw)return fallback;
+    if(raw.startsWith('models/'))return normalizeStoredModel(raw.slice(7),fallback);
     return raw;
   }
 
@@ -99,16 +102,21 @@
       ...readAISettings(),
       ...preset,
       ...partial,
-      model:normalizeStoredModel(partial.model||preset.model||DEFAULT_AI_MODEL)
+      chatModel:normalizeStoredModel(partial.chatModel||preset.chatModel||DEFAULT_CHAT_MODEL,DEFAULT_CHAT_MODEL),
+      plannerModel:normalizeStoredModel(partial.plannerModel||preset.plannerModel||DEFAULT_PLANNER_MODEL,DEFAULT_PLANNER_MODEL),
+      quizModel:normalizeStoredModel(partial.quizModel||preset.quizModel||DEFAULT_QUIZ_MODEL,DEFAULT_QUIZ_MODEL)
     };
   }
 
   function readAISettings(){
     const saved=readStorageJson(AI_SETTINGS_KEY,{});
+    const legacyModel=normalizeStoredModel(saved.model||'',DEFAULT_CHAT_MODEL);
     return{
       ...DEFAULT_AI_SETTINGS,
       ...saved,
-      model:normalizeStoredModel(saved.model||DEFAULT_AI_MODEL)
+      chatModel:normalizeStoredModel(saved.chatModel||legacyModel||DEFAULT_CHAT_MODEL,DEFAULT_CHAT_MODEL),
+      plannerModel:normalizeStoredModel(saved.plannerModel||legacyModel||DEFAULT_PLANNER_MODEL,DEFAULT_PLANNER_MODEL),
+      quizModel:normalizeStoredModel(saved.quizModel||DEFAULT_QUIZ_MODEL,DEFAULT_QUIZ_MODEL)
     };
   }
 
@@ -117,8 +125,12 @@
     const next={
       ...current,
       ...partial,
-      model:normalizeStoredModel(partial.model||current.model||DEFAULT_AI_MODEL)
+      chatModel:normalizeStoredModel(partial.chatModel||current.chatModel||DEFAULT_CHAT_MODEL,DEFAULT_CHAT_MODEL),
+      plannerModel:normalizeStoredModel(partial.plannerModel||current.plannerModel||DEFAULT_PLANNER_MODEL,DEFAULT_PLANNER_MODEL),
+      quizModel:normalizeStoredModel(partial.quizModel||current.quizModel||DEFAULT_QUIZ_MODEL,DEFAULT_QUIZ_MODEL)
     };
+    delete next.model;
+    delete next.fallbackModel;
     return writeStorageJson(AI_SETTINGS_KEY,next);
   }
 
@@ -172,19 +184,19 @@
           ?error.message
           :'Unknown AI error.';
     const message=String(rawMessage).trim()||'Unknown AI error.';
-    if(message.includes('GEMINI_API_KEY is not configured on the server')){
-      return 'The AI server is not configured yet. Add your Gemini key to GEMINI_API_KEY in .env or .env.local, then restart the server.';
+    if(message.includes('GROQ_API_KEY is not configured on the server')){
+      return 'The Groq route is not configured yet. Add `GROQ_API_KEY` in `.env` or `.env.local`, then restart the server.';
     }
-    if(message.includes('RESOURCE_EXHAUSTED')||message.toLowerCase().includes('quota exceeded')){
-      return 'The Gemini key is being read, but that Google project currently has no usable quota. Enable Gemini API access and billing or use a different Gemini key, then try again.';
+    if(message.toLowerCase().includes('rate_limit_exceeded')||message.toLowerCase().includes('rate limit')){
+      return 'The Groq route is rate-limited right now. Try again in a moment.';
     }
-    if(message.includes('The Gemini proxy could not reach the upstream service')){
-      return 'The AI server reached its proxy route, but the upstream Gemini service did not respond. Try again in a moment.';
+    if(message.includes('The Groq proxy could not reach the upstream service')){
+      return 'The AI server reached its proxy route, but the upstream Groq service did not respond. Try again in a moment.';
     }
-    if(message.includes('The shared Gemini AI service could not be reached')){
+    if(message.includes('The shared AI service could not be reached')){
       return 'The AI server could not be reached. Make sure your local dev server is running and try again.';
     }
-    if(message.includes('The shared Gemini AI service returned invalid JSON')){
+    if(message.includes('The shared AI service returned invalid JSON')){
       return 'The AI service responded, but the app could not parse the JSON it returned. Try again in a moment.';
     }
     return message;
@@ -206,8 +218,13 @@
     })).filter(message=>message.role&&message.content);
   }
 
-  function resolveModelName(model){
-    return normalizeStoredModel(model);
+  function resolveTaskModels(task='chat'){
+    const settings=readAISettings();
+    return task==='quiz'
+      ?settings.quizModel
+      :task==='planner'
+        ?settings.plannerModel
+        :settings.chatModel;
   }
 
   async function readServerProxyStatus(){
@@ -220,6 +237,7 @@
       return{
         available:response.ok,
         configured:Boolean(payload.configured),
+        defaults:payload.defaults||{},
         url:AI_PROXY_URL,
         reason:response.ok?(payload.configured?'configured':'missing-server-key'):'proxy-error',
         signedIn:true,
@@ -229,6 +247,7 @@
       return{
         available:false,
         configured:false,
+        defaults:{},
         url:AI_PROXY_URL,
         reason:'network-error',
         signedIn:false,
@@ -241,15 +260,14 @@
     return readServerProxyStatus();
   }
 
-  async function createProxyChatCompletion({messages,jsonMode=false,temperature=.4}){
+  async function createProxyChatCompletion({messages,jsonMode=false,temperature=.4,task='chat'}){
     const settings=readAISettings();
-    const payload={
-      model:resolveModelName(settings.model),
-      messages:normalizeRequestMessages(messages),
-      temperature,
-      responseMimeType:jsonMode?'application/json':'text/plain'
-    };
-
+    const providerStatus=await readServerProxyStatus();
+    if(providerStatus.available&&!providerStatus.configured){
+      throw new Error('GROQ_API_KEY is not configured on the server.');
+    }
+    const normalizedMessages=normalizeRequestMessages(messages);
+    const model=resolveTaskModels(task);
     let response;
     try{
       response=await fetch(AI_PROXY_URL,{
@@ -258,36 +276,43 @@
           'Accept':'application/json',
           'Content-Type':'application/json'
         },
-        body:JSON.stringify(payload)
+        body:JSON.stringify({
+          model,
+          messages:normalizedMessages,
+          temperature,
+          responseMimeType:jsonMode?'application/json':'text/plain'
+        })
       });
     }catch{
-      throw new Error('The shared Gemini AI service could not be reached. Check your server connection and try again.');
+      throw new Error('The shared AI service could not be reached. Check your server connection and try again.');
     }
 
     const rawText=await response.text();
     const parsed=safeParseJson(rawText);
 
     if(!response.ok){
-      throw new Error(normalizeAIError(parsed||rawText||'The shared Gemini AI request failed.'));
+      throw new Error(normalizeAIError(parsed||rawText||'The shared AI request failed.'));
     }
 
     const content=extractProxyMessageContent(parsed);
-    if(!content.trim())throw new Error('The shared Gemini AI service returned an empty response.');
+    if(!content.trim())throw new Error('The shared AI service returned an empty response.');
     return{
       content:stripCodeFences(content),
       reasoningDetails:null,
       payload:parsed,
       settings,
-      provider:'server'
+      provider:parsed?.provider||'server',
+      model:parsed?.model||model
     };
   }
 
-  async function createChatCompletion({messages,jsonMode=false,temperature=.4,reasoningEnabled=false}){
+  async function createChatCompletion({messages,jsonMode=false,temperature=.4,reasoningEnabled=false,task='chat'}){
     return createProxyChatCompletion({
       messages,
       jsonMode,
       temperature,
-      reasoningEnabled
+      reasoningEnabled,
+      task
     });
   }
 
@@ -322,6 +347,7 @@
   async function requestPlannerRoadmap({input,progress}){
     const {content}=await createChatCompletion({
       messages:buildPlannerMessages({input,progress}),
+      task:'planner',
       jsonMode:true,
       temperature:.45
     });
@@ -366,6 +392,7 @@
   async function requestAdaptiveQuiz({input,progress}){
     const {content}=await createChatCompletion({
       messages:buildAdaptiveQuizMessages({input,progress}),
+      task:'quiz',
       jsonMode:true,
       temperature:.55
     });
@@ -445,7 +472,10 @@
     AI_PLANNER_KEY,
     ORGANOBOT_HISTORY_KEY,
     AI_PROXY_URL,
-    DEFAULT_AI_MODEL,
+    DEFAULT_AI_MODEL:DEFAULT_CHAT_MODEL,
+    DEFAULT_CHAT_MODEL,
+    DEFAULT_PLANNER_MODEL,
+    DEFAULT_QUIZ_MODEL,
     AI_PROVIDER_PRESETS,
     DEFAULT_AI_SETTINGS,
     CHEMISTRY_CHAT_SYSTEM_PROMPT,

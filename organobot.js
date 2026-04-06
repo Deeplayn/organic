@@ -206,19 +206,19 @@ async function refreshBotActivationState(){
     return;
   }
   if(!AI){
-    setBotStatus('Shared Gemini AI is unavailable right now.');
+    setBotStatus('Shared AI is unavailable right now.');
     return;
   }
   const client=await AI.readHostedProxyStatus();
   if(client.available&&client.configured){
-    setBotStatus(`Shared Gemini AI is ready through the server route. ${BOT_DISPLAY_NAME} can answer chemistry questions and build adaptive quizzes.`);
+    setBotStatus(`Shared Groq AI is ready through the server route. ${BOT_DISPLAY_NAME} can answer chemistry questions and build adaptive quizzes.`);
     return;
   }
   if(client.available&&!client.configured){
-    setBotStatus('Shared Gemini AI is not configured on the server yet.');
+    setBotStatus('Shared AI is not configured on the server yet.');
     return;
   }
-  setBotStatus('Shared Gemini AI is unavailable right now. Check the server connection and try again.');
+  setBotStatus('Shared AI is unavailable right now. Check the server connection and try again.');
 }
 
 function addMessage(role,content,meta={}){
@@ -275,6 +275,7 @@ async function sendToOrganobot(prompt){
         ...(studyContext?[{role:'system',content:studyContext}]:[]),
         ...recentMessages
       ],
+      task:'chat',
       jsonMode:false,
       temperature:.5,
       reasoningEnabled:true
