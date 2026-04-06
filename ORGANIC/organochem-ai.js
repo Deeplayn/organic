@@ -83,13 +83,23 @@
     return{...preset};
   }
 
+  function normalizeStoredModel(model){
+    const raw=String(model||'').trim();
+    if(!raw)return DEFAULT_AI_MODEL;
+    if(raw==='gemini-1.5-flash')return DEFAULT_AI_MODEL;
+    if(raw.startsWith('models/'))return normalizeStoredModel(raw.slice(7));
+    if(raw.startsWith('x-ai/')||raw.toLowerCase().includes('grok'))return DEFAULT_AI_MODEL;
+    if(!/^gemini-[a-z0-9.-]+$/i.test(raw))return DEFAULT_AI_MODEL;
+    return raw;
+  }
+
   function buildAISettingsFromPreset(id='builtIn',partial={}){
     const preset=getAIProviderPreset(id);
     return{
       ...readAISettings(),
       ...preset,
       ...partial,
-      model:String(partial.model||preset.model||DEFAULT_AI_MODEL).trim()||DEFAULT_AI_MODEL
+      model:normalizeStoredModel(partial.model||preset.model||DEFAULT_AI_MODEL)
     };
   }
 
@@ -98,7 +108,7 @@
     return{
       ...DEFAULT_AI_SETTINGS,
       ...saved,
-      model:String(saved.model||DEFAULT_AI_MODEL).trim()||DEFAULT_AI_MODEL
+      model:normalizeStoredModel(saved.model||DEFAULT_AI_MODEL)
     };
   }
 
@@ -107,7 +117,7 @@
     const next={
       ...current,
       ...partial,
-      model:String(partial.model||current.model||DEFAULT_AI_MODEL).trim()||DEFAULT_AI_MODEL
+      model:normalizeStoredModel(partial.model||current.model||DEFAULT_AI_MODEL)
     };
     return writeStorageJson(AI_SETTINGS_KEY,next);
   }
@@ -197,9 +207,7 @@
   }
 
   function resolveModelName(model){
-    const raw=String(model||DEFAULT_AI_MODEL).trim()||DEFAULT_AI_MODEL;
-    if(raw==='gemini-1.5-flash')return DEFAULT_AI_MODEL;
-    return raw;
+    return normalizeStoredModel(model);
   }
 
   async function readServerProxyStatus(){

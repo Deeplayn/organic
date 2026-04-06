@@ -22,6 +22,16 @@ function safeParseJson(text) {
   }
 }
 
+function normalizeGeminiModel(model) {
+  const raw = String(model || '').trim();
+  if (!raw) return 'gemini-2.0-flash';
+  if (raw === 'gemini-1.5-flash') return 'gemini-2.0-flash';
+  if (raw.startsWith('models/')) return normalizeGeminiModel(raw.slice(7));
+  if (raw.startsWith('x-ai/') || raw.toLowerCase().includes('grok')) return 'gemini-2.0-flash';
+  if (!/^gemini-[a-z0-9.-]+$/i.test(raw)) return 'gemini-2.0-flash';
+  return raw;
+}
+
 function buildGeminiPayload(payload) {
   const systemParts = payload.messages
     .filter(message => message.role === 'system')
@@ -136,7 +146,8 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const model = encodeURIComponent(validation.payload.model);
+  const normalizedModel = normalizeGeminiModel(validation.payload.model);
+  const model = encodeURIComponent(normalizedModel);
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
   try {
@@ -164,7 +175,7 @@ module.exports = async (req, res) => {
 
     sendJson(res, 200, {
       text,
-      model: validation.payload.model,
+      model: normalizedModel,
       provider: 'gemini'
     });
   } catch {
