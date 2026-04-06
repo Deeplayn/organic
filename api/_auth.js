@@ -195,15 +195,57 @@ function parseOptionalInteger(value) {
 
 function normalizeDateOnly(value) {
   if (!value) return '';
-  if (value instanceof Date) {
-    return value.toISOString().slice(0, 10);
+  if (typeof value?.getTime === 'function' && typeof value?.getFullYear === 'function') {
+    if (Number.isNaN(value.getTime())) return '';
+    return [
+      String(value.getFullYear()).padStart(4, '0'),
+      String(value.getMonth() + 1).padStart(2, '0'),
+      String(value.getDate()).padStart(2, '0')
+    ].join('-');
   }
   const text = String(value).trim();
   return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : text.slice(0, 10);
 }
 
+function resolveAppTimeZone() {
+  const configured = String(process.env.APP_TIME_ZONE || '').trim();
+  if (configured) {
+    try {
+      new Intl.DateTimeFormat('en-US', { timeZone: configured });
+      return configured;
+    } catch {}
+  }
+
+  const systemTimeZone = String(Intl.DateTimeFormat().resolvedOptions().timeZone || '').trim();
+  if (systemTimeZone) {
+    try {
+      new Intl.DateTimeFormat('en-US', { timeZone: systemTimeZone });
+      return systemTimeZone;
+    } catch {}
+  }
+
+  return 'UTC';
+}
+
+function formatDateOnlyInTimeZone(value, timeZone = resolveAppTimeZone()) {
+  const target = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(target.getTime())) return '';
+
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
+  const parts = formatter.formatToParts(target);
+  const year = parts.find(part => part.type === 'year')?.value || '';
+  const month = parts.find(part => part.type === 'month')?.value || '';
+  const day = parts.find(part => part.type === 'day')?.value || '';
+  return year && month && day ? `${year}-${month}-${day}` : '';
+}
+
 function currentDateOnly(dateValue = new Date()) {
-  return normalizeDateOnly(dateValue) || new Date().toISOString().slice(0, 10);
+  return formatDateOnlyInTimeZone(dateValue) || normalizeDateOnly(dateValue) || new Date().toISOString().slice(0, 10);
 }
 
 function isValidDailySerial(value) {
