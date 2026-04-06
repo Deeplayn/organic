@@ -3,7 +3,7 @@
   const AI_PLANNER_KEY='oc-ai-planner-v1';
   const ORGANOBOT_HISTORY_KEY='oc-organobot-history-v1';
   const AI_PROXY_URL='/api/chat';
-  const DEFAULT_AI_MODEL='gemini-2.0-flash';
+  const DEFAULT_AI_MODEL='gemini-1.5-flash';
   const AI_PROVIDER_PRESETS={
     builtIn:{
       id:'builtIn',
