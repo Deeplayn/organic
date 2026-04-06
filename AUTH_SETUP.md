@@ -52,6 +52,23 @@ Local development examples:
 - `http://localhost:3000/api/auth/oauth/callback?provider=microsoft`
 - `http://localhost:3000/api/auth/oauth/callback?provider=github`
 
+## Microsoft app registration checklist
+
+In Microsoft Entra ID or Azure Portal, register a web application for this app and make sure:
+
+- The platform type is `Web`.
+- The redirect URI is exactly:
+  `http://localhost:3000/api/auth/oauth/callback?provider=microsoft`
+  for local development, and
+  `https://your-domain.com/api/auth/oauth/callback?provider=microsoft`
+  for production.
+- You create a client secret and copy both the `Application (client) ID` and the secret value into:
+  `MICROSOFT_CLIENT_ID` and `MICROSOFT_CLIENT_SECRET`.
+- `MICROSOFT_TENANT_ID=common` works for personal and work/school Microsoft accounts.
+  If you want only one tenant to sign in, replace `common` with that tenant ID.
+- Your local `.env` must include `AUTH_STATE_SECRET`, `MICROSOFT_CLIENT_ID`, and `MICROSOFT_CLIENT_SECRET`.
+  Without them, the app will refuse to start Microsoft OAuth.
+
 ## Notes
 
 - Users created through OAuth are stored in `users` with `password_hash = NULL`.

@@ -75,24 +75,35 @@ const PROVIDERS = {
         client_id: clientId,
         client_secret: clientSecret,
         redirect_uri: redirectUri,
-        grant_type: 'authorization_code'
+        grant_type: 'authorization_code',
+        scope: resolveProviderAuthorize(provider).scopes.join(' ')
       });
 
-      const profile = await fetchJson('https://graph.microsoft.com/v1.0/me?$select=id,displayName,mail,userPrincipalName', {
-        headers: {
-          Authorization: `Bearer ${token.access_token}`
-        }
-      });
-
-      const email = normalizeEmail(profile.mail || profile.userPrincipalName);
+      // Microsoft accounts do not always populate Graph `mail`, so prefer
+      // token claims first and only use Graph as a supplemental profile source.
+      const tokenClaims = parseJwtClaims(token.id_token);
+      const profile = await fetchMicrosoftProfile(token.access_token);
+      const email = normalizeEmail(
+        profile.mail ||
+        profile.userPrincipalName ||
+        tokenClaims.email ||
+        tokenClaims.preferred_username ||
+        tokenClaims.upn
+      );
       if (!validateEmail(email)) {
         throw new Error('Microsoft did not return a usable email address.');
       }
 
       return {
-        providerUserId: String(profile.id || ''),
+        providerUserId: String(profile.id || tokenClaims.oid || tokenClaims.sub || ''),
         email,
-        displayName: String(profile.displayName || email.split('@')[0] || 'Microsoft User').trim()
+        displayName: String(
+          profile.displayName ||
+          tokenClaims.name ||
+          tokenClaims.preferred_username ||
+          email.split('@')[0] ||
+          'Microsoft User'
+        ).trim()
       };
     }
   },
@@ -349,6 +360,42 @@ async function fetchJson(url, options = {}) {
     throw new Error(data?.error_description || data?.message || 'OAuth profile request failed.');
   }
   return data;
+}
+
+async function fetchMicrosoftProfile(accessToken) {
+  if (!accessToken) {
+    return {};
+  }
+
+  try {
+    return await fetchJson('https://graph.microsoft.com/v1.0/me?$select=id,displayName,mail,userPrincipalName', {
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    });
+  } catch {
+    return {};
+  }
+}
+
+function parseJwtClaims(token) {
+  const raw = String(token || '').trim();
+  if (!raw) {
+    return {};
+  }
+
+  const parts = raw.split('.');
+  if (parts.length < 2) {
+    return {};
+  }
+
+  try {
+    const payload = Buffer.from(parts[1], 'base64url').toString('utf8');
+    const parsed = JSON.parse(payload);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
 }
 
 async function parseResponseData(response) {
