@@ -76,6 +76,7 @@
     'University student':['Year 1','Year 2','Year 3','Year 4','Year 5+']
   };
   const IS_AUTH_PAGE=/\/auth\.html$/i.test(window.location.pathname)||/auth\.html$/i.test(window.location.pathname.split('/').pop()||'');
+  const IS_LOCAL_DEV=/^(localhost|127(?:\.\d{1,3}){3})$/i.test(window.location.hostname||'');
   const authState={status:'loading',user:null,profile:null,syncing:false};
   const notificationState=DEFAULT_NOTIFICATION_STATE;
   const loaderState={count:0,defaultMessage:'Preparing your chemistry workspace.'};
@@ -1376,6 +1377,29 @@
     }
   }
 
+  async function handleSimulateNextDay(){
+    showMessage('authStatusMessage','');
+    showLoader('Simulating a new day for your account...');
+    try{
+      const data=await apiJson('/api/dev/simulate-next-day',{method:'POST'});
+      if(data.user){
+        authState.user=data.user;
+      }
+      updateAuthUI();
+      showMessage('authStatusMessage',`Simulated a new day. Daily serial is now ${authState.user?.dailySerial||'updated'}.`);
+      notify({
+        title:'Next day simulated',
+        body:`Daily serial refreshed to ${data.user?.dailySerial||'a new value'} for ${data.user?.dailySerialDate||'today'}.`,
+        kind:'success',
+        dedupeKey:'simulate-next-day'
+      });
+    }catch(error){
+      showMessage('authStatusMessage',error.message,'error');
+    }finally{
+      hideLoader();
+    }
+  }
+
   function handleProviderChoice(event){
     const provider=event.currentTarget.dataset.provider||'provider';
     queuePostSignInNotification();
@@ -1418,6 +1442,11 @@
     $('accountLogoutButton')?.addEventListener('click',handleLogout);
     $('profileLogoutButton')?.addEventListener('click',handleLogout);
     $('accountRefreshButton')?.addEventListener('click',()=>loadRemoteState({allowImport:false}));
+    const simulateNextDayButton=$('simulateNextDayButton');
+    if(simulateNextDayButton){
+      simulateNextDayButton.hidden=!IS_LOCAL_DEV;
+      simulateNextDayButton.addEventListener('click',handleSimulateNextDay);
+    }
     $('editProfileButton')?.addEventListener('click',()=>setProfileEditorOpen(true));
     $('cancelProfileEditButton')?.addEventListener('click',()=>setProfileEditorOpen(false));
     $('loginForm')?.addEventListener('submit',handleLogin);
