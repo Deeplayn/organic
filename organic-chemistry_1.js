@@ -30,6 +30,7 @@ const today=()=>new Date().toLocaleDateString(undefined,{month:'short',day:'nume
 const AI=window.OrganoAI;
 const canUseAccountFeature=message=>window.OrganoApp?.assertFeatureAccess(message)??true;
 const ORGANOQUIZO_BOT_NAME='OrganoBot';
+const QUIZ_AUTO_REFRESH_DELAY_MS=2200;
 const QUIZ_LOCK_MESSAGE='OrganoBot chat is unavailable during quizzes to preserve quiz integrity.';
 const PLANNER_TIMELINE_DEFAULTS={
   minDays:7,
@@ -63,7 +64,7 @@ function setTheme(theme,btn,options={}){
   localStorage.setItem(THEME,theme);
   closePanel();
   window.dispatchEvent(new CustomEvent('organo:theme-changed',{detail:{theme,userInitiated:options.userInitiated!==false}}));
-  setTimeout(()=>drawMol(currentMol),50);
+  setTimeout(()=>drawMol(pickTodaysCompound()?.id||currentMol),50);
 }
 const savedTheme=localStorage.getItem(THEME);
 if(savedTheme)setTheme(savedTheme,document.querySelector(`.t-opt[data-theme-choice="${savedTheme}"]`),{userInitiated:false});
@@ -126,18 +127,62 @@ const todaysCompounds=[
   }
 ];
 let currentMol=todaysCompounds[0]?.id||'ethanol';
+let currentCompoundDateKey='';
+let compoundRefreshTimer=null;
+let quizAutoRefreshTimer=null;
 
-function dayOfYear(date=new Date()){
-  const start=new Date(date.getFullYear(),0,0);
-  const diff=date-start;
-  const oneDay=1000*60*60*24;
-  return Math.floor(diff/oneDay);
+function padDatePart(value){
+  return String(value).padStart(2,'0');
+}
+
+function getLocalDateKey(date=new Date()){
+  return[
+    date.getFullYear(),
+    padDatePart(date.getMonth()+1),
+    padDatePart(date.getDate())
+  ].join('-');
+}
+
+function daysSinceCompoundEpoch(date=new Date()){
+  const currentDayUtc=Date.UTC(date.getFullYear(),date.getMonth(),date.getDate());
+  const epochDayUtc=Date.UTC(2026,0,1);
+  return Math.floor((currentDayUtc-epochDayUtc)/86400000);
+}
+
+function msUntilNextCompoundRefresh(now=new Date()){
+  const nextMidnight=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1,0,0,1,0);
+  return Math.max(1000,nextMidnight-now);
 }
 
 function pickTodaysCompound(date=new Date()){
   if(!todaysCompounds.length)return null;
-  const index=(Math.max(1,dayOfYear(date))-1)%todaysCompounds.length;
+  const total=todaysCompounds.length;
+  const daysSinceEpoch=daysSinceCompoundEpoch(date);
+  const index=((daysSinceEpoch%total)+total)%total;
   return todaysCompounds[index];
+}
+
+function refreshTodaysCompoundIfNeeded(){
+  const dateKey=getLocalDateKey();
+  if(dateKey===currentCompoundDateKey)return false;
+  currentMol=pickTodaysCompound()?.id||currentMol;
+  drawMol(currentMol);
+  return true;
+}
+
+function scheduleCompoundRefresh(){
+  clearTimeout(compoundRefreshTimer);
+  compoundRefreshTimer=setTimeout(()=>{
+    refreshTodaysCompoundIfNeeded();
+    scheduleCompoundRefresh();
+  },msUntilNextCompoundRefresh());
+}
+
+function scheduleQuizAutoRefresh(){
+  clearTimeout(quizAutoRefreshTimer);
+  quizAutoRefreshTimer=setTimeout(()=>{
+    window.location.reload();
+  },QUIZ_AUTO_REFRESH_DELAY_MS);
 }
 
 function moleculeSketchPalette(){
@@ -209,6 +254,7 @@ function drawMol(name){
   void wrap.offsetWidth;
   wrap.classList.add('is-switching');
   currentMol=compound.id;
+  currentCompoundDateKey=getLocalDateKey();
   compound.draw?.(document.getElementById('molSvg'));
   document.getElementById('molName').textContent=compound.name;
   document.getElementById('molFormula').textContent=compound.formula;
@@ -2789,9 +2835,11 @@ function finalizeQuizSession(reason='submitted'){
     actionHref:'#quiz',
     actionLabel:'Review quiz history'
   });
+  scheduleQuizAutoRefresh();
 }
 
 function restartQuiz(){
+  clearTimeout(quizAutoRefreshTimer);
   clearQuizSessionBanner();
   Promise.resolve(setupQuiz());
 }
@@ -2838,6 +2886,11 @@ window.addEventListener('organo:auth-changed',()=>{
   renderQuizJourney();
   renderCurriculum();
 });
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible'){
+    refreshTodaysCompoundIfNeeded();
+  }
+});
 bindPlannerSetupUI();
 hydratePlannerInputs();
 initializeQuizModes();
@@ -2855,3 +2908,4 @@ renderQuizJourney();
 renderReference();
 currentMol=pickTodaysCompound()?.id||currentMol;
 drawMol(currentMol);
+scheduleCompoundRefresh();
