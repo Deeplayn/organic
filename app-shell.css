@@ -1634,6 +1634,81 @@ body.has-global-loader .global-loader{
   border:1px solid var(--border);
   background:var(--surface);
 }
+.plan-collapsible{
+  margin-top:16px;
+  border-radius:18px;
+  border:1px solid var(--border);
+  background:var(--surface);
+  overflow:hidden;
+}
+.plan-collapsible summary{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:14px 16px;
+  cursor:pointer;
+  list-style:none;
+  font-family:var(--font-display);
+  font-size:1.05rem;
+  color:var(--text-bright);
+}
+.plan-collapsible summary::-webkit-details-marker{display:none;}
+.plan-collapsible summary::after{
+  content:'+';
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:28px;
+  height:28px;
+  border-radius:999px;
+  border:1px solid var(--border);
+  color:var(--accent);
+  font-family:var(--font-mono);
+  font-size:1rem;
+  flex:0 0 auto;
+}
+.plan-collapsible[open] summary::after{content:'-';}
+.plan-collapsible-meta{
+  margin-left:auto;
+  font-family:var(--font-mono);
+  font-size:.72rem;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  color:var(--text-dim);
+}
+.planner-todo-list{
+  display:grid;
+  gap:10px;
+  padding:0 16px 16px;
+}
+.planner-todo-item{
+  padding:14px 16px;
+  border-radius:16px;
+  border:1px solid var(--border);
+  background:rgba(255,255,255,.03);
+}
+.planner-todo-top{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:8px;
+}
+.planner-todo-type{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:5px 10px;
+  border-radius:999px;
+  border:1px solid var(--border);
+  background:rgba(255,255,255,.03);
+  font-family:var(--font-mono);
+  font-size:.68rem;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  color:var(--accent);
+}
 .plan-note{color:var(--text-dim);line-height:1.7;}
 .roadmap-week,.session-min{
   font-family:var(--font-mono);

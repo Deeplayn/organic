@@ -883,6 +883,78 @@ function normalizeSessionBlocks(blocks,totalMinutes,fallbackCategory){
   return cleaned;
 }
 
+function normalizeTodoItems(todo,input,{roadmap,blocks,priorityTopics,examMilestones,advice,focusLabel}){
+  const allowedTypes=['study','quiz','review','checkpoint'];
+  const normalizedSource=(Array.isArray(todo)?todo:[]).map((item,index)=>{
+    if(typeof item==='string'){
+      return{
+        title:normalizeText(item,`Task ${index+1}`),
+        detail:'',
+        type:'study'
+      };
+    }
+    return{
+      title:normalizeText(item?.title,`Task ${index+1}`),
+      detail:normalizeText(item?.detail,''),
+      type:allowedTypes.includes(item?.type)?item.type:'study'
+    };
+  }).filter(item=>item.title);
+  if(normalizedSource.length)return normalizedSource.slice(0,6);
+  const primaryRoadmap=roadmap[0]||null;
+  const openingBlock=blocks[0]||null;
+  const focusTopic=priorityTopics[0]||focusLabel;
+  const weakest=weakCats()[0]||null;
+  const nextExam=examMilestones[0]||null;
+  const fallback=[
+    {
+      title:openingBlock?`Finish today's ${input.sessionMinutes}-minute session`:'Complete the first study session',
+      detail:openingBlock?`Start with "${openingBlock.label}" and work through the remaining planner blocks in order.`:`Use the planner blocks to complete one full chemistry session today.`,
+      type:'study'
+    },
+    {
+      title:`Review ${weakest?.cat||focusTopic}`,
+      detail:weakest?`This is currently your lowest quiz category at ${weakest.p}% accuracy, so rebuild the core rules and one example.`:`Use this as the first review lane before branching into other chemistry topics.`,
+      type:'review'
+    },
+    {
+      title:primaryRoadmap?`Cover ${primaryRoadmap.goal}`:`Advance the roadmap by one stage`,
+      detail:primaryRoadmap?`Focus on ${primaryRoadmap.topics.join(', ')} during ${plannerDayRangeLabel(primaryRoadmap.week,Math.max(1,input.courseWeeks),Math.max(1,input.courseDays))}.`:`Use the roadmap cards to finish the next stage of your course plan.`,
+      type:'study'
+    },
+    {
+      title:`Run ${Math.max(1,input.recommendedQuizzesPerWeek||1)} quiz${Math.max(1,input.recommendedQuizzesPerWeek||1)===1?'':'zes'} this week`,
+      detail:`Keep retrieval active across the ${input.courseDays}-day plan, with extra emphasis on ${focusTopic}.`,
+      type:'quiz'
+    },
+    {
+      title:nextExam?`Prepare for the ${nextExam.type} checkpoint`:'Prepare for your next checkpoint',
+      detail:nextExam?`Aim for ${plannerDayRangeLabel(nextExam.week,Math.max(1,input.courseWeeks),Math.max(1,input.courseDays))} and focus on ${nextExam.focus}.`:(advice[0]||'Use your advice panel to decide the next checkpoint focus.'),
+      type:'checkpoint'
+    }
+  ];
+  return fallback.slice(0,5);
+}
+
+function resolvePlanTodo(plan){
+  if(!plan||typeof plan!=='object')return[];
+  const focusLabel=plan.focusArea==='all'||!normalizeText(plan.focusArea,'')?'Balanced review':plan.focusArea;
+  const input={
+    focusArea:typeof plan.focusArea==='string'?plan.focusArea:'all',
+    sessionMinutes:Math.max(1,Math.round(Number(plan.nextSession?.totalMinutes)||Number(plan.inputs?.sessionMinutes)||35)),
+    recommendedQuizzesPerWeek:Math.max(1,Math.round(Number(plan.quizStrategy?.recommendedPerWeek)||Number(plan.inputs?.recommendedQuizzesPerWeek)||2)),
+    courseWeeks:Math.max(1,Math.round(Number(plan.inputs?.courseWeeks)||plan.roadmap?.length||1)),
+    courseDays:Math.max(1,Math.round(Number(plan.inputs?.courseDays)||((plan.roadmap?.length||1)*7)))
+  };
+  return normalizeTodoItems(plan.todo,input,{
+    roadmap:Array.isArray(plan.roadmap)?plan.roadmap:[],
+    blocks:Array.isArray(plan.nextSession?.blocks)?plan.nextSession.blocks:[],
+    priorityTopics:Array.isArray(plan.priorityTopics)?plan.priorityTopics:[],
+    examMilestones:Array.isArray(plan.examMilestones)?plan.examMilestones:[],
+    advice:Array.isArray(plan.advice)?plan.advice:[],
+    focusLabel
+  });
+}
+
 function normalizePlanObject(raw,input,source='ai'){
   const focusLabel=input.focusArea==='all'?'Balanced review':input.focusArea;
   const curriculumPriority=Array.isArray(input.curriculum?.priorityTopics)?input.curriculum.priorityTopics:[];
@@ -899,6 +971,15 @@ function normalizePlanObject(raw,input,source='ai'){
   }));
   const normalizedMilestones=fallbackMilestones.map((fallback,index)=>examMilestones[index]||fallback);
   const majorExamWeeks=new Set(normalizedMilestones.map(item=>item.week));
+  const advice=normalizeStringArray(raw?.advice,['Keep a short error log after each quiz.','Use the roadmap as a rhythm, not as a rigid script.']).slice(0,5);
+  const todo=normalizeTodoItems(raw?.todo,input,{
+    roadmap,
+    blocks,
+    priorityTopics,
+    examMilestones:normalizedMilestones,
+    advice,
+    focusLabel
+  });
   return{
     source,
     createdAt:new Date().toISOString(),
@@ -921,15 +1002,26 @@ function normalizePlanObject(raw,input,source='ai'){
       recommendedPerWeek:Math.max(1,Math.min(5,Math.round(Number(raw?.quizStrategy?.recommendedPerWeek)||input.recommendedQuizzesPerWeek||2))),
       reason:normalizeText(raw?.quizStrategy?.reason,'Frequent retrieval keeps weak patterns visible before they harden into gaps.')
     },
+    todo,
     examMilestones:normalizedMilestones,
     priorityTopics,
-    advice:normalizeStringArray(raw?.advice,['Keep a short error log after each quiz.','Use the roadmap as a rhythm, not as a rigid script.']).slice(0,5)
+    advice
   };
 }
 
 function renderLegacyPlan(plan){
   const box=document.getElementById('studyPlan');
-  box.innerHTML=plan?.tasks?.length?plan.tasks.map((task,index)=>`<div class="plan-item"><strong>${esc(task.title)} - ${task.min} min</strong><div>${esc(task.copy)}</div>${task.meta?`<div class="plan-meta">${esc(task.meta)}</div>`:''}${task.quizPreset?`<div class="plan-actions"><button class="btn btn-secondary plan-action" type="button" onclick="startPlanQuiz('${esc(task.quizPreset.category)}',${task.quizPreset.length},'${esc(task.quizPreset.difficulty)}')">${esc(task.actionLabel||'Start planned quiz')}</button></div>`:''}</div>`).join(''):'<div class="plan-empty">No plan generated yet. Generate an AI roadmap to get started.</div>';
+  if(!plan?.tasks?.length){
+    box.innerHTML='<div class="plan-empty">No plan generated yet. Generate an AI roadmap to get started.</div>';
+    return;
+  }
+  box.innerHTML=`<details class="plan-collapsible" open>
+    <summary>
+      <span>To Do</span>
+      <span class="plan-collapsible-meta">${plan.tasks.length} planner task${plan.tasks.length===1?'':'s'}</span>
+    </summary>
+    <div class="planner-todo-list">${plan.tasks.map((task,index)=>`<article class="planner-todo-item"><div class="planner-todo-top"><strong>${esc(task.title)}</strong><span class="planner-todo-type">Study</span></div><div class="plan-note">${esc(task.copy||`${task.min||0} min`)}</div>${task.meta?`<div class="plan-note">${esc(task.meta)}</div>`:''}${task.quizPreset?`<div class="plan-actions"><button class="btn btn-secondary plan-action" type="button" onclick="startPlanQuiz('${esc(task.quizPreset.category)}',${task.quizPreset.length},'${esc(task.quizPreset.difficulty)}')">${esc(task.actionLabel||'Start planned quiz')}</button></div>`:''}</article>`).join('')}</div>
+  </details>`;
 }
 
 function renderStudyPlan(plan=getLatestStoredPlan()){
@@ -952,6 +1044,8 @@ function renderStudyPlan(plan=getLatestStoredPlan()){
     const quizAction=(block.activity==='quiz'||block.activity==='exam-drill')?`<div class="planner-side-actions"><button class="btn btn-secondary" type="button" onclick="startPlanQuiz('${esc(derivedCategory)}',5,'${block.activity==='exam-drill'?'Intermediate':'all'}')">Start quiz from this block</button></div>`:'';
     return`<div class="session-block"><div class="session-block-top"><strong>${esc(block.label)}</strong><span class="session-min">${block.minutes} min</span></div><div class="activity-badge">${esc(block.activity)}</div>${quizAction}</div>`;
   }).join('');
+  const resolvedTodo=resolvePlanTodo(plan);
+  const todoItems=resolvedTodo.map(item=>`<article class="planner-todo-item"><div class="planner-todo-top"><strong>${esc(item.title)}</strong><span class="planner-todo-type">${esc(item.type||'study')}</span></div><div class="plan-note">${esc(item.detail||'Follow the planner guidance for this task.')}</div></article>`).join('');
   const roadmapSegments=Math.max(1,plan.inputs?.courseWeeks||plan.roadmap?.length||1);
   const roadmapDays=Math.max(1,plan.inputs?.courseDays||roadmapSegments*7);
   box.innerHTML=`<div class="plan-shell">
@@ -961,6 +1055,13 @@ function renderStudyPlan(plan=getLatestStoredPlan()){
       <div class="plan-note">${esc(plan.summary||'')}</div>
       <div class="plan-note">Pace: ${esc(plan.learnerProfile?.pace||'Custom pacing')}</div>
     </div>
+    <details class="plan-collapsible" open>
+      <summary>
+        <span>To Do</span>
+        <span class="plan-collapsible-meta">${resolvedTodo.length} planner task${resolvedTodo.length===1?'':'s'}</span>
+      </summary>
+      <div class="planner-todo-list">${todoItems||'<div class="plan-note">Generate a roadmap to let the planner organize your next tasks.</div>'}</div>
+    </details>
     <div class="plan-columns">
       <div class="plan-panel">
         <h4>Roadmap</h4>
