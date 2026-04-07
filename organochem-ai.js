@@ -5,7 +5,7 @@
   const AI_PROXY_URL='/api/chat';
   const DEFAULT_CHAT_MODEL='llama-3.3-70b-versatile';
   const DEFAULT_PLANNER_MODEL='llama-3.3-70b-versatile';
-  const DEFAULT_QUIZ_MODEL='mixtral-8x7b-32768';
+  const DEFAULT_QUIZ_MODEL='llama-3.3-70b-versatile';
   const MODEL_ALIASES={
     'llama3-70b-8192':'llama-3.3-70b-versatile',
     'llama-3.3-70b':'llama-3.3-70b-versatile',
@@ -117,6 +117,11 @@
     return SUPPORTED_SERVER_MODELS.has(raw)?raw:fallback;
   }
 
+  function normalizeStoredQuizModel(model){
+    const normalized=normalizeStoredModel(model,DEFAULT_QUIZ_MODEL);
+    return normalized==='mixtral-8x7b-32768'?DEFAULT_QUIZ_MODEL:normalized;
+  }
+
   function buildAISettingsFromPreset(id='builtIn',partial={}){
     const preset=getAIProviderPreset(id);
     return{
@@ -125,7 +130,7 @@
       ...partial,
       chatModel:normalizeStoredModel(partial.chatModel||preset.chatModel||DEFAULT_CHAT_MODEL,DEFAULT_CHAT_MODEL),
       plannerModel:normalizeStoredModel(partial.plannerModel||preset.plannerModel||DEFAULT_PLANNER_MODEL,DEFAULT_PLANNER_MODEL),
-      quizModel:normalizeStoredModel(partial.quizModel||preset.quizModel||DEFAULT_QUIZ_MODEL,DEFAULT_QUIZ_MODEL)
+      quizModel:normalizeStoredQuizModel(partial.quizModel||preset.quizModel||DEFAULT_QUIZ_MODEL)
     };
   }
 
@@ -137,7 +142,7 @@
       ...saved,
       chatModel:normalizeStoredModel(saved.chatModel||legacyModel||DEFAULT_CHAT_MODEL,DEFAULT_CHAT_MODEL),
       plannerModel:normalizeStoredModel(saved.plannerModel||legacyModel||DEFAULT_PLANNER_MODEL,DEFAULT_PLANNER_MODEL),
-      quizModel:normalizeStoredModel(saved.quizModel||DEFAULT_QUIZ_MODEL,DEFAULT_QUIZ_MODEL)
+      quizModel:normalizeStoredQuizModel(saved.quizModel||DEFAULT_QUIZ_MODEL)
     };
   }
 
@@ -148,7 +153,7 @@
       ...partial,
       chatModel:normalizeStoredModel(partial.chatModel||current.chatModel||DEFAULT_CHAT_MODEL,DEFAULT_CHAT_MODEL),
       plannerModel:normalizeStoredModel(partial.plannerModel||current.plannerModel||DEFAULT_PLANNER_MODEL,DEFAULT_PLANNER_MODEL),
-      quizModel:normalizeStoredModel(partial.quizModel||current.quizModel||DEFAULT_QUIZ_MODEL,DEFAULT_QUIZ_MODEL)
+      quizModel:normalizeStoredQuizModel(partial.quizModel||current.quizModel||DEFAULT_QUIZ_MODEL)
     };
     delete next.model;
     delete next.fallbackModel;
