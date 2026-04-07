@@ -50,6 +50,11 @@ function normalizeGroqModel(model) {
   return raw;
 }
 
+function readGroqTimeoutMs() {
+  const parsed = Number.parseInt(process.env.GROQ_UPSTREAM_TIMEOUT_MS || '15000', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 15000;
+}
+
 function buildGroqPayload(payload) {
   const request = {
     model: normalizeGroqModel(payload.model),
@@ -78,6 +83,15 @@ async function sendGroqRequest(payload) {
   }
 
   const normalizedModel = normalizeGroqModel(payload.model);
+  const timeoutMs = readGroqTimeoutMs();
+  const controller = typeof AbortController === 'function' ? new AbortController() : null;
+  let didTimeout = false;
+  const timeoutId = controller
+    ? setTimeout(() => {
+        didTimeout = true;
+        controller.abort();
+      }, timeoutMs)
+    : null;
 
   try {
     const upstream = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -86,7 +100,8 @@ async function sendGroqRequest(payload) {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(buildGroqPayload(payload))
+      body: JSON.stringify(buildGroqPayload(payload)),
+      signal: controller ? controller.signal : undefined
     });
 
     const rawText = await upstream.text();
@@ -118,12 +133,23 @@ async function sendGroqRequest(payload) {
         provider: 'groq'
       }
     };
-  } catch {
+  } catch (error) {
+    if (didTimeout || error?.name === 'AbortError') {
+      return {
+        ok: false,
+        status: 504,
+        body: { error: { message: `The Groq upstream request timed out after ${Math.ceil(timeoutMs / 1000)} seconds.` } }
+      };
+    }
     return {
       ok: false,
       status: 502,
       body: { error: { message: 'The Groq proxy could not reach the upstream service.' } }
     };
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
   }
 }
 

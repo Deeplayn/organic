@@ -32,6 +32,12 @@
     plannerModel:DEFAULT_PLANNER_MODEL,
     quizModel:DEFAULT_QUIZ_MODEL
   };
+  const AI_REQUEST_TIMEOUTS_MS={
+    status:5000,
+    chat:20000,
+    planner:20000,
+    quiz:12000
+  };
 
   const CHEMISTRY_CHAT_SYSTEM_PROMPT=[
     'You are OrganoBot, a chemistry-focused assistant with strong expertise in organic chemistry.',
@@ -189,6 +195,28 @@
     }
   }
 
+  async function fetchWithTimeout(url,options={},timeoutMs=20000){
+    if(typeof AbortController!=='function'||!Number.isFinite(timeoutMs)||timeoutMs<=0){
+      return fetch(url,options);
+    }
+    const controller=new AbortController();
+    let didTimeout=false;
+    const timeoutId=setTimeout(()=>{
+      didTimeout=true;
+      controller.abort();
+    },timeoutMs);
+    try{
+      return await fetch(url,{...options,signal:controller.signal});
+    }catch(error){
+      if(didTimeout||error?.name==='AbortError'){
+        throw new Error(`The shared AI service timed out after ${Math.ceil(timeoutMs/1000)} seconds.`);
+      }
+      throw error;
+    }finally{
+      clearTimeout(timeoutId);
+    }
+  }
+
   function normalizeAIError(error){
     if(!error)return'Unknown AI error.';
     const rawMessage=typeof error==='string'
@@ -213,6 +241,9 @@
     }
     if(message.includes('The shared AI service returned invalid JSON')){
       return 'The AI service responded, but the app could not parse the JSON it returned. Try again in a moment.';
+    }
+    if(message.includes('timed out after')){
+      return 'The AI service took too long to respond. A local backup quiz can be used instead.';
     }
     return message;
   }
@@ -244,10 +275,10 @@
 
   async function readServerProxyStatus(){
     try{
-      const response=await fetch(AI_PROXY_URL,{
+      const response=await fetchWithTimeout(AI_PROXY_URL,{
         method:'GET',
         headers:{Accept:'application/json'}
-      });
+      },AI_REQUEST_TIMEOUTS_MS.status);
       const payload=safeParseJson(await response.text())||{};
       return{
         available:response.ok,
@@ -283,9 +314,10 @@
     }
     const normalizedMessages=normalizeRequestMessages(messages);
     const model=resolveTaskModels(task);
+    const timeoutMs=AI_REQUEST_TIMEOUTS_MS[task]||AI_REQUEST_TIMEOUTS_MS.chat;
     let response;
     try{
-      response=await fetch(AI_PROXY_URL,{
+      response=await fetchWithTimeout(AI_PROXY_URL,{
         method:'POST',
         headers:{
           'Accept':'application/json',
@@ -297,8 +329,11 @@
           temperature,
           responseMimeType:jsonMode?'application/json':'text/plain'
         })
-      });
-    }catch{
+      },timeoutMs);
+    }catch(error){
+      if(String(error?.message||'').includes('timed out after')){
+        throw error;
+      }
       throw new Error('The shared AI service could not be reached. Check your server connection and try again.');
     }
 
