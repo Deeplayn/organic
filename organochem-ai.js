@@ -6,6 +6,16 @@
   const DEFAULT_CHAT_MODEL='llama-3.3-70b-versatile';
   const DEFAULT_PLANNER_MODEL='llama-3.3-70b-versatile';
   const DEFAULT_QUIZ_MODEL='mixtral-8x7b-32768';
+  const MODEL_ALIASES={
+    'llama3-70b-8192':'llama-3.3-70b-versatile',
+    'llama-3.3-70b':'llama-3.3-70b-versatile',
+    'mixtral-8x7b':'mixtral-8x7b-32768'
+  };
+  const SUPPORTED_SERVER_MODELS=new Set([
+    DEFAULT_CHAT_MODEL,
+    DEFAULT_PLANNER_MODEL,
+    DEFAULT_QUIZ_MODEL
+  ]);
   const AI_PROVIDER_PRESETS={
     builtIn:{
       id:'builtIn',
@@ -93,7 +103,10 @@
     const raw=String(model||'').trim();
     if(!raw)return fallback;
     if(raw.startsWith('models/'))return normalizeStoredModel(raw.slice(7),fallback);
-    return raw;
+    if(raw.startsWith('groq/'))return normalizeStoredModel(raw.slice(5),fallback);
+    const normalizedAlias=MODEL_ALIASES[raw];
+    if(normalizedAlias)return normalizedAlias;
+    return SUPPORTED_SERVER_MODELS.has(raw)?raw:fallback;
   }
 
   function buildAISettingsFromPreset(id='builtIn',partial={}){

@@ -4,6 +4,14 @@
   const ORGANOBOT_HISTORY_KEY='oc-organobot-history-v1';
   const AI_PROXY_URL='/api/chat';
   const DEFAULT_AI_MODEL='llama-3.3-70b-versatile';
+  const MODEL_ALIASES={
+    'llama3-70b-8192':'llama-3.3-70b-versatile',
+    'llama-3.3-70b':'llama-3.3-70b-versatile'
+  };
+  const SUPPORTED_SERVER_MODELS=new Set([
+    DEFAULT_AI_MODEL,
+    'mixtral-8x7b-32768'
+  ]);
   const AI_PROVIDER_PRESETS={
     builtIn:{
       id:'builtIn',
@@ -88,10 +96,9 @@
     if(!raw)return DEFAULT_AI_MODEL;
     if(raw.startsWith('models/'))return normalizeStoredModel(raw.slice(7));
     if(raw.startsWith('groq/'))return normalizeStoredModel(raw.slice(5));
-    if(raw==='llama3-70b-8192')return DEFAULT_AI_MODEL;
-    if(/^gemini-[a-z0-9.-]+$/i.test(raw))return DEFAULT_AI_MODEL;
-    if(raw.startsWith('x-ai/')||raw.toLowerCase().includes('grok'))return DEFAULT_AI_MODEL;
-    return raw;
+    const normalizedAlias=MODEL_ALIASES[raw];
+    if(normalizedAlias)return normalizedAlias;
+    return SUPPORTED_SERVER_MODELS.has(raw)?raw:DEFAULT_AI_MODEL;
   }
 
   function buildAISettingsFromPreset(id='builtIn',partial={}){
