@@ -796,6 +796,66 @@ function startPlanQuiz(category='all',length=5,difficulty='all'){
   });
 }
 
+function normalizeQuestionStem(text){
+  return String(text||'')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g,' ')
+    .replace(/\b(a|an|the|what|which|when|where|why|how|best|most|usually|typically|following|does|do|is|are|was|were|of|for|to|in|on|at|by|with)\b/g,' ')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+
+function questionStemTokens(text){
+  return normalizeQuestionStem(text).split(' ').filter(token=>token.length>2);
+}
+
+function questionStemKey(text){
+  return questionStemTokens(text).slice(0,18).join(' ');
+}
+
+function areQuestionStemsSimilar(a,b){
+  const leftKey=questionStemKey(a);
+  const rightKey=questionStemKey(b);
+  if(!leftKey||!rightKey)return false;
+  if(leftKey===rightKey)return true;
+  const leftTokens=leftKey.split(' ');
+  const rightTokens=rightKey.split(' ');
+  const leftSet=new Set(leftTokens);
+  const rightSet=new Set(rightTokens);
+  let overlap=0;
+  leftSet.forEach(token=>{
+    if(rightSet.has(token))overlap+=1;
+  });
+  const longest=Math.max(leftSet.size,rightSet.size);
+  const shortest=Math.min(leftSet.size,rightSet.size);
+  return(shortest>=5&&overlap/longest>=0.72)||(overlap>=6&&overlap/shortest>=0.82);
+}
+
+function normalizeRecentQuestionMemoryItem(value){
+  const q=normalizeText(value?.q||value?.question,'');
+  if(!q)return null;
+  return{
+    q,
+    cat:normalizeText(value?.cat||value?.category,'Functional Groups'),
+    diff:normalizeText(value?.diff||value?.difficulty,'Beginner'),
+    correct:value?.correct===undefined?null:Boolean(value.correct)
+  };
+}
+
+function getRecentQuestionMemory(limit=18){
+  const result=[];
+  state.quizHistory.forEach(entry=>{
+    (Array.isArray(entry?.recentQuestions)?entry.recentQuestions:[]).forEach(item=>{
+      if(result.length>=limit)return;
+      const normalized=normalizeRecentQuestionMemoryItem(item);
+      if(!normalized)return;
+      if(result.some(existing=>areQuestionStemsSimilar(existing.q,normalized.q)))return;
+      result.push(normalized);
+    });
+  });
+  return result.slice(0,limit);
+}
+
 function buildProgressSnapshot(input){
   const weak=weakCats();
   const reviewTopics=Object.entries(state.topicStatus)
@@ -823,6 +883,12 @@ function buildProgressSnapshot(input){
       category:entry.category,
       difficulty:entry.difficulty,
       createdAt:entry.createdAt
+    })),
+    recentQuestions:getRecentQuestionMemory(12).map(item=>({
+      q:item.q,
+      cat:item.cat,
+      diff:item.diff,
+      correct:item.correct
     })),
     requestedFocus:input.focusArea,
     requestedTimeline:{
@@ -1508,10 +1574,12 @@ function getEffectiveQuizCategory(mode){
   return'all';
 }
 
-function sampleQuestions({count,category='all',difficulties=[],exclude=[]}){
+function sampleQuestions({count,category='all',difficulties=[],exclude=[],excludeFingerprints=[]}){
   const excludeSet=new Set((exclude||[]).map(item=>item.q));
+  const blockedFingerprints=(excludeFingerprints||[]).map(questionStemKey).filter(Boolean);
   const result=[];
   const seen=new Set();
+  const seenFingerprints=new Set();
   const passes=[
     {category,difficulties},
     ...(category!=='all'?[{category:'all',difficulties}]:[]),
@@ -1521,14 +1589,18 @@ function sampleQuestions({count,category='all',difficulties=[],exclude=[]}){
   passes.forEach(pass=>{
     if(result.length>=count)return;
     const pool=shuffleList(bank.filter(item=>{
-      if(excludeSet.has(item.q)||seen.has(item.q))return false;
+      const fingerprint=questionStemKey(item.q);
+      if(excludeSet.has(item.q)||seen.has(item.q)||seenFingerprints.has(fingerprint))return false;
+      if(blockedFingerprints.some(blocked=>areQuestionStemsSimilar(blocked,fingerprint)))return false;
       if(pass.category!=='all'&&item.cat!==pass.category)return false;
       if(Array.isArray(pass.difficulties)&&pass.difficulties.length&&!pass.difficulties.includes(item.diff))return false;
       return true;
     }));
     pool.forEach(item=>{
       if(result.length>=count||seen.has(item.q))return;
+      const fingerprint=questionStemKey(item.q);
       seen.add(item.q);
+      if(fingerprint)seenFingerprints.add(fingerprint);
       result.push(item);
     });
   });
@@ -2322,6 +2394,40 @@ function showQuizBuildState(message,detail){
   document.getElementById('scoreDisplay').style.display='none';
 }
 
+function dedupeAdaptiveQuestions(rawQuestions,requestInput){
+  const deduped=[];
+  const recentQuestions=getRecentQuestionMemory(18);
+  (Array.isArray(rawQuestions)?rawQuestions:[]).forEach(rawQuestion=>{
+    const normalized=normalizeAdaptiveQuizQuestion(rawQuestion,requestInput);
+    if(!normalized)return;
+    const isRecentRepeat=recentQuestions.some(item=>areQuestionStemsSimilar(item.q,normalized.q));
+    const isSessionRepeat=deduped.some(item=>areQuestionStemsSimilar(item.q,normalized.q));
+    if(isRecentRepeat||isSessionRepeat)return;
+    deduped.push(normalized);
+  });
+  return deduped;
+}
+
+function adaptiveLocalFallbackDifficulties(mode,courseLevel){
+  if(mode==='final'){
+    return[...new Set([...higherDifficultyOrder(courseLevel),...difficultyFallbackOrder(courseLevel)])];
+  }
+  return difficultyFallbackOrder(courseLevel);
+}
+
+function buildAdaptiveFallbackQuestions(request,existingQuestions=[]){
+  const remaining=Math.max(0,request.input.requestedLength-(existingQuestions?.length||0));
+  if(!remaining)return[];
+  const recentFingerprints=getRecentQuestionMemory(24).map(item=>item.q);
+  return sampleQuestions({
+    count:remaining,
+    category:request.input.effectiveCategory,
+    difficulties:adaptiveLocalFallbackDifficulties(request.input.mode,request.input.courseLevel),
+    exclude:existingQuestions,
+    excludeFingerprints:[...recentFingerprints,...(existingQuestions||[]).map(item=>item.q)]
+  });
+}
+
 function buildAdaptiveQuizRequest({selectedCategory,effectiveCategory,course,learner,categoryLabel,mode}){
   const plannerInput=readPlannerInputs();
   const studyPlan=simplifyStudyPlanForQuiz();
@@ -2345,6 +2451,13 @@ function buildAdaptiveQuizRequest({selectedCategory,effectiveCategory,course,lea
       learnerSource:learner.source,
       focusArea:plannerInput.focusArea,
       studyPlan,
+      avoidQuestionStems:getRecentQuestionMemory(16).map(item=>item.q),
+      questionStyle:{
+        reasoningFirst:mode!=='evaluation',
+        preferMultiClueStems:mode==='final',
+        avoidDirectDefinitionQuestions:mode!=='evaluation',
+        requirePlausibleDistractors:true
+      },
       availableCategories:chemistryCategories(),
       availableDifficulties:QUIZ_LEVELS
     },
@@ -2363,10 +2476,9 @@ async function buildAdaptiveQuizSet(request){
     'Generating adaptive questions from your study plan, learner level, and weak areas.'
   );
   const rawQuiz=await AI.requestAdaptiveQuiz(request);
-  const questions=(Array.isArray(rawQuiz?.questions)?rawQuiz.questions:[])
-    .map(question=>normalizeAdaptiveQuizQuestion(question,request.input))
-    .filter(Boolean)
-    .slice(0,request.input.requestedLength);
+  const aiQuestions=dedupeAdaptiveQuestions(rawQuiz?.questions,request.input).slice(0,request.input.requestedLength);
+  const topUpQuestions=buildAdaptiveFallbackQuestions(request,aiQuestions);
+  const questions=[...aiQuestions,...topUpQuestions].slice(0,request.input.requestedLength);
   if(questions.length!==request.input.requestedLength){
     throw new Error(`${ORGANOQUIZO_BOT_NAME} returned an incomplete quiz.`);
   }
@@ -2376,7 +2488,7 @@ async function buildAdaptiveQuizSet(request){
     category:request.input.categoryLabel,
     difficulty:request.input.effectiveDifficulty,
     length:questions.length,
-    generator:ORGANOQUIZO_BOT_NAME,
+    generator:topUpQuestions.length?`${ORGANOQUIZO_BOT_NAME} + local backup`:ORGANOQUIZO_BOT_NAME,
     strategy:normalizeText(rawQuiz?.strategy,''),
     blockLabels:normalizeAdaptiveBlockLabels(rawQuiz?.blockLabels,questions.length)
   });
@@ -2390,12 +2502,13 @@ function buildLocalQuizSet({generator='',mode=getJourneyLaunchMode()}={}){
   const categoryLabel=selectedCategory==='all'?(effectiveCategory==='all'?'All categories':`${effectiveCategory} focus`):selectedCategory;
   let nextQuiz=[];
   let nextMeta={mode,type:QUIZ_MODE_CONFIG[mode].label,category:categoryLabel,difficulty:course.level,length:0,generator};
+  const recentFingerprints=getRecentQuestionMemory(24).map(item=>item.q);
   if(mode==='evaluation'){
     nextQuiz=[
-      ...sampleQuestions({count:5,category:'all',difficulties:['Beginner']}),
-      ...sampleQuestions({count:5,category:'all',difficulties:['Intermediate']}),
-      ...sampleQuestions({count:5,category:'all',difficulties:['Advanced']}),
-      ...sampleQuestions({count:5,category:'all',difficulties:['Scholar']})
+      ...sampleQuestions({count:5,category:'all',difficulties:['Beginner'],excludeFingerprints:recentFingerprints}),
+      ...sampleQuestions({count:5,category:'all',difficulties:['Intermediate'],excludeFingerprints:recentFingerprints}),
+      ...sampleQuestions({count:5,category:'all',difficulties:['Advanced'],excludeFingerprints:recentFingerprints}),
+      ...sampleQuestions({count:5,category:'all',difficulties:['Scholar'],excludeFingerprints:recentFingerprints})
     ];
     nextMeta={
       mode,
@@ -2412,11 +2525,11 @@ function buildLocalQuizSet({generator='',mode=getJourneyLaunchMode()}={}){
     };
   }else if(mode==='progressive'){
     const length=resolveProgressiveQuizLength(learner.level);
-    nextQuiz=shuffleList(sampleQuestions({count:length,category:effectiveCategory,difficulties:difficultyFallbackOrder(course.level)}));
+    nextQuiz=shuffleList(sampleQuestions({count:length,category:effectiveCategory,difficulties:difficultyFallbackOrder(course.level),excludeFingerprints:recentFingerprints}));
     nextMeta={mode,type:QUIZ_MODE_CONFIG[mode].label,category:categoryLabel,difficulty:course.level,length,generator};
   }else{
-    const courseBlock=shuffleList(sampleQuestions({count:20,category:effectiveCategory,difficulties:difficultyFallbackOrder(course.level)}));
-    const challengeBlock=shuffleList(sampleQuestions({count:10,category:effectiveCategory,difficulties:higherDifficultyOrder(course.level),exclude:courseBlock}));
+    const courseBlock=shuffleList(sampleQuestions({count:20,category:effectiveCategory,difficulties:difficultyFallbackOrder(course.level),excludeFingerprints:recentFingerprints}));
+    const challengeBlock=shuffleList(sampleQuestions({count:10,category:effectiveCategory,difficulties:higherDifficultyOrder(course.level),exclude:courseBlock,excludeFingerprints:[...recentFingerprints,...courseBlock.map(item=>item.q)]}));
     nextQuiz=[...courseBlock,...challengeBlock];
     nextMeta={
       mode,
@@ -2776,7 +2889,13 @@ function finalizeQuizSession(reason='submitted'){
     passed:pass,
     sessionId:session.id,
     completedBy:reason,
-    journeyStage:session.stage
+    journeyStage:session.stage,
+    recentQuestions:(session.questions||[]).map((question,index)=>({
+      q:question?.q||'',
+      cat:question?.cat||'Functional Groups',
+      diff:question?.diff||'Beginner',
+      correct:session.responses?.[index]?.isCorrect===true
+    })).filter(item=>item.q).slice(0,30)
   });
   state.quizHistory=state.quizHistory.slice(0,12);
   const nextJourney={...getQuizJourneyState(),activeSession:null};

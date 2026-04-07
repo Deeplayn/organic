@@ -44,6 +44,18 @@
     return text||fallback;
   }
 
+  function normalizeRecentQuestionItem(value){
+    const source=asObject(value);
+    const q=normalizeText(source.q||source.question);
+    if(!q)return null;
+    return{
+      q,
+      cat:normalizeText(source.cat||source.category,'Functional Groups'),
+      diff:QUIZ_LEVELS.includes(source.diff||source.difficulty)?(source.diff||source.difficulty):'Beginner',
+      correct:source.correct===undefined?null:Boolean(source.correct)
+    };
+  }
+
   function normalizeQuizAssessment(value){
     const source=asObject(value);
     const level=QUIZ_LEVELS.includes(source.level)?source.level:'';
@@ -92,7 +104,8 @@
       passed:source.passed===undefined?clampNumber(source.percent,0,100,0)>=PASS_PERCENTAGE:Boolean(source.passed),
       sessionId:normalizeText(source.sessionId),
       completedBy:normalizeText(source.completedBy),
-      journeyStage:QUIZ_STAGES.includes(source.journeyStage)?source.journeyStage:''
+      journeyStage:QUIZ_STAGES.includes(source.journeyStage)?source.journeyStage:'',
+      recentQuestions:safeArray(source.recentQuestions).map(normalizeRecentQuestionItem).filter(Boolean).slice(0,30)
     };
   }
 

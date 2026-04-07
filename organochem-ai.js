@@ -70,10 +70,13 @@
     'You are OrganoBot, the shared adaptive organic chemistry quiz generator inside this app.',
     'Generate multiple-choice questions that follow the learner study plan, current quiz mode, learner level, weak areas, and recent quiz performance.',
     'When a study plan is provided, prioritize its roadmap topics, next-session blocks, and priority areas instead of generating generic questions.',
+    'Never repeat, lightly paraphrase, or re-skin any question stem listed in avoidQuestionStems or recentQuestions.',
     'Return valid JSON only with no markdown fences and no extra commentary.',
     'Every question must have exactly 4 answer choices, exactly 1 correct answer index from 0 to 3, and a short explanation.',
     'The explanation must briefly say why the correct choice is right and why the other choices do not fit.',
-    'Keep distractors plausible, avoid duplicate options, avoid trick wording, and keep the chemistry accurate.',
+    'For progressive and final quizzes, prefer application, mechanism, spectroscopy, naming, and structure-comparison questions over pure definition recall.',
+    'Keep distractors plausible, avoid duplicate options, avoid trick wording, avoid giveaway wording, and keep the chemistry accurate.',
+    'All four choices should live in the same chemistry neighborhood so the correct answer is not obvious at a glance.',
     'Respect the requested question count and quiz mode, and vary difficulty progressively when the mode suggests a progression.',
     'Use only these categories when labeling questions: Functional Groups, Reaction Mechanisms, IUPAC Naming, Stereochemistry, Aromatic Chemistry, Spectroscopy.',
     'Use only these difficulty labels: Beginner, Intermediate, Advanced, Scholar.'
@@ -436,6 +439,8 @@
           }],
           blockLabels:[{start:1,end:3,label:'string'}]
         }),
+        '',
+        'If avoidQuestionStems or recentQuestions are provided, treat them as banned question territory and do not reuse them, even with paraphrasing.',
         '',
         'Quiz request:',
         JSON.stringify(input),
