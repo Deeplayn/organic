@@ -3,13 +3,13 @@
   const AI_PLANNER_KEY='oc-ai-planner-v1';
   const ORGANOBOT_HISTORY_KEY='oc-organobot-history-v1';
   const AI_PROXY_URL='/api/chat';
-  const DEFAULT_AI_MODEL='gemini-2.0-flash';
+  const DEFAULT_AI_MODEL='llama-3.3-70b-versatile';
   const AI_PROVIDER_PRESETS={
     builtIn:{
       id:'builtIn',
-      label:'Shared Gemini AI',
+      label:'Shared Groq AI',
       provider:'Secure server route',
-      summary:'Shared chemistry assistant and roadmap planner powered by Gemini.',
+      summary:'Shared chemistry assistant and roadmap planner powered by Groq.',
       model:DEFAULT_AI_MODEL
     }
   };
@@ -86,10 +86,11 @@
   function normalizeStoredModel(model){
     const raw=String(model||'').trim();
     if(!raw)return DEFAULT_AI_MODEL;
-    if(raw==='gemini-1.5-flash')return DEFAULT_AI_MODEL;
     if(raw.startsWith('models/'))return normalizeStoredModel(raw.slice(7));
+    if(raw.startsWith('groq/'))return normalizeStoredModel(raw.slice(5));
+    if(raw==='llama3-70b-8192')return DEFAULT_AI_MODEL;
+    if(/^gemini-[a-z0-9.-]+$/i.test(raw))return DEFAULT_AI_MODEL;
     if(raw.startsWith('x-ai/')||raw.toLowerCase().includes('grok'))return DEFAULT_AI_MODEL;
-    if(!/^gemini-[a-z0-9.-]+$/i.test(raw))return DEFAULT_AI_MODEL;
     return raw;
   }
 
@@ -172,19 +173,19 @@
           ?error.message
           :'Unknown AI error.';
     const message=String(rawMessage).trim()||'Unknown AI error.';
-    if(message.includes('GEMINI_API_KEY is not configured on the server')){
-      return 'The AI server is not configured yet. Add your Gemini key to GEMINI_API_KEY in .env or .env.local, then restart the server.';
+    if(message.includes('GROQ_API_KEY is not configured on the server')){
+      return 'The Groq route in the server you are currently using is not configured. If you already added `GROQ_API_KEY`, restart the server and open the app from `http://localhost:8080` so you are not hitting an older preview.';
     }
-    if(message.includes('RESOURCE_EXHAUSTED')||message.toLowerCase().includes('quota exceeded')){
-      return 'The Gemini key is being read, but that Google project currently has no usable quota. Enable Gemini API access and billing or use a different Gemini key, then try again.';
+    if(message.toLowerCase().includes('rate_limit_exceeded')||message.toLowerCase().includes('rate limit')){
+      return 'The Groq route is rate-limited right now. Try again in a moment.';
     }
-    if(message.includes('The Gemini proxy could not reach the upstream service')){
-      return 'The AI server reached its proxy route, but the upstream Gemini service did not respond. Try again in a moment.';
+    if(message.includes('The Groq proxy could not reach the upstream service')){
+      return 'The AI server reached its proxy route, but the upstream Groq service did not respond. Try again in a moment.';
     }
-    if(message.includes('The shared Gemini AI service could not be reached')){
+    if(message.includes('The shared AI service could not be reached')){
       return 'The AI server could not be reached. Make sure your local dev server is running and try again.';
     }
-    if(message.includes('The shared Gemini AI service returned invalid JSON')){
+    if(message.includes('The shared AI service returned invalid JSON')){
       return 'The AI service responded, but the app could not parse the JSON it returned. Try again in a moment.';
     }
     return message;
@@ -243,6 +244,10 @@
 
   async function createProxyChatCompletion({messages,jsonMode=false,temperature=.4}){
     const settings=readAISettings();
+    const providerStatus=await readServerProxyStatus();
+    if(providerStatus.available&&!providerStatus.configured){
+      throw new Error('GROQ_API_KEY is not configured on the server.');
+    }
     const payload={
       model:resolveModelName(settings.model),
       messages:normalizeRequestMessages(messages),
@@ -261,24 +266,25 @@
         body:JSON.stringify(payload)
       });
     }catch{
-      throw new Error('The shared Gemini AI service could not be reached. Check your server connection and try again.');
+      throw new Error('The shared AI service could not be reached. Check your server connection and try again.');
     }
 
     const rawText=await response.text();
     const parsed=safeParseJson(rawText);
 
     if(!response.ok){
-      throw new Error(normalizeAIError(parsed||rawText||'The shared Gemini AI request failed.'));
+      throw new Error(normalizeAIError(parsed||rawText||'The shared AI request failed.'));
     }
 
     const content=extractProxyMessageContent(parsed);
-    if(!content.trim())throw new Error('The shared Gemini AI service returned an empty response.');
+    if(!content.trim())throw new Error('The shared AI service returned an empty response.');
     return{
       content:stripCodeFences(content),
       reasoningDetails:null,
       payload:parsed,
       settings,
-      provider:'server'
+      provider:parsed?.provider||'server',
+      model:parsed?.model||payload.model
     };
   }
 

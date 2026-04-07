@@ -236,19 +236,19 @@ function syncPlannerAISettingsUI(){
 
 async function refreshPlannerActivationState(){
   if(!AI){
-    setPlannerStatus('Shared Gemini AI is unavailable right now.');
+    setPlannerStatus('Shared Groq AI is unavailable right now.');
     return;
   }
   const client=await AI.readHostedProxyStatus();
   if(client.available&&client.configured){
-    setPlannerStatus('Shared Gemini AI is ready through the server route. Generate a roadmap whenever you are ready.');
+    setPlannerStatus('Shared Groq AI is ready through the server route. Generate a roadmap whenever you are ready.');
     return;
   }
   if(client.available&&!client.configured){
-    setPlannerStatus('Shared Gemini AI is not configured on the server.');
+    setPlannerStatus('Shared Groq AI is not configured on the server.');
     return;
   }
-  setPlannerStatus('Shared Gemini AI is unavailable right now. Check the server connection.');
+  setPlannerStatus('Shared Groq AI is unavailable right now. Check the server connection.');
 }
 
 function readPlannerInputs(){

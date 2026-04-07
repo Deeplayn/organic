@@ -108,19 +108,19 @@ function renderOrganobot(){
 
 async function refreshBotActivationState(){
   if(!AI){
-    setBotStatus('Shared Gemini AI is unavailable right now.');
+    setBotStatus('Shared Groq AI is unavailable right now.');
     return;
   }
   const client=await AI.readHostedProxyStatus();
   if(client.available&&client.configured){
-    setBotStatus('Shared Gemini AI is ready through the server route. ORGANOBOT can answer chemistry questions.');
+    setBotStatus('Shared Groq AI is ready through the server route. ORGANOBOT can answer chemistry questions.');
     return;
   }
   if(client.available&&!client.configured){
-    setBotStatus('Shared Gemini AI is not configured on the server yet.');
+    setBotStatus('Shared Groq AI is not configured on the server yet.');
     return;
   }
-  setBotStatus('Shared Gemini AI is unavailable right now. Check the server connection and try again.');
+  setBotStatus('Shared Groq AI is unavailable right now. Check the server connection and try again.');
 }
 
 function addMessage(role,content,meta={}){
