@@ -2,12 +2,12 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug ORGANIC via Vercel",
+            "name": "Debug ORGANIC Locally",
             "type": "pwa-chrome",
             "request": "launch",
             "url": "http://localhost:8080",
             "webRoot": "${workspaceFolder}",
-            "preLaunchTask": "Start Vercel Dev"
+            "preLaunchTask": "Start OrganoChem Dev Server"
         }
     ]
 }

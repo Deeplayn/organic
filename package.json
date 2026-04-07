@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "description": "Single-page OrganoChem workspace with serverless auth and account-backed study state.",
   "scripts": {
+    "dev": "node scripts/dev-server.js",
     "build": "node scripts/build-static.js",
     "vercel-build": "node scripts/build-static.js",
     "export-db": "node scripts/export-db-excel.js"

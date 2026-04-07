@@ -2,14 +2,12 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "Start Vercel Dev",
+            "label": "Start OrganoChem Dev Server",
             "type": "shell",
-            "command": "npx",
+            "command": "npm",
             "args": [
-                "vercel",
-                "dev",
-                "--listen",
-                "8080"
+                "run",
+                "dev"
             ],
             "isBackground": true,
             "problemMatcher": {
@@ -25,7 +23,7 @@
                 "background": {
                     "activeOnStart": true,
                     "beginsPattern": ".",
-                    "endsPattern": "Ready! Available at"
+                    "endsPattern": "OrganoChem dev server running at"
                 }
             },
             "presentation": {
