@@ -185,7 +185,7 @@
           :'Unknown AI error.';
     const message=String(rawMessage).trim()||'Unknown AI error.';
     if(message.includes('GROQ_API_KEY is not configured on the server')){
-      return 'The Groq route is not configured yet. Add `GROQ_API_KEY` in `.env` or `.env.local`, then restart the server.';
+      return 'The Groq route in the server you are currently using is not configured. If you already added `GROQ_API_KEY`, restart the server and open the app from `http://localhost:8080` so you are not hitting an older preview.';
     }
     if(message.toLowerCase().includes('rate_limit_exceeded')||message.toLowerCase().includes('rate limit')){
       return 'The Groq route is rate-limited right now. Try again in a moment.';
