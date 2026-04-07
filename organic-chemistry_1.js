@@ -1,8 +1,21 @@
 const LABELS=window.OrganoThemeLabels||{};
 const STORE='oc-state-v2',THEME='oc-theme';
 const QuizJourney=window.OrganoQuizJourney||null;
-const baseState=QuizJourney?.normalizeMainState?.({})||{topicStatus:{},savedReactions:[],quizHistory:[],studyPlans:[],quizAssessment:null,quizJourney:null,achievements:[]};
-const normalizeMainState=value=>QuizJourney?.normalizeMainState?.(value)||{...baseState,...value,topicStatus:value?.topicStatus||{},savedReactions:value?.savedReactions||[],quizHistory:value?.quizHistory||[],studyPlans:value?.studyPlans||[]};
+const quizBaseState=QuizJourney?.normalizeMainState?.({})||{};
+const baseState={...quizBaseState,topicStatus:{},savedReactions:[],quizHistory:[],studyPlans:[],quizAssessment:null,quizJourney:null,achievements:[],plannerTodoProgress:{}};
+const normalizeMainState=value=>{
+  const normalizedQuizState=QuizJourney?.normalizeMainState?.(value)||{};
+  return{
+    ...baseState,
+    ...normalizedQuizState,
+    ...value,
+    topicStatus:value?.topicStatus||normalizedQuizState.topicStatus||{},
+    savedReactions:Array.isArray(value?.savedReactions)?value.savedReactions:(normalizedQuizState.savedReactions||[]),
+    quizHistory:Array.isArray(value?.quizHistory)?value.quizHistory:(normalizedQuizState.quizHistory||[]),
+    studyPlans:Array.isArray(value?.studyPlans)?value.studyPlans:(normalizedQuizState.studyPlans||[]),
+    plannerTodoProgress:value?.plannerTodoProgress&&typeof value.plannerTodoProgress==='object'?value.plannerTodoProgress:(normalizedQuizState.plannerTodoProgress||{})
+  };
+};
 const readState=()=>{try{return normalizeMainState(JSON.parse(localStorage.getItem(STORE)||'{}'));}catch{return normalizeMainState({});}};
 let state=readState();
 const saveState=()=>{
@@ -804,6 +817,38 @@ function plannerDayRangeLabel(segment,totalSegments,totalDays){
   return start===end?`Day ${start}`:`Days ${start}-${end}`;
 }
 
+function stablePlannerKey(seed){
+  const source=String(seed||'planner');
+  let hash=0;
+  for(let index=0;index<source.length;index+=1){
+    hash=((hash<<5)-hash)+source.charCodeAt(index);
+    hash|=0;
+  }
+  return `k${Math.abs(hash).toString(36)}`;
+}
+
+function plannerPlanKey(plan){
+  if(plan?.createdAt)return stablePlannerKey(plan.createdAt);
+  return stablePlannerKey(`${plan?.summary||''}|${plan?.inputs?.courseDays||''}|${plan?.nextSession?.title||''}`);
+}
+
+function plannerTodoKey(item,index){
+  return stablePlannerKey(`${index}|${item?.title||''}|${item?.detail||''}|${item?.type||''}`);
+}
+
+function buildYouTubeSearchUrl(query){
+  return `https://www.youtube.com/results?search_query=${encodeURIComponent(String(query||'organic chemistry'))}`;
+}
+
+function videoChannelPreset(topic=''){
+  const source=String(topic||'').toLowerCase();
+  if(source.includes('spectro'))return'Melissa Maribel';
+  if(source.includes('stereo'))return'Leah4sci';
+  if(source.includes('naming')||source.includes('iupac'))return'Professor Dave Explains';
+  if(source.includes('mechanism')||source.includes('aromatic'))return'The Organic Chemistry Tutor';
+  return'Khan Academy';
+}
+
 function buildDefaultExamMilestones(input,priorityTopics,focusLabel){
   const total=Math.max(1,Math.min(6,Number(input.plannedMajorExams)||1));
   const topics=priorityTopics.length?priorityTopics:[focusLabel];
@@ -935,6 +980,46 @@ function normalizeTodoItems(todo,input,{roadmap,blocks,priorityTopics,examMilest
   return fallback.slice(0,5);
 }
 
+function normalizeVideoRecommendations(videos,input,{roadmap,priorityTopics,focusLabel,nextSession}){
+  const normalizedSource=(Array.isArray(videos)?videos:[]).map((item,index)=>{
+    if(typeof item==='string'){
+      const query=`${item} organic chemistry video`;
+      return{
+        title:normalizeText(item,`Video recommendation ${index+1}`),
+        channel:'YouTube',
+        reason:'Recommended by the planner for this study stage.',
+        searchQuery:query,
+        url:buildYouTubeSearchUrl(query)
+      };
+    }
+    const searchQuery=normalizeText(item?.searchQuery,normalizeText(item?.title,'organic chemistry video'));
+    return{
+      title:normalizeText(item?.title,`Video recommendation ${index+1}`),
+      channel:normalizeText(item?.channel,'YouTube'),
+      reason:normalizeText(item?.reason,'Recommended by the planner for this study stage.'),
+      searchQuery,
+      url:buildYouTubeSearchUrl(searchQuery)
+    };
+  }).filter(item=>item.title);
+  if(normalizedSource.length)return normalizedSource.slice(0,4);
+  const roadmapSeed=(roadmap||[]).slice(0,2).flatMap(entry=>Array.isArray(entry?.topics)?entry.topics.slice(0,2):[]);
+  const prioritySeed=(priorityTopics||[]).slice(0,2);
+  const sessionSeed=(nextSession?.blocks||[]).slice(0,1).map(block=>block.label);
+  const topicsSeed=[...new Set([...roadmapSeed,...prioritySeed,...sessionSeed].filter(Boolean))].slice(0,4);
+  const fallbackTopics=topicsSeed.length?topicsSeed:[focusLabel,input.focusArea==='all'?'Organic chemistry basics':input.focusArea];
+  return fallbackTopics.slice(0,4).map((topic,index)=>{
+    const channel=videoChannelPreset(topic);
+    const searchQuery=`${topic} organic chemistry ${channel}`;
+    return{
+      title:index===0?`${topic} study video`:`${topic} walkthrough`,
+      channel,
+      reason:`Use this before or after your ${input.sessionMinutes}-minute planner session to reinforce ${topic}.`,
+      searchQuery,
+      url:buildYouTubeSearchUrl(searchQuery)
+    };
+  });
+}
+
 function resolvePlanTodo(plan){
   if(!plan||typeof plan!=='object')return[];
   const focusLabel=plan.focusArea==='all'||!normalizeText(plan.focusArea,'')?'Balanced review':plan.focusArea;
@@ -952,6 +1037,21 @@ function resolvePlanTodo(plan){
     examMilestones:Array.isArray(plan.examMilestones)?plan.examMilestones:[],
     advice:Array.isArray(plan.advice)?plan.advice:[],
     focusLabel
+  });
+}
+
+function resolvePlanVideos(plan){
+  if(!plan||typeof plan!=='object')return[];
+  const focusLabel=plan.focusArea==='all'||!normalizeText(plan.focusArea,'')?'Balanced review':plan.focusArea;
+  const input={
+    focusArea:typeof plan.focusArea==='string'?plan.focusArea:'all',
+    sessionMinutes:Math.max(1,Math.round(Number(plan.nextSession?.totalMinutes)||Number(plan.inputs?.sessionMinutes)||35))
+  };
+  return normalizeVideoRecommendations(plan.videos,input,{
+    roadmap:Array.isArray(plan.roadmap)?plan.roadmap:[],
+    priorityTopics:Array.isArray(plan.priorityTopics)?plan.priorityTopics:[],
+    focusLabel,
+    nextSession:plan.nextSession||null
   });
 }
 
@@ -980,6 +1080,12 @@ function normalizePlanObject(raw,input,source='ai'){
     advice,
     focusLabel
   });
+  const videos=normalizeVideoRecommendations(raw?.videos,input,{
+    roadmap,
+    priorityTopics,
+    focusLabel,
+    nextSession:{title:sessionTitle,blocks}
+  });
   return{
     source,
     createdAt:new Date().toISOString(),
@@ -1003,31 +1109,105 @@ function normalizePlanObject(raw,input,source='ai'){
       reason:normalizeText(raw?.quizStrategy?.reason,'Frequent retrieval keeps weak patterns visible before they harden into gaps.')
     },
     todo,
+    videos,
     examMilestones:normalizedMilestones,
     priorityTopics,
     advice
   };
 }
 
-function renderLegacyPlan(plan){
-  const box=document.getElementById('studyPlan');
-  if(!plan?.tasks?.length){
-    box.innerHTML='<div class="plan-empty">No plan generated yet. Generate an AI roadmap to get started.</div>';
+function renderPlannerTodo(plan=getLatestStoredPlan()){
+  const box=document.getElementById('plannerTodoBlock');
+  const progressNode=document.getElementById('plannerTodoProgress');
+  if(!box||!progressNode)return;
+  if(!plan){
+    progressNode.textContent='0 of 0 done';
+    box.innerHTML='<div class="plan-note"><strong>No to-do items yet.</strong><div>Generate an AI roadmap and the planner will turn it into a checklist you can track here.</div></div>';
     return;
   }
-  box.innerHTML=`<details class="plan-collapsible" open>
-    <summary>
-      <span>To Do</span>
-      <span class="plan-collapsible-meta">${plan.tasks.length} planner task${plan.tasks.length===1?'':'s'}</span>
-    </summary>
-    <div class="planner-todo-list">${plan.tasks.map((task,index)=>`<article class="planner-todo-item"><div class="planner-todo-top"><strong>${esc(task.title)}</strong><span class="planner-todo-type">Study</span></div><div class="plan-note">${esc(task.copy||`${task.min||0} min`)}</div>${task.meta?`<div class="plan-note">${esc(task.meta)}</div>`:''}${task.quizPreset?`<div class="plan-actions"><button class="btn btn-secondary plan-action" type="button" onclick="startPlanQuiz('${esc(task.quizPreset.category)}',${task.quizPreset.length},'${esc(task.quizPreset.difficulty)}')">${esc(task.actionLabel||'Start planned quiz')}</button></div>`:''}</article>`).join('')}</div>
-  </details>`;
+  const resolvedTodo=Array.isArray(plan.tasks)&&plan.tasks.length
+    ?plan.tasks.map((task,index)=>({
+      title:task.title||`Task ${index+1}`,
+      detail:task.copy||task.meta||`${task.min||0} min`,
+      type:'study',
+      quizPreset:task.quizPreset||null,
+      actionLabel:task.actionLabel||'Start planned quiz'
+    }))
+    :resolvePlanTodo(plan);
+  const planKey=plannerPlanKey(plan);
+  const progressMap=state.plannerTodoProgress?.[planKey]||{};
+  const completedCount=resolvedTodo.filter((item,index)=>Boolean(progressMap[plannerTodoKey(item,index)])).length;
+  progressNode.textContent=`${completedCount} of ${resolvedTodo.length} done`;
+  box.innerHTML=resolvedTodo.map((item,index)=>{
+    const taskKey=plannerTodoKey(item,index);
+    const checked=Boolean(progressMap[taskKey]);
+    const checkboxId=`planner-task-${planKey}-${taskKey}`;
+    const quizButton=item.quizPreset?`<div class="plan-actions"><button class="btn btn-secondary plan-action" type="button" onclick="startPlanQuiz('${esc(item.quizPreset.category)}',${item.quizPreset.length},'${esc(item.quizPreset.difficulty)}')">${esc(item.actionLabel||'Start planned quiz')}</button></div>`:'';
+    return`<div class="planner-check-item${checked?' is-complete':''}">
+      <input class="planner-todo-check" id="${esc(checkboxId)}" type="checkbox" data-plan-key="${esc(planKey)}" data-task-key="${esc(taskKey)}" ${checked?'checked':''}>
+      <div class="planner-check-copy">
+        <label class="planner-check-label" for="${esc(checkboxId)}">
+          <span class="planner-todo-top"><strong>${esc(item.title)}</strong><span class="planner-todo-type">${esc(item.type||'study')}</span></span>
+          <span class="plan-note">${esc(item.detail||'Follow the planner guidance for this task.')}</span>
+        </label>
+        ${quizButton}
+      </div>
+    </div>`;
+  }).join('')||'<div class="plan-note">No planner tasks are available for this roadmap yet.</div>';
+  box.querySelectorAll('.planner-todo-check').forEach(input=>{
+    input.addEventListener('change',event=>{
+      const planId=event.currentTarget.dataset.planKey;
+      const taskId=event.currentTarget.dataset.taskKey;
+      if(!planId||!taskId)return;
+      if(!state.plannerTodoProgress||typeof state.plannerTodoProgress!=='object')state.plannerTodoProgress={};
+      const nextPlanProgress={...(state.plannerTodoProgress[planId]||{})};
+      if(event.currentTarget.checked)nextPlanProgress[taskId]=true;
+      else delete nextPlanProgress[taskId];
+      state.plannerTodoProgress={...state.plannerTodoProgress,[planId]:nextPlanProgress};
+      saveState();
+      renderPlannerTodo(plan);
+    });
+  });
+}
+
+function renderPlannerVideos(plan=getLatestStoredPlan()){
+  const box=document.getElementById('plannerVideoBlock');
+  const meta=document.getElementById('plannerVideoMeta');
+  if(!box||!meta)return;
+  if(!plan){
+    meta.textContent='Planner-guided picks';
+    box.innerHTML='<div class="plan-note"><strong>No video recommendations yet.</strong><div>Generate an AI roadmap and the planner will suggest video searches that match your topics.</div></div>';
+    return;
+  }
+  const videos=resolvePlanVideos(plan);
+  meta.textContent=`${videos.length} search-ready recommendations`;
+  box.innerHTML=videos.map(video=>`<article class="planner-video-card">
+    <div class="planner-video-head">
+      <strong>${esc(video.title)}</strong>
+      <span class="planner-todo-type">${esc(video.channel)}</span>
+    </div>
+    <div class="plan-note">${esc(video.reason)}</div>
+    <div class="planner-video-query">${esc(video.searchQuery)}</div>
+    <div class="planner-video-actions">
+      <a class="btn btn-secondary" href="${esc(video.url)}" target="_blank" rel="noreferrer noopener">Open video search</a>
+    </div>
+  </article>`).join('')||'<div class="plan-note">No video recommendations are available for this roadmap yet.</div>';
+}
+
+function renderLegacyPlan(plan){
+  const box=document.getElementById('studyPlan');
+  if(!box)return;
+  box.innerHTML='<div class="plan-empty"><strong>Legacy planner format detected.</strong><div>Generate a fresh AI roadmap to restore the roadmap cards, task checklist, and video recommendations.</div></div>';
+  renderPlannerTodo(plan);
+  renderPlannerVideos(plan);
 }
 
 function renderStudyPlan(plan=getLatestStoredPlan()){
   const box=document.getElementById('studyPlan');
   if(!plan){
     box.innerHTML='<div class="plan-empty"><strong>No roadmap generated yet.</strong><div>Generate a day-based roadmap and next session with the built-in AI.</div></div>';
+    renderPlannerTodo(null);
+    renderPlannerVideos(null);
     return;
   }
   if(plan.tasks)return renderLegacyPlan(plan);
@@ -1044,8 +1224,6 @@ function renderStudyPlan(plan=getLatestStoredPlan()){
     const quizAction=(block.activity==='quiz'||block.activity==='exam-drill')?`<div class="planner-side-actions"><button class="btn btn-secondary" type="button" onclick="startPlanQuiz('${esc(derivedCategory)}',5,'${block.activity==='exam-drill'?'Intermediate':'all'}')">Start quiz from this block</button></div>`:'';
     return`<div class="session-block"><div class="session-block-top"><strong>${esc(block.label)}</strong><span class="session-min">${block.minutes} min</span></div><div class="activity-badge">${esc(block.activity)}</div>${quizAction}</div>`;
   }).join('');
-  const resolvedTodo=resolvePlanTodo(plan);
-  const todoItems=resolvedTodo.map(item=>`<article class="planner-todo-item"><div class="planner-todo-top"><strong>${esc(item.title)}</strong><span class="planner-todo-type">${esc(item.type||'study')}</span></div><div class="plan-note">${esc(item.detail||'Follow the planner guidance for this task.')}</div></article>`).join('');
   const roadmapSegments=Math.max(1,plan.inputs?.courseWeeks||plan.roadmap?.length||1);
   const roadmapDays=Math.max(1,plan.inputs?.courseDays||roadmapSegments*7);
   box.innerHTML=`<div class="plan-shell">
@@ -1055,13 +1233,6 @@ function renderStudyPlan(plan=getLatestStoredPlan()){
       <div class="plan-note">${esc(plan.summary||'')}</div>
       <div class="plan-note">Pace: ${esc(plan.learnerProfile?.pace||'Custom pacing')}</div>
     </div>
-    <details class="plan-collapsible" open>
-      <summary>
-        <span>To Do</span>
-        <span class="plan-collapsible-meta">${resolvedTodo.length} planner task${resolvedTodo.length===1?'':'s'}</span>
-      </summary>
-      <div class="planner-todo-list">${todoItems||'<div class="plan-note">Generate a roadmap to let the planner organize your next tasks.</div>'}</div>
-    </details>
     <div class="plan-columns">
       <div class="plan-panel">
         <h4>Roadmap</h4>
@@ -1090,6 +1261,8 @@ function renderStudyPlan(plan=getLatestStoredPlan()){
       </div>
     </div>
   </div>`;
+  renderPlannerTodo(plan);
+  renderPlannerVideos(plan);
 }
 
 async function buildStudyPlan(){
@@ -1137,6 +1310,7 @@ function resetPlannerData(){
   if(!canUseAccountFeature('Sign in to manage planner history and stored progress.'))return;
   if(!confirm('Reset planner data? This clears saved study plans and cached roadmap data, but keeps your quiz journey, badges, theme, topic marks, saved reactions, material studio state, and OrganoBot chats.'))return;
   state.studyPlans=[];
+  state.plannerTodoProgress={};
   saveState();
   AI?.clearPlannerCache?.();
   setPlannerError('');
@@ -2320,6 +2494,7 @@ function confirmQuizJourneyReset(){
   state.quizJourney=QuizJourney?.createEmptyJourney?.()||null;
   state.achievements=QuizJourney?.normalizeAchievements?.([])||[];
   state.studyPlans=[];
+  state.plannerTodoProgress={};
   AI?.clearPlannerCache?.();
   saveState();
   syncRuntimeFromSession(null);

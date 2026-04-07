@@ -289,6 +289,28 @@
             <div class="planner-status" id="plannerStatus" role="status" aria-live="polite" hidden></div>
             <div class="planner-error" id="plannerError" role="alert" style="display:none;"></div>
             <div class="study-plan" id="studyPlan"></div>
+            <div class="planner-support-grid">
+              <section class="plan-panel planner-support-panel" aria-labelledby="plannerTodoTitle">
+                <div class="planner-support-head">
+                  <div>
+                    <div class="panel-eyebrow">Task Tracker</div>
+                    <h4 id="plannerTodoTitle">To Do</h4>
+                  </div>
+                  <span class="planner-support-meta" id="plannerTodoProgress">0 of 0 done</span>
+                </div>
+                <div class="planner-todo-list" id="plannerTodoBlock"></div>
+              </section>
+              <section class="plan-panel planner-support-panel" aria-labelledby="plannerVideoTitle">
+                <div class="planner-support-head">
+                  <div>
+                    <div class="panel-eyebrow">Study Media</div>
+                    <h4 id="plannerVideoTitle">Recommended Videos</h4>
+                  </div>
+                  <span class="planner-support-meta" id="plannerVideoMeta">Planner-guided picks</span>
+                </div>
+                <div class="planner-video-list" id="plannerVideoBlock"></div>
+              </section>
+            </div>
           </article>
         </div>
       </section>
