@@ -117,6 +117,22 @@ function resolveProviderAuthorize(provider) {
   return config;
 }
 
+function getOAuthProvidersStatus() {
+  return Object.fromEntries(
+    Object.entries(PROVIDERS).map(([provider, config]) => {
+      const missingEnv = [config.clientIdEnv, config.clientSecretEnv]
+        .filter(envName => !String(process.env[envName] || '').trim());
+
+      return [provider, {
+        id: provider,
+        label: config.label,
+        configured: missingEnv.length === 0,
+        missingEnv
+      }];
+    })
+  );
+}
+
 function getProviderConfig(provider) {
   const config = resolveProviderAuthorize(provider);
   const clientId = String(process.env[config.clientIdEnv] || '').trim();
@@ -362,6 +378,7 @@ async function parseResponseData(response) {
 
 module.exports = {
   getProviderConfig,
+  getOAuthProvidersStatus,
   buildProviderStartUrl,
   completeProviderLogin,
   buildOAuthErrorRedirect

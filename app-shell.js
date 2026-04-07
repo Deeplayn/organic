@@ -77,7 +77,7 @@
   };
   const IS_AUTH_PAGE=/\/auth\.html$/i.test(window.location.pathname)||/auth\.html$/i.test(window.location.pathname.split('/').pop()||'');
   const IS_LOCAL_DEV=/^(localhost|127(?:\.\d{1,3}){3})$/i.test(window.location.hostname||'');
-  const authState={status:'loading',user:null,profile:null,syncing:false};
+  const authState={status:'loading',user:null,profile:null,syncing:false,providers:{}};
   const notificationState=DEFAULT_NOTIFICATION_STATE;
   const loaderState={count:0,defaultMessage:'Preparing your chemistry workspace.'};
   const DEFAULT_AVATAR_PRESETS=buildDefaultAvatarPresets();
@@ -886,6 +886,46 @@
     return url.toString();
   }
 
+  function applyProviderAvailability(providers={}){
+    authState.providers=providers&&typeof providers==='object'?providers:{};
+    const unavailableLabels=[];
+    document.querySelectorAll('[data-provider]').forEach(button=>{
+      const providerId=button.dataset.provider||'';
+      const provider=authState.providers[providerId]||null;
+      const configured=provider?provider.configured!==false:true;
+      button.disabled=!configured;
+      button.classList.toggle('is-disabled',!configured);
+      button.setAttribute('aria-disabled',configured?'false':'true');
+      button.title=configured?'':`${provider?.label||'This provider'} sign-in is not configured on this server yet.`;
+      const statusNode=button.querySelector('.oauth-status');
+      if(statusNode){
+        statusNode.textContent=configured?(provider?.label||statusNode.textContent||'Provider'):'Unavailable';
+      }
+      if(!configured){
+        unavailableLabels.push(provider?.label||providerId||'This provider');
+      }
+    });
+    const helper=$('providerAvailabilityMessage');
+    if(!helper)return;
+    if(!unavailableLabels.length){
+      helper.hidden=true;
+      helper.textContent='';
+      return;
+    }
+    const uniqueLabels=[...new Set(unavailableLabels)];
+    helper.hidden=false;
+    helper.textContent=`${uniqueLabels.join(' and ')} sign-in ${uniqueLabels.length===1?'is':'are'} not configured on this server yet. Use the website account below, or add the matching OAuth client env vars and restart the server.`;
+  }
+
+  async function loadAuthProviderAvailability(){
+    try{
+      const data=await apiJson('/api/auth/providers');
+      applyProviderAvailability(data.providers||{});
+    }catch{
+      applyProviderAvailability({});
+    }
+  }
+
   function applyThemeLocally(theme){
     if(typeof window.setTheme==='function'){
       const button=document.querySelector(`.t-opt[data-theme-choice="${theme}"]`);
@@ -1402,6 +1442,12 @@
 
   function handleProviderChoice(event){
     const provider=event.currentTarget.dataset.provider||'provider';
+    const providerStatus=authState.providers?.[provider];
+    if(providerStatus&&providerStatus.configured===false){
+      showMessage('authGateMessage',`${providerStatus.label||'This provider'} sign-in is not configured on this server yet. Use the website account below, or add ${providerStatus.missingEnv?.join(' and ')||'the required OAuth env vars'} and restart the server.`,'error');
+      focusWebsiteAccount('login');
+      return;
+    }
     queuePostSignInNotification();
     window.location.href=buildOAuthStartUrl(provider);
   }
@@ -1540,6 +1586,7 @@
   applyStoredThemePreference();
   mountNotificationCenter();
   bindUI();
+  loadAuthProviderAvailability();
   updateAuthUI();
   setAuthMode('login');
   applyAuthPageIntent();

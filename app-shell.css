@@ -2217,8 +2217,15 @@ body.has-global-loader .global-loader{
   color:var(--text);
   text-align:left;
 }
+.oauth-button:disabled,
+.oauth-button.is-disabled{
+  opacity:.6;
+  cursor:not-allowed;
+  transform:none;
+  box-shadow:none;
+}
 .oauth-button svg{width:22px;height:22px;display:block;}
-.oauth-button:hover{
+.oauth-button:hover:not(:disabled){
   border-color:color-mix(in srgb,var(--accent) 55%,var(--border));
   transform:translateY(-1px);
   box-shadow:0 14px 32px rgba(0,0,0,.18);
