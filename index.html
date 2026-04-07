@@ -87,15 +87,6 @@
         <strong id="heroSessionState">Preview access</strong>
         <p id="heroSessionCopy">Browse every panel freely, then sign in to unlock saved study state, planner history, and OrganoBot conversations.</p>
       </div>
-      <div class="hero-aside-card">
-        <span class="hero-card-label">Deep Links</span>
-        <div class="hero-link-grid">
-          <a href="#dashboard">dashboard</a>
-          <a href="#studio">studio</a>
-          <a href="#bot">bot</a>
-          <a href="auth.html">auth</a>
-        </div>
-      </div>
     </aside>
   </section>
 
@@ -127,7 +118,6 @@
           <div class="btn-group">
             <a href="#dashboard" class="btn btn-primary">Open Planner</a>
             <a href="#quiz" class="btn btn-secondary">Start Practice</a>
-            <a href="#reference" class="btn btn-secondary">Open Reference</a>
           </div>
         </div>
 
@@ -389,54 +379,6 @@
         </div>
       </section>
 
-      <section class="content-section" id="reference" aria-labelledby="referenceTitle">
-        <div class="section-tag">03</div>
-        <div class="section-copy">
-          <h3 id="referenceTitle">Reference explorer</h3>
-          <p>Search across functional groups, filter by family or difficulty, and use the table as a live study sheet rather than a static chart.</p>
-        </div>
-        <div class="toolbar">
-          <label class="field grow">
-            <span>Search reference</span>
-            <input type="search" id="referenceSearch" placeholder="Try ketone, nitrile, aromatic...">
-          </label>
-          <label class="field">
-            <span>Family</span>
-            <select id="referenceFamily">
-              <option value="all">All families</option>
-              <option value="Alcohols & Ethers">Alcohols & Ethers</option>
-              <option value="Carbonyls">Carbonyls</option>
-              <option value="Nitrogen Compounds">Nitrogen Compounds</option>
-              <option value="Hydrocarbons">Hydrocarbons</option>
-            </select>
-          </label>
-          <label class="field">
-            <span>Difficulty</span>
-            <select id="referenceDifficulty">
-              <option value="all">All levels</option>
-              <option value="Beginner">Beginner</option>
-              <option value="Intermediate">Intermediate</option>
-              <option value="Advanced">Advanced</option>
-            </select>
-          </label>
-        </div>
-        <div class="reference-summary" id="referenceSummary"></div>
-        <div class="reference-shell">
-          <table class="ref-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Family</th>
-                <th>Suffix</th>
-                <th>Functional Group</th>
-                <th>Key Property</th>
-                <th>Difficulty</th>
-              </tr>
-            </thead>
-            <tbody id="referenceBody"></tbody>
-          </table>
-        </div>
-      </section>
     </section>
 
     <section id="studio" class="app-panel" data-panel="studio">

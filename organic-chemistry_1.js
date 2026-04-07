@@ -2968,15 +2968,21 @@ function renderQuizHistory(){
 }
 
 function renderReference(){
-  const q=document.getElementById('referenceSearch').value.trim().toLowerCase(),family=document.getElementById('referenceFamily').value,diff=document.getElementById('referenceDifficulty').value;
+  const searchNode=document.getElementById('referenceSearch');
+  const familyNode=document.getElementById('referenceFamily');
+  const difficultyNode=document.getElementById('referenceDifficulty');
+  const summaryNode=document.getElementById('referenceSummary');
+  const bodyNode=document.getElementById('referenceBody');
+  if(!searchNode||!familyNode||!difficultyNode||!summaryNode||!bodyNode)return;
+  const q=searchNode.value.trim().toLowerCase(),family=familyNode.value,diff=difficultyNode.value;
   const rows=refs.filter(([n,f,s,g,p,d])=>(!q||[n,f,s,g,p].join(' ').toLowerCase().includes(q))&&(family==='all'||f===family)&&(diff==='all'||d===diff));
-  document.getElementById('referenceSummary').textContent=`${rows.length} result${rows.length===1?'':'s'} shown across the reference explorer.`;
-  document.getElementById('referenceBody').innerHTML=rows.map(([n,f,s,g,p,d])=>`<tr><td>${esc(n)}</td><td>${esc(f)}</td><td class="mono">${esc(s)}</td><td class="mono">${esc(g)}</td><td>${esc(p)}</td><td><span class="tag-pill">${esc(d)}</span></td></tr>`).join('');
+  summaryNode.textContent=`${rows.length} result${rows.length===1?'':'s'} shown across the reference explorer.`;
+  bodyNode.innerHTML=rows.map(([n,f,s,g,p,d])=>`<tr><td>${esc(n)}</td><td>${esc(f)}</td><td class="mono">${esc(s)}</td><td class="mono">${esc(g)}</td><td>${esc(p)}</td><td><span class="tag-pill">${esc(d)}</span></td></tr>`).join('');
 }
 
-document.getElementById('referenceSearch').addEventListener('input',renderReference);
-document.getElementById('referenceFamily').addEventListener('change',renderReference);
-document.getElementById('referenceDifficulty').addEventListener('change',renderReference);
+document.getElementById('referenceSearch')?.addEventListener('input',renderReference);
+document.getElementById('referenceFamily')?.addEventListener('change',renderReference);
+document.getElementById('referenceDifficulty')?.addEventListener('change',renderReference);
 window.addEventListener('organo:hydrate-main-state',()=>{
   state=readState();
   state.quizAssessment=normalizeQuizAssessment(state.quizAssessment);
