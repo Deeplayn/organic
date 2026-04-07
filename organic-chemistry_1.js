@@ -480,6 +480,11 @@ function getLatestStoredPlan(){
   return null;
 }
 
+function hasCurrentStudyPlan(){
+  if(getLatestStoredPlan())return true;
+  return Array.isArray(state.studyPlans)&&state.studyPlans.length>0;
+}
+
 function simplifyStudyPlanForQuiz(plan=getLatestStoredPlan()){
   if(!plan||typeof plan!=='object')return null;
   return{
@@ -989,6 +994,7 @@ function renderStudyPlan(plan=getLatestStoredPlan()){
 async function buildStudyPlan(){
   if(!canUseAccountFeature('Sign in to save AI roadmaps and planner history.'))return;
   if(!ensurePlanGenerationAllowed())return;
+  if(!ensureFirstPlanEvaluationDecision())return;
   const input=readPlannerInputs();
   if(!AI){
     setPlannerError('The built-in AI module did not load, so the AI roadmap is unavailable.');
@@ -1009,6 +1015,7 @@ async function buildStudyPlan(){
     setPlannerStatus('AI roadmap ready. Your latest roadmap is saved in this browser.');
     renderStats();
     renderStudyPlan(plan);
+    renderQuizJourney();
     renderMission();
     window.OrganoApp?.notify?.({
       title:'AI roadmap generated',
@@ -1035,6 +1042,7 @@ function resetPlannerData(){
   setPlannerStatus('Planner data cleared. Your quiz journey, badges, theme, topic status, saved reactions, material studio state, and OrganoBot chats were preserved.');
   renderStats();
   renderStudyPlan();
+  renderQuizJourney();
   window.OrganoApp?.notify?.({
     title:'Planner data cleared',
     body:'Saved roadmaps and cached planner data were reset for a clean restart.',
@@ -1681,7 +1689,72 @@ function hasQuizJourneyProgress(){
 }
 
 function getPlanGenerationBlockMessage(){
-  return 'You must finish and pass your current quiz path before generating a new plan. If you delete it, your current progress will be lost.';
+  const session=QuizJourney?.normalizeActiveSession?.(getQuizJourneyState().activeSession)||null;
+  if(session&&QuizJourney?.isSessionActive?.(session)){
+    return 'Finish or submit the current quiz before generating another study plan.';
+  }
+  return 'Your current study plan stays active until you delete it or finish all required quizzes and the End of Course Exam.';
+}
+
+function ensureFirstPlanEvaluationDecision(){
+  const assessment=normalizeQuizAssessment(state.quizAssessment);
+  const journey=getQuizJourneyState();
+  if(hasCurrentStudyPlan()||assessment?.level||assessment?.skippedAt||journey.evaluation.status!=='not_started'){
+    if(state.firstPlanEvaluationRequired){
+      delete state.firstPlanEvaluationRequired;
+      saveState();
+    }
+    return true;
+  }
+  if(state.firstPlanEvaluationRequired){
+    setPlannerError('Finish the Evaluating Exam before generating your first study plan.');
+    setPlannerStatus('Finish the Evaluating Exam before generating your first study plan.');
+    renderQuizJourney();
+    window.OrganoApp?.notify?.({
+      title:'Evaluating Exam required',
+      body:'Finish the Evaluating Exam before generating your first study plan.',
+      kind:'warning',
+      actionHref:'#quiz',
+      actionLabel:'Open quiz journey',
+      dedupeKey:'planner-initial-evaluation-required'
+    });
+    return false;
+  }
+  const shouldSkip=confirm('Do you wish to skip the evaluating exam?');
+  if(shouldSkip){
+    delete state.firstPlanEvaluationRequired;
+    const skippedAt=new Date().toISOString();
+    state.quizAssessment=normalizeQuizAssessment({
+      ...(state.quizAssessment||{}),
+      skippedAt
+    });
+    state.quizJourney=QuizJourney?.normalizeQuizJourney?.(state.quizJourney,{quizAssessment:state.quizAssessment,quizHistory:state.quizHistory})||state.quizJourney;
+    saveState();
+    renderQuizJourney();
+    window.OrganoApp?.notify?.({
+      title:'Evaluating Exam skipped',
+      body:'Your first study plan is being generated without the Evaluating Exam. You can still complete the exam later.',
+      kind:'info',
+      actionHref:'#dashboard',
+      actionLabel:'Open planner',
+      dedupeKey:'planner-initial-evaluation-skipped'
+    });
+    return true;
+  }
+  state.firstPlanEvaluationRequired=true;
+  saveState();
+  setPlannerError('Finish the Evaluating Exam before generating your first study plan.');
+  setPlannerStatus('Finish the Evaluating Exam before generating your first study plan.');
+  renderQuizJourney();
+  window.OrganoApp?.notify?.({
+    title:'Evaluating Exam required',
+    body:'Finish the Evaluating Exam before generating your first study plan, or try again and choose to skip it.',
+    kind:'warning',
+    actionHref:'#quiz',
+    actionLabel:'Open quiz journey',
+    dedupeKey:'planner-initial-evaluation-required'
+  });
+  return false;
 }
 
 function updatePlannerJourneyGuard(){
@@ -1706,11 +1779,11 @@ function ensurePlanGenerationAllowed(notify=true){
   setPlannerStatus(getPlanGenerationBlockMessage());
   if(notify){
     window.OrganoApp?.notify?.({
-      title:'Finish or reset your quiz journey',
+      title:'Study plan still active',
       body:getPlanGenerationBlockMessage(),
       kind:'warning',
-      actionHref:'#quiz',
-      actionLabel:'Open quiz journey',
+      actionHref:(QuizJourney?.isSessionActive?.(getQuizJourneyState().activeSession)||false)?'#quiz':'#dashboard',
+      actionLabel:(QuizJourney?.isSessionActive?.(getQuizJourneyState().activeSession)||false)?'Open quiz journey':'Open planner',
       dedupeKey:'planner-quiz-path-locked'
     });
   }
@@ -2056,8 +2129,7 @@ function renderQuizAssessmentPanel(){
     return;
   }
   if(journey.evaluation.status==='legacy-exempt'){
-    panel.innerHTML='';
-    panel.hidden=true;
+    panel.innerHTML=`<strong>Evaluating Exam skipped</strong><div>The first study plan was generated without the Evaluating Exam, so course quizzes currently follow the planner or curriculum course level until the evaluation quiz is completed.</div><div class="quiz-assessment-meta"><span class="quiz-assessment-chip">Skipped ${esc(prettyDate(assessment?.skippedAt||journey.evaluation.skippedAt||new Date().toISOString()))}</span></div>`;
     return;
   }
   panel.innerHTML='<strong>No learner placement yet</strong><div>Start with the Evaluating Exam to personalize the guided path, unlock progressive quizzes, and improve how OrganoBot generates adaptive questions for you.</div>';

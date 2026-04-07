@@ -464,8 +464,9 @@
 
   function canGenerateNewPlan(mainState){
     const state=normalizeMainState(mainState);
-    if(!hasAnyJourneyProgress(state.quizJourney))return true;
-    return state.quizJourney.stage==='COMPLETED'&&!isSessionActive(state.quizJourney.activeSession);
+    if(isSessionActive(state.quizJourney.activeSession))return false;
+    if(!safeArray(state.studyPlans).length)return true;
+    return state.quizJourney.stage==='COMPLETED';
   }
 
   function formatRemainingTime(ms){
