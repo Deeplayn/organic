@@ -106,54 +106,6 @@ const PROVIDERS = {
         ).trim()
       };
     }
-  },
-  github: {
-    label: 'GitHub',
-    scopes: ['read:user', 'user:email'],
-    authorizeUrl: 'https://github.com/login/oauth/authorize',
-    tokenUrl: 'https://github.com/login/oauth/access_token',
-    clientIdEnv: 'GITHUB_CLIENT_ID',
-    clientSecretEnv: 'GITHUB_CLIENT_SECRET',
-    async exchangeProfile({ code, redirectUri, clientId, clientSecret }) {
-      const token = await postFormJson('https://github.com/login/oauth/access_token', {
-        code,
-        client_id: clientId,
-        client_secret: clientSecret,
-        redirect_uri: redirectUri
-      }, {
-        Accept: 'application/json'
-      });
-
-      const profile = await fetchJson('https://api.github.com/user', {
-        headers: {
-          Authorization: `Bearer ${token.access_token}`,
-          Accept: 'application/vnd.github+json',
-          'User-Agent': 'OrganoChem'
-        }
-      });
-
-      const emails = await fetchJson('https://api.github.com/user/emails', {
-        headers: {
-          Authorization: `Bearer ${token.access_token}`,
-          Accept: 'application/vnd.github+json',
-          'User-Agent': 'OrganoChem'
-        }
-      });
-
-      const primaryEmail = Array.isArray(emails)
-        ? emails.find(item => item.primary && item.verified) || emails.find(item => item.verified) || emails[0]
-        : null;
-      const email = normalizeEmail(primaryEmail?.email || profile.email);
-      if (!validateEmail(email) || primaryEmail?.verified === false) {
-        throw new Error('GitHub did not return a verified email address.');
-      }
-
-      return {
-        providerUserId: String(profile.id || ''),
-        email,
-        displayName: String(profile.name || profile.login || email.split('@')[0] || 'GitHub User').trim()
-      };
-    }
   }
 };
 

@@ -474,8 +474,7 @@ function resolveOAuthSecret() {
     process.env.AUTH_STATE_SECRET,
     process.env.DATABASE_URL,
     process.env.GOOGLE_CLIENT_SECRET,
-    process.env.MICROSOFT_CLIENT_SECRET,
-    process.env.GITHUB_CLIENT_SECRET
+    process.env.MICROSOFT_CLIENT_SECRET
   ]
     .map(value => String(value || '').trim())
     .filter(Boolean)

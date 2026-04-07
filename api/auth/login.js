@@ -73,7 +73,7 @@ module.exports = async (req, res) => {
     const row = result.rows[0];
 
     if (row && !row.password_hash) {
-      sendJson(res, 400, { error: { message: 'This account uses social sign-in. Continue with Google, Microsoft, or GitHub instead.' } });
+      sendJson(res, 400, { error: { message: 'This account uses social sign-in. Continue with Google or Microsoft instead.' } });
       return;
     }
 

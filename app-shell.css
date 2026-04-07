@@ -2201,7 +2201,7 @@ body.has-global-loader .global-loader{
   padding:0;
 }
 .oauth-grid-wide{
-  grid-template-columns:repeat(3,minmax(0,1fr));
+  grid-template-columns:repeat(2,minmax(0,1fr));
 }
 .oauth-grid{display:grid;gap:12px;}
 .oauth-button{
