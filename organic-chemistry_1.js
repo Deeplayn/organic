@@ -29,9 +29,9 @@ const prettyDate=v=>new Date(v).toLocaleDateString(undefined,{month:'short',day:
 const today=()=>new Date().toLocaleDateString(undefined,{month:'short',day:'numeric'});
 const AI=window.OrganoAI;
 const canUseAccountFeature=message=>window.OrganoApp?.assertFeatureAccess(message)??true;
-const ORGANOQUIZO_BOT_NAME='OrganoBot';
+const QUIZ_GENERATOR_NAME='Adaptive Quiz Engine';
 const QUIZ_AUTO_REFRESH_DELAY_MS=2200;
-const QUIZ_LOCK_MESSAGE='OrganoBot chat is unavailable during quizzes to preserve quiz integrity.';
+const QUIZ_LOCK_MESSAGE='Adaptive quiz assistance is unavailable during quizzes to preserve quiz integrity.';
 const PLANNER_TIMELINE_DEFAULTS={
   minDays:7,
   maxDays:28,
@@ -444,12 +444,12 @@ function renderPlannerCurriculumSummary(){
   const node=document.getElementById('plannerCurriculumSummary');
   if(!node)return;
   if(!window.OrganoApp?.isAuthenticated?.()){
-    node.textContent='Sign in and complete your profile to attach a curriculum track to the planner and OrganoBot.';
+    node.textContent='Sign in and complete your profile to attach a curriculum track to the planner and adaptive quiz engine.';
     return;
   }
   const profile=getSignedInProfile();
   if(!profile.curriculumTrack){
-    node.textContent='No curriculum is attached to this account yet. Complete your profile to let the planner and OrganoBot adapt to your assigned track.';
+    node.textContent='No curriculum is attached to this account yet. Complete your profile to let the planner and adaptive quiz engine adapt to your assigned track.';
     return;
   }
   const entry=getAssignedCurriculumEntry();
@@ -457,7 +457,7 @@ function renderPlannerCurriculumSummary(){
     node.textContent=`Curriculum "${profile.curriculumTrack}" is saved on your account, but it is not present in the loaded curriculum library.`;
     return;
   }
-  node.textContent=`Planner and OrganoBot are using ${entry.title}${profile.academicYear?` for ${profile.academicYear}`:''}. ${entry.topics.length} curriculum topics will be used to bias roadmap priorities, study guidance, and explanations.`;
+  node.textContent=`Planner and the adaptive quiz engine are using ${entry.title}${profile.academicYear?` for ${profile.academicYear}`:''}. ${entry.topics.length} curriculum topics will be used to bias roadmap priorities, study guidance, and explanations.`;
 }
 
 function openLessonTopic(slug){
@@ -1420,13 +1420,13 @@ async function buildStudyPlan(){
 
 function resetPlannerData(){
   if(!canUseAccountFeature('Sign in to manage planner history and stored progress.'))return;
-  if(!confirm('Reset planner data? This clears saved study plans and cached roadmap data, but keeps your quiz journey, badges, theme, topic marks, saved reactions, material studio state, and OrganoBot chats.'))return;
+  if(!confirm('Reset planner data? This clears saved study plans and cached roadmap data, but keeps your quiz journey, badges, theme, topic marks, saved reactions, and material studio state.'))return;
   state.studyPlans=[];
   state.plannerTodoProgress={};
   saveState();
   AI?.clearPlannerCache?.();
   setPlannerError('');
-  setPlannerStatus('Planner data cleared. Your quiz journey, badges, theme, topic status, saved reactions, material studio state, and OrganoBot chats were preserved.');
+  setPlannerStatus('Planner data cleared. Your quiz journey, badges, theme, topic status, saved reactions, and material studio state were preserved.');
   renderStats();
   renderStudyPlan();
   renderQuizJourney();
@@ -1633,7 +1633,7 @@ function showQuizBuildState(message,detail){
   const feedback=document.getElementById('qFeedback');
   document.getElementById('qText').textContent=message;
   document.getElementById('qNum').textContent='...';
-  document.getElementById('quizMeta').textContent=`${ORGANOQUIZO_BOT_NAME} is preparing your quiz`;
+  document.getElementById('quizMeta').textContent=`${QUIZ_GENERATOR_NAME} is preparing your quiz`;
   opts.innerHTML='';
   feedback.className='quiz-feedback show';
   feedback.textContent=detail;
@@ -1713,9 +1713,9 @@ function buildAdaptiveQuizRequest({selectedCategory,selectedDifficulty,selectedL
 }
 
 async function buildAdaptiveQuizSet(request){
-  if(!AI?.requestAdaptiveQuiz)throw new Error('OrganoBot is unavailable.');
+  if(!AI?.requestAdaptiveQuiz)throw new Error('The adaptive quiz generator is unavailable.');
   showQuizBuildState(
-    `${ORGANOQUIZO_BOT_NAME} is building your quiz...`,
+    `${QUIZ_GENERATOR_NAME} is building your quiz...`,
     'Generating adaptive questions from your study plan, learner level, and weak areas.'
   );
   const rawQuiz=await AI.requestAdaptiveQuiz(request);
@@ -1724,7 +1724,7 @@ async function buildAdaptiveQuizSet(request){
     .filter(Boolean)
     .slice(0,request.input.requestedLength);
   if(questions.length!==request.input.requestedLength){
-    throw new Error(`${ORGANOQUIZO_BOT_NAME} returned an incomplete quiz.`);
+    throw new Error(`${QUIZ_GENERATOR_NAME} returned an incomplete quiz.`);
   }
   const difficultyLabel=request.input.selectedDifficulty==='all'
     ?request.input.effectiveDifficulty
@@ -1735,7 +1735,7 @@ async function buildAdaptiveQuizSet(request){
     category:request.input.categoryLabel,
     difficulty:difficultyLabel==='all'?'Mixed difficulty':difficultyLabel,
     length:questions.length,
-    generator:ORGANOQUIZO_BOT_NAME,
+    generator:QUIZ_GENERATOR_NAME,
     strategy:normalizeText(rawQuiz?.strategy,''),
     blockLabels:normalizeAdaptiveBlockLabels(rawQuiz?.blockLabels,questions.length)
   });
@@ -1833,10 +1833,10 @@ function buildQuizModeSummary(mode){
   const learner=getLearnerLevelContext();
   const category=getEffectiveQuizCategory(mode);
   if(mode==='evaluation')return'The evaluating quiz scales in four 5-question stages from beginner to scholar and can be skipped the first time if you want to begin directly with the course flow.';
-  if(mode==='progressive')return`${ORGANOQUIZO_BOT_NAME} builds the progressive quiz from ${category==='all'?'the current course mix':category}, your study plan, and the ${course.level} course level from your ${course.source}.`;
-  if(mode==='monthly')return`${ORGANOQUIZO_BOT_NAME} builds a 20-question checkpoint at the ${course.level} course level from your ${course.source}${category==='all'?' across the full course mix':` with ${category} emphasized`}.`;
-  if(mode==='final')return`${ORGANOQUIZO_BOT_NAME} builds a 30-question end-of-course exam with a course-level block plus a higher-level stretch block based on your current plan.`;
-  return`${ORGANOQUIZO_BOT_NAME} builds a short adaptive practice quiz from the planner focus or your current quiz filters.`;
+  if(mode==='progressive')return`${QUIZ_GENERATOR_NAME} builds the progressive quiz from ${category==='all'?'the current course mix':category}, your study plan, and the ${course.level} course level from your ${course.source}.`;
+  if(mode==='monthly')return`${QUIZ_GENERATOR_NAME} builds a 20-question checkpoint at the ${course.level} course level from your ${course.source}${category==='all'?' across the full course mix':` with ${category} emphasized`}.`;
+  if(mode==='final')return`${QUIZ_GENERATOR_NAME} builds a 30-question end-of-course exam with a course-level block plus a higher-level stretch block based on your current plan.`;
+  return`${QUIZ_GENERATOR_NAME} builds a short adaptive practice quiz from the planner focus or your current quiz filters.`;
 }
 
 function syncQuizBuilderUI(){
@@ -1936,7 +1936,7 @@ async function setupQuiz(){
   }catch(error){
     buildLocalQuizSet({generator:'Local backup'});
     window.OrganoApp?.notify?.({
-      title:`${ORGANOQUIZO_BOT_NAME} fallback`,
+      title:`${QUIZ_GENERATOR_NAME} fallback`,
       body:`Adaptive quiz generation was unavailable, so the local quiz bank was used instead. ${AI?.normalizeAIError?.(error)||String(error)}`,
       kind:'info',
       actionHref:'#quiz',
@@ -2384,7 +2384,7 @@ function showQuizBuildState(message,detail){
   const feedback=document.getElementById('qFeedback');
   document.getElementById('qText').textContent=message;
   document.getElementById('qNum').textContent='...';
-  document.getElementById('quizMeta').textContent=`${ORGANOQUIZO_BOT_NAME} is preparing your quiz`;
+  document.getElementById('quizMeta').textContent=`${QUIZ_GENERATOR_NAME} is preparing your quiz`;
   document.getElementById('quizTimer').hidden=true;
   opts.innerHTML='';
   feedback.className='quiz-feedback show';
@@ -2470,9 +2470,9 @@ function buildAdaptiveQuizRequest({selectedCategory,effectiveCategory,course,lea
 }
 
 async function buildAdaptiveQuizSet(request){
-  if(!AI?.requestAdaptiveQuiz)throw new Error('OrganoBot is unavailable.');
+  if(!AI?.requestAdaptiveQuiz)throw new Error('The adaptive quiz generator is unavailable.');
   showQuizBuildState(
-    `${ORGANOQUIZO_BOT_NAME} is building your quiz...`,
+    `${QUIZ_GENERATOR_NAME} is building your quiz...`,
     'Generating adaptive questions from your study plan, learner level, and weak areas.'
   );
   const rawQuiz=await AI.requestAdaptiveQuiz(request);
@@ -2480,7 +2480,7 @@ async function buildAdaptiveQuizSet(request){
   const topUpQuestions=buildAdaptiveFallbackQuestions(request,aiQuestions);
   const questions=[...aiQuestions,...topUpQuestions].slice(0,request.input.requestedLength);
   if(questions.length!==request.input.requestedLength){
-    throw new Error(`${ORGANOQUIZO_BOT_NAME} returned an incomplete quiz.`);
+    throw new Error(`${QUIZ_GENERATOR_NAME} returned an incomplete quiz.`);
   }
   beginQuizSession(questions,{
     mode:request.input.mode,
@@ -2488,7 +2488,7 @@ async function buildAdaptiveQuizSet(request){
     category:request.input.categoryLabel,
     difficulty:request.input.effectiveDifficulty,
     length:questions.length,
-    generator:topUpQuestions.length?`${ORGANOQUIZO_BOT_NAME} + local backup`:ORGANOQUIZO_BOT_NAME,
+    generator:topUpQuestions.length?`${QUIZ_GENERATOR_NAME} + local backup`:QUIZ_GENERATOR_NAME,
     strategy:normalizeText(rawQuiz?.strategy,''),
     blockLabels:normalizeAdaptiveBlockLabels(rawQuiz?.blockLabels,questions.length)
   });
@@ -2555,7 +2555,7 @@ function renderQuizAssessmentPanel(){
   const journey=getQuizJourneyState();
   panel.hidden=false;
   if(activeQuizSession&&activeQuizSession.status==='active'){
-    panel.innerHTML=`<strong>${esc(activeQuizSession.type)} in progress</strong><div>The timer is running, OrganoBot chat is locked, and plan generation stays blocked until this quiz is submitted or expires.</div><div class="quiz-assessment-meta"><span class="quiz-assessment-chip">${esc(activeQuizSession.category)}</span><span class="quiz-assessment-chip">${esc(activeQuizSession.difficulty)}</span><span class="quiz-assessment-chip">Stage ${esc(activeQuizSession.stage)}</span></div>`;
+    panel.innerHTML=`<strong>${esc(activeQuizSession.type)} in progress</strong><div>The timer is running, adaptive quiz assistance is locked, and plan generation stays blocked until this quiz is submitted or expires.</div><div class="quiz-assessment-meta"><span class="quiz-assessment-chip">${esc(activeQuizSession.category)}</span><span class="quiz-assessment-chip">${esc(activeQuizSession.difficulty)}</span><span class="quiz-assessment-chip">Stage ${esc(activeQuizSession.stage)}</span></div>`;
     return;
   }
   if(assessment?.level){
@@ -2566,7 +2566,7 @@ function renderQuizAssessmentPanel(){
     panel.innerHTML=`<strong>Evaluating Exam skipped</strong><div>The first study plan was generated without the Evaluating Exam, so course quizzes currently follow the planner or curriculum course level until the evaluation quiz is completed.</div><div class="quiz-assessment-meta"><span class="quiz-assessment-chip">Skipped ${esc(prettyDate(assessment?.skippedAt||journey.evaluation.skippedAt||new Date().toISOString()))}</span></div>`;
     return;
   }
-  panel.innerHTML='<strong>No learner placement yet</strong><div>Start with the Evaluating Exam to personalize the guided path, unlock progressive quizzes, and improve how OrganoBot generates adaptive questions for you.</div>';
+  panel.innerHTML='<strong>No learner placement yet</strong><div>Start with the Evaluating Exam to personalize the guided path, unlock progressive quizzes, and improve how the adaptive quiz engine generates questions for you.</div>';
 }
 
 function buildStageStatus(stage){
@@ -2709,7 +2709,7 @@ async function setupQuiz(){
   }catch(error){
     buildLocalQuizSet({generator:'Local backup',mode});
     window.OrganoApp?.notify?.({
-      title:`${ORGANOQUIZO_BOT_NAME} fallback`,
+      title:`${QUIZ_GENERATOR_NAME} fallback`,
       body:`Adaptive quiz generation was unavailable, so the local quiz bank was used instead. ${AI?.normalizeAIError?.(error)||String(error)}`,
       kind:'info',
       actionHref:'#quiz',

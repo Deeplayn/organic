@@ -1,7 +1,6 @@
 (function(){
   const AI_SETTINGS_KEY='oc-ai-settings-v1';
   const AI_PLANNER_KEY='oc-ai-planner-v1';
-  const ORGANOBOT_HISTORY_KEY='oc-organobot-history-v1';
   const AI_PROXY_URL='/api/chat';
   const DEFAULT_AI_MODEL='llama-3.3-70b-versatile';
   const MODEL_ALIASES={
@@ -17,26 +16,13 @@
       id:'builtIn',
       label:'Shared Groq AI',
       provider:'Secure server route',
-      summary:'Shared chemistry assistant and roadmap planner powered by Groq.',
+      summary:'Shared roadmap planner and adaptive quiz stack powered by Groq.',
       model:DEFAULT_AI_MODEL
     }
   };
   const DEFAULT_AI_SETTINGS={
     model:DEFAULT_AI_MODEL
   };
-
-  const CHEMISTRY_CHAT_SYSTEM_PROMPT=[
-    'You are OrganoBot, a chemistry-focused assistant with strong expertise in organic chemistry.',
-    'Answer only chemistry-related questions and politely redirect unrelated questions back to chemistry.',
-    'Treat shorthand, fragments, formulas, reaction arrows, spectra values, and messy spelling or grammar as valid chemistry input when context suggests chemistry.',
-    'Use the current message plus recent conversation history to infer likely chemistry intent before asking for clarification.',
-    'When learner curriculum and academic year are provided, use them as the primary study reference for scope, sequencing, terminology, and difficulty.',
-    'When a saved study plan is provided, use it to align quiz help, revision guidance, and generated question ideas.',
-    'Format answers for an in-browser chat so they are easy to scan: use short sections, bullets, and clean spacing.',
-    'Avoid dense wall-of-text formatting, and when comparing topics prefer bullets or a compact markdown table with one row per point.',
-    'Be accurate, explain step-by-step when helpful, and admit uncertainty when appropriate.',
-    'Prefer concise but useful teaching language and include organic chemistry examples when relevant.'
-  ].join(' ');
 
   const PLANNER_SYSTEM_PROMPT=[
     'You are OrganoChem Planner, an expert organic chemistry study-planning assistant.',
@@ -51,7 +37,7 @@
   ].join(' ');
 
   const QUIZ_GENERATOR_SYSTEM_PROMPT=[
-    'You are OrganoBot, the shared adaptive organic chemistry quiz generator inside this app.',
+    'You are the shared adaptive organic chemistry quiz generator inside this app.',
     'Generate multiple-choice questions that follow the learner study plan, current quiz mode, learner level, weak areas, and recent quiz performance.',
     'When a study plan is provided, prioritize its roadmap topics, next-session blocks, and priority areas instead of generating generic questions.',
     'Return valid JSON only with no markdown fences and no extra commentary.',
@@ -385,7 +371,7 @@
     try{
       return JSON.parse(content);
     }catch{
-      throw new Error('OrganoBot returned invalid quiz JSON.');
+      throw new Error('The adaptive quiz generator returned invalid JSON.');
     }
   }
 
@@ -456,12 +442,10 @@
   window.OrganoAI={
     AI_SETTINGS_KEY,
     AI_PLANNER_KEY,
-    ORGANOBOT_HISTORY_KEY,
     AI_PROXY_URL,
     DEFAULT_AI_MODEL,
     AI_PROVIDER_PRESETS,
     DEFAULT_AI_SETTINGS,
-    CHEMISTRY_CHAT_SYSTEM_PROMPT,
     PLANNER_SYSTEM_PROMPT,
     QUIZ_GENERATOR_SYSTEM_PROMPT,
     escapeHtml,

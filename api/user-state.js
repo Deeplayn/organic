@@ -149,7 +149,6 @@ module.exports = async (req, res) => {
 function normalizePayload(payload, fallbackTheme) {
   return {
     mainState: normalizeObject(payload.mainState),
-    botState: normalizeObject(payload.botState),
     theme: normalizeTheme(payload.theme || fallbackTheme),
     displayName: normalizeDisplayName(payload.displayName),
     avatarUrl: normalizeAvatarUrl(payload.avatarUrl),
@@ -161,14 +160,12 @@ function normalizeIncomingPayload(body, existingPayload, fallbackTheme) {
   const current = normalizePayload(existingPayload, fallbackTheme);
   const nextTheme = body.theme === undefined ? current.theme : normalizeTheme(body.theme || fallbackTheme);
   const nextMainState = body.mainState === undefined ? current.mainState : normalizeObject(body.mainState);
-  const nextBotState = body.botState === undefined ? current.botState : normalizeObject(body.botState);
   const nextProfile = body.profile === undefined ? current.profile : normalizeProfile(body.profile);
   const nextDisplayName = body.displayName === undefined ? current.displayName : normalizeDisplayName(body.displayName) || current.displayName;
   const nextAvatarUrl = body.avatarUrl === undefined ? current.avatarUrl : normalizeAvatarUrl(body.avatarUrl);
 
   return {
     mainState: nextMainState,
-    botState: nextBotState,
     theme: nextTheme,
     displayName: nextDisplayName,
     avatarUrl: nextAvatarUrl,

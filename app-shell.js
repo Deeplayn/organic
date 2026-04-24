@@ -1,7 +1,6 @@
 (function(){
   const MAIN_STATE_KEY='oc-state-v2';
   const THEME_KEY='oc-theme';
-  const BOT_STATE_KEY='oc-organobot-history-v1';
   const NOTIFICATION_STORE_KEY='oc-notification-center-v1';
   const POST_SIGNIN_NOTICE_KEY='oc-post-signin-notice-v1';
   const QuizJourney=window.OrganoQuizJourney||null;
@@ -59,12 +58,9 @@
     quiz:'dashboard',
     reference:'dashboard',
     studio:'studio',
-    bot:'bot',
-    chatShell:'bot',
     auth:'auth'
   };
   const DEFAULT_MAIN_STATE=QuizJourney?.normalizeMainState?.({})||{topicStatus:{},savedReactions:[],quizHistory:[],studyPlans:[],quizAssessment:null,quizJourney:null,achievements:[]};
-  const DEFAULT_BOT_STATE={activeId:'',sessions:[]};
   const DEFAULT_NOTIFICATION_STATE={items:[]};
   const PROFILE_GENDERS=['Male','Female','Non-binary','Prefer not to say'];
   const PROFILE_COUNTRIES=['Egypt','UK','USA','France'];
@@ -377,13 +373,6 @@
       studyPlans:Array.isArray(parsed?.studyPlans)?parsed.studyPlans:[]
     };
   }
-  function readBotState(){
-    const parsed=safeParse(localStorage.getItem(BOT_STATE_KEY),DEFAULT_BOT_STATE);
-    return{
-      activeId:parsed?.activeId||'',
-      sessions:Array.isArray(parsed?.sessions)?parsed.sessions:[]
-    };
-  }
   function normalizeNotification(item){
     const source=item&&typeof item==='object'&&!Array.isArray(item)?item:{};
     const allowedKinds=['info','success','warning','system'];
@@ -483,7 +472,7 @@
     if(clearButton)clearButton.disabled=!notificationState.items.length;
     if(!feed)return;
     if(!notificationState.items.length){
-      feed.innerHTML=`<div class="notification-empty"><strong>No notifications yet.</strong><p>Theme changes, study milestones, and OrganoBot updates will appear here.</p></div>`;
+      feed.innerHTML=`<div class="notification-empty"><strong>No notifications yet.</strong><p>Theme changes, study milestones, and guided quiz updates will appear here.</p></div>`;
       return;
     }
     feed.innerHTML=notificationState.items.map(item=>`<article class="notification-item notification-${escapeHtml(item.kind)} ${item.unread?'is-unread':''}" data-notification-id="${escapeHtml(item.id)}"><div class="notification-item-top"><span class="notification-kind">${escapeHtml(item.kind)}</span><time datetime="${escapeHtml(item.createdAt)}">${escapeHtml(formatNotificationTime(item.createdAt))}</time></div><h3>${escapeHtml(item.title)}</h3>${item.body?`<p>${escapeHtml(item.body)}</p>`:''}${item.actionHref&&item.actionLabel?`<a class="notification-link" href="${escapeHtml(item.actionHref)}" data-notification-link="${escapeHtml(item.id)}">${escapeHtml(item.actionLabel)}</a>`:''}</article>`).join('');
@@ -527,7 +516,7 @@
     if(notificationState.items.length)return;
     notify({
       title:'Notification center ready',
-      body:'Theme changes, quiz results, planner milestones, and OrganoBot activity now collect here.',
+      body:'Theme changes, quiz results, planner milestones, and guided quiz updates now collect here.',
       kind:'system',
       actionHref:IS_AUTH_PAGE?'index.html#dashboard':'#dashboard',
       actionLabel:'Open workspace',
@@ -608,7 +597,7 @@
     if(!isProfileComplete()){
       notify({
         title:'Complete your profile',
-        body:'Update your learner profile to get the most benefit from curriculum-aware guidance, study plans, and OrganoBot support.',
+        body:'Update your learner profile to get the most benefit from curriculum-aware guidance, study plans, and guided quiz support.',
         kind:'warning',
         actionHref:IS_AUTH_PAGE?'#auth':'auth.html?mode=login',
         actionLabel:'Update profile',
@@ -628,17 +617,14 @@
   function snapshotLocalState(){
     return{
       mainState:readMainState(),
-      botState:readBotState(),
       theme:localStorage.getItem(THEME_KEY)||document.body.getAttribute('data-theme')||'lab-noir'
     };
   }
   function hasLocalData(snapshot=snapshotLocalState()){
     const main=snapshot.mainState||DEFAULT_MAIN_STATE;
-    const bot=snapshot.botState||DEFAULT_BOT_STATE;
     const hasMain=Object.keys(main.topicStatus||{}).length>0||(main.savedReactions||[]).length>0||(main.quizHistory||[]).length>0||(main.studyPlans||[]).length>0||Boolean(main.quizAssessment?.level||main.quizAssessment?.skippedAt)||Boolean(QuizJourney?.hasAnyJourneyProgress?.(main.quizJourney));
-    const hasBot=(bot.sessions||[]).some(session=>(session.messages||[]).some(message=>message.role==='user'));
     const hasTheme=Boolean(snapshot.theme&&snapshot.theme!=='lab-noir');
-    return hasMain||hasBot||hasTheme;
+    return hasMain||hasTheme;
   }
   function isAuthenticated(){
     return Boolean(authState.user);
@@ -798,20 +784,6 @@
   }
   function setActivePanel(hash,{replace=false}={}){
     const route=resolvePanel(hash);
-    if(route.panel==='bot'&&QuizJourney?.isChatBlocked?.(readMainState())){
-      notify({
-        title:'OrganoBot locked during quiz',
-        body:'OrganoBot chat is unavailable during quizzes to preserve quiz integrity.',
-        kind:'warning',
-        actionHref:'#quiz',
-        actionLabel:'Return to quiz',
-        dedupeKey:'bot-quiz-lock'
-      });
-      const fallbackHash='#quiz';
-      if(replace)history.replaceState(null,'',fallbackHash);
-      else if(window.location.hash!=='#quiz')history.pushState(null,'',fallbackHash);
-      return setActivePanel(fallbackHash,{replace:true});
-    }
     const panels=[...document.querySelectorAll('.app-panel')];
     const hasAuthPanel=panels.some(panel=>panel.dataset.panel==='auth');
     if(route.panel==='auth'&&!hasAuthPanel&&!IS_AUTH_PAGE){
@@ -946,10 +918,6 @@
       }
       window.dispatchEvent(new CustomEvent('organo:hydrate-main-state',{detail:payload.mainState}));
     }
-    if(payload.botState){
-      localStorage.setItem(BOT_STATE_KEY,JSON.stringify(payload.botState));
-      window.dispatchEvent(new CustomEvent('organo:hydrate-bot-state',{detail:payload.botState}));
-    }
     const localTheme=localStorage.getItem(THEME_KEY);
     const preferredTheme=localTheme||payload.theme;
     if(preferredTheme){
@@ -1070,10 +1038,8 @@
     profileEditorOpen=false;
     authState.profile=null;
     localStorage.setItem(MAIN_STATE_KEY,JSON.stringify(DEFAULT_MAIN_STATE));
-    localStorage.setItem(BOT_STATE_KEY,JSON.stringify(DEFAULT_BOT_STATE));
     window.OrganoAI?.clearPlannerCache?.();
     window.dispatchEvent(new CustomEvent('organo:hydrate-main-state',{detail:DEFAULT_MAIN_STATE}));
-    window.dispatchEvent(new CustomEvent('organo:hydrate-bot-state',{detail:DEFAULT_BOT_STATE}));
   }
 
   function updateAuthUI(){
@@ -1086,7 +1052,7 @@
     setText('headerAuthButtonLabel',user?'Account':'Log In');
     $('headerAuthButton')?.setAttribute('aria-label',user?'Open account':'User Login Button');
     setText('heroSessionState',user?`Signed in as ${user.displayName||user.email}`:'Preview access');
-    setText('heroSessionCopy',user?(profileComplete?'Your progress, curriculum-aware roadmaps, theme, and chat history now sync through your account.':'Finish your first-time profile setup to complete your account and start syncing with your learner details attached.'):'Browse every panel freely, then sign in to unlock saved study state, planner history, and OrganoBot conversations.');
+    setText('heroSessionCopy',user?(profileComplete?'Your progress, curriculum-aware roadmaps, theme, and quiz history now sync through your account.':'Finish your first-time profile setup to complete your account and start syncing with your learner details attached.'):'Browse every panel freely, then sign in to unlock saved study state, planner history, and guided quiz continuity.');
     setText('authSessionSummary',user?(profileComplete?`Signed in as ${user.displayName||'Learner'} (${user.email}). Theme: ${activeTheme}. Curriculum: ${authState.profile?.curriculumTrack||'Pending'}. Academic year: ${authState.profile?.academicYear||'Pending'}.`:`Signed in as ${user.displayName||'Learner'} (${user.email}). Complete the first-time profile questions below to finish your account setup.`):'You are not signed in. Choose a provider or use your OrganoChem account to start a session.');
     const logoutButton=$('logoutButton');
     if(logoutButton)logoutButton.style.display=user?'inline-flex':'none';
@@ -1459,13 +1425,6 @@
       event.preventDefault();
       event.stopImmediatePropagation();
       requireAuth(locked.dataset.authMessage);
-    },true);
-    document.addEventListener('submit',event=>{
-      if(event.target.id==='chatForm'&&!isAuthenticated()){
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        requireAuth('Sign in to send questions to OrganoBot.');
-      }
     },true);
     document.addEventListener('focusin',event=>{
       const locked=event.target.closest('[data-auth-required]');

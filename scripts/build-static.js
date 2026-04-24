@@ -19,9 +19,6 @@ const staticFiles = [
   'organic-material-studio.css',
   'organic-material-studio.html',
   'organic-material-studio.js',
-  'organobot.css',
-  'organobot.html',
-  'organobot.js',
   'organochem-ai.js'
 ];
 
