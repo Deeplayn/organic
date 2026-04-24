@@ -1,5 +1,4 @@
-const LABELS=window.OrganoThemeLabels||{};
-const STORE='oc-state-v2',THEME='oc-theme';
+const STORE='oc-state-v2';
 const QuizJourney=window.OrganoQuizJourney||null;
 const quizBaseState=QuizJourney?.normalizeMainState?.({})||{};
 const baseState={...quizBaseState,topicStatus:{},savedReactions:[],quizHistory:[],studyPlans:[],quizAssessment:null,quizJourney:null,achievements:[],plannerTodoProgress:{}};
@@ -52,22 +51,8 @@ function readPlannerCourseDays(value){
   return clampCourseDays(value);
 }
 
-function togglePanel(){document.getElementById('themePanel')?.classList.toggle('open');}
-function closePanel(){document.getElementById('themePanel')?.classList.remove('open');}
-document.addEventListener('click',e=>{if(!e.target.closest('.theme-switcher'))closePanel();});
-function setTheme(theme,btn,options={}){
-  document.body.setAttribute('data-theme',theme);
-  const themeLabel=document.getElementById('themeLabel');
-  if(themeLabel)themeLabel.textContent=LABELS[theme]||theme;
-  document.querySelectorAll('.t-opt').forEach(b=>b.classList.remove('active'));
-  if(btn)btn.classList.add('active');
-  localStorage.setItem(THEME,theme);
-  closePanel();
-  window.dispatchEvent(new CustomEvent('organo:theme-changed',{detail:{theme,userInitiated:options.userInitiated!==false}}));
-  setTimeout(()=>drawMol(pickTodaysCompound()?.id||currentMol),50);
-}
-const savedTheme=localStorage.getItem(THEME);
-if(savedTheme)setTheme(savedTheme,document.querySelector(`.t-opt[data-theme-choice="${savedTheme}"]`),{userInitiated:false});
+const refreshHeroCompound=()=>setTimeout(()=>drawMol(pickTodaysCompound()?.id||currentMol),50);
+window.addEventListener('organo:theme-changed',refreshHeroCompound);
 
 const todaysCompounds=[
   {
