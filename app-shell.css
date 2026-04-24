@@ -1069,10 +1069,10 @@ body.has-global-loader .global-loader{
 .chat-panel-head > :first-child,
 .viewer-head > :first-child{min-width:0;}
 .panel-header-block h2,.section-copy h3,.dashboard-panel h3,.detail-panel h3,.studio-card h3,.chat-panel h3,.auth-card h3,.auth-info-card h3,.viewer-head h3{
-  margin:6px 0 10px;
+  margin:10px 0 14px;
   font-family:var(--font-display);
   color:var(--text-bright);
-  line-height:1.08;
+  line-height:1.12;
 }
 .panel-jump-links{display:flex;gap:10px;flex-wrap:wrap;}
 .panel-jump-links a{
@@ -1125,7 +1125,10 @@ body.has-global-loader .global-loader{
   letter-spacing:.1em;
   text-transform:uppercase;
 }
-.dashboard-hero-copy h3{font-size:clamp(2rem,3.5vw,3rem);}
+.dashboard-hero-copy h3{
+  margin:0 0 14px;
+  font-size:clamp(2rem,3.5vw,3rem);
+}
 .molecule-canvas{
   position:relative;
   overflow:hidden;
@@ -1298,7 +1301,7 @@ body.has-global-loader .global-loader{
   align-items:flex-start;
 }
 .planner-setup-head h4{
-  margin:0 0 8px;
+  margin:0 0 12px;
   font-family:var(--font-display);
   font-size:clamp(1.5rem,2.6vw,2rem);
   color:var(--text-bright);
@@ -2175,7 +2178,10 @@ body.has-global-loader .global-loader{
   letter-spacing:.12em;
   text-transform:uppercase;
 }
-.bot-copy h3{font-size:clamp(2rem,3.8vw,3.1rem);}
+.bot-copy h3{
+  margin:0 0 14px;
+  font-size:clamp(2rem,3.8vw,3.1rem);
+}
 .prompt-chip{
   padding:12px 16px;
   border-radius:999px;
@@ -2559,7 +2565,7 @@ body.has-global-loader .global-loader{
   gap:16px;
 }
 .account-achievement-head h4{
-  margin:0;
+  margin:0 0 10px;
   font-size:clamp(1.2rem,2vw,1.5rem);
 }
 .account-achievement-head .panel-copy{
